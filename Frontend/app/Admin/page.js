@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -290,18 +290,46 @@ function EditStudentModal({
   );
 }
 
+const DEFAULT_ADMIN_SESSION = {
+  token: "",
+  username: "admin",
+};
+
+function subscribeToSessionStore() {
+  return () => {};
+}
+
+function getAdminSessionSnapshot() {
+  if (typeof window === "undefined") {
+    return DEFAULT_ADMIN_SESSION;
+  }
+
+  return {
+    token: localStorage.getItem("admin_token") || "",
+    username: localStorage.getItem("admin_username") || "admin",
+  };
+}
+
+function getClientReadySnapshot() {
+  return true;
+}
+
+function getServerReadySnapshot() {
+  return false;
+}
+
 export default function AdminPage() {
   const router = useRouter();
-  const [adminSession] = useState(() => {
-    if (typeof window === "undefined") {
-      return { token: "", username: "" };
-    }
-
-    return {
-      token: localStorage.getItem("admin_token") || "",
-      username: localStorage.getItem("admin_username") || "admin",
-    };
-  });
+  const adminSession = useSyncExternalStore(
+    subscribeToSessionStore,
+    getAdminSessionSnapshot,
+    () => DEFAULT_ADMIN_SESSION,
+  );
+  const sessionReady = useSyncExternalStore(
+    subscribeToSessionStore,
+    getClientReadySnapshot,
+    getServerReadySnapshot,
+  );
 
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -383,6 +411,10 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
+    if (!sessionReady) {
+      return undefined;
+    }
+
     if (!adminSession.token) {
       router.replace("/");
       return undefined;
@@ -437,7 +469,7 @@ export default function AdminPage() {
     return () => {
       isActive = false;
     };
-  }, [adminSession.token, router]);
+  }, [adminSession.token, router, sessionReady]);
 
   async function handleStudentImageChange(event) {
     const selectedFile = event.target.files?.[0] || null;
@@ -888,6 +920,21 @@ export default function AdminPage() {
 
     return matchesSearch && matchesStatus;
   });
+
+  if (!sessionReady) {
+    return (
+      <main className="min-h-screen bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
+        <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
+          <div className="rounded-[2rem] border border-white/70 bg-white/85 px-8 py-10 text-center shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
+              WhosHere
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold">Loading admin dashboard...</h1>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <>

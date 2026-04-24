@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import { buildApiUrl, buildAssetUrl, parseApiResponse } from "@/app/lib/api";
@@ -126,25 +126,50 @@ function PhotoPreviewCard({
   );
 }
 
+const DEFAULT_STUDENT_SESSION = {
+  studentId: "",
+  studentName: "Student",
+  studentEmail: "",
+  faceImageUrl: "",
+};
+
+function subscribeToSessionStore() {
+  return () => {};
+}
+
+function getStudentSessionSnapshot() {
+  if (typeof window === "undefined") {
+    return DEFAULT_STUDENT_SESSION;
+  }
+
+  return {
+    studentId: localStorage.getItem("student_id") || "",
+    studentName: localStorage.getItem("student_name") || "Student",
+    studentEmail: localStorage.getItem("student_email") || "",
+    faceImageUrl: localStorage.getItem("student_face_image_url") || "",
+  };
+}
+
+function getClientReadySnapshot() {
+  return true;
+}
+
+function getServerReadySnapshot() {
+  return false;
+}
+
 export default function StudentPage() {
   const router = useRouter();
-  const [studentSession] = useState(() => {
-    if (typeof window === "undefined") {
-      return {
-        studentId: "",
-        studentName: "",
-        studentEmail: "",
-        faceImageUrl: "",
-      };
-    }
-
-    return {
-      studentId: localStorage.getItem("student_id") || "",
-      studentName: localStorage.getItem("student_name") || "Student",
-      studentEmail: localStorage.getItem("student_email") || "",
-      faceImageUrl: localStorage.getItem("student_face_image_url") || "",
-    };
-  });
+  const studentSession = useSyncExternalStore(
+    subscribeToSessionStore,
+    getStudentSessionSnapshot,
+    () => DEFAULT_STUDENT_SESSION,
+  );
+  const sessionReady = useSyncExternalStore(
+    subscribeToSessionStore,
+    getClientReadySnapshot,
+    getServerReadySnapshot,
+  );
 
   const [profile, setProfile] = useState(null);
   const [attendance, setAttendance] = useState([]);
@@ -219,6 +244,10 @@ export default function StudentPage() {
   }
 
   useEffect(() => {
+    if (!sessionReady) {
+      return undefined;
+    }
+
     if (!studentSession.studentId) {
       router.replace("/");
       return undefined;
@@ -268,7 +297,7 @@ export default function StudentPage() {
       isActive = false;
       stopCamera(false);
     };
-  }, [router, studentSession.studentId]);
+  }, [router, sessionReady, studentSession.studentId]);
 
   useEffect(() => {
     if (cameraOpen && videoRef.current && streamRef.current) {
@@ -476,6 +505,21 @@ export default function StudentPage() {
   const approvedLeaveDays = leaveRequests
     .filter((leaveRequest) => leaveRequest.status === "approved")
     .reduce((total, leaveRequest) => total + leaveRequest.days_requested, 0);
+
+  if (!sessionReady) {
+    return (
+      <main className="min-h-screen bg-[linear-gradient(140deg,#f8fafc_0%,#e0f2fe_52%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
+        <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
+          <div className="rounded-[2rem] border border-white/70 bg-white/85 px-8 py-10 text-center shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
+              WhosHere
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold">Loading student dashboard...</h1>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[linear-gradient(140deg,#f8fafc_0%,#e0f2fe_52%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
