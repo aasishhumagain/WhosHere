@@ -1,19 +1,33 @@
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
 
-# Backend virtual environment
+# Backend virtual environments
 backend/venv/
+.venv/
+venv/
 
-# Local database
+# Local databases
 backend/whoshere.db
+*.db
 
-# Uploaded images
+# Uploaded images and local artifacts
 backend/uploads/
 
-# Next.js
+# Next.js and frontend dependencies
 frontend/.next/
 frontend/node_modules/
 
-# Env files
+# Build output
+dist/
+build/
+out/
+coverage/
+
+# Environment files
 .env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local

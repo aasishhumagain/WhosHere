@@ -3,20 +3,46 @@ import hmac
 import os
 import secrets
 import shutil
+from datetime import date, datetime, timedelta
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import Base, SessionLocal, engine
 from app.face_utils import compare_faces, generate_face_encoding
-from app.models import AttendanceRecord, Student
+from app.models import AttendanceRecord, LeaveRequest, Student
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+OPENAPI_TAGS = [
+    {
+        "name": "Authentication",
+        "description": "Admin and student login/logout endpoints.",
+    },
+    {
+        "name": "Students",
+        "description": "Student registration, lookup, update, and deletion.",
+    },
+    {
+        "name": "Attendance",
+        "description": "Attendance marking, listing, updating, and deletion.",
+    },
+    {
+        "name": "Leave Requests",
+        "description": "Student leave submission and admin leave management.",
+    },
+]
+
+app = FastAPI(
+    title="WhosHere API",
+    description="Face-recognition attendance system for student and admin workflows.",
+    version="1.0.0",
+    openapi_tags=OPENAPI_TAGS,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,8 +52,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
+ATTENDANCE_STATUSES = {"present", "absent", "late", "excused"}
+LEAVE_REQUEST_STATUSES = {"pending", "approved", "rejected"}
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ACTIVE_ADMIN_TOKENS = set()
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 def get_db():
@@ -36,6 +70,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def require_admin(authorization: str | None = Header(default=None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Admin authentication required.")
+
+    token = authorization.removeprefix("Bearer ").strip()
+
+    if token not in ACTIVE_ADMIN_TOKENS:
+        raise HTTPException(status_code=401, detail="Admin session is invalid or expired.")
+
+    return token
 
 
 def normalize_optional_text(value: str | None):
@@ -64,27 +110,114 @@ def validate_required_password(password: str):
     return cleaned_password
 
 
+def validate_attendance_status(status: str):
+    cleaned_status = status.strip().lower()
+
+    if cleaned_status not in ATTENDANCE_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Attendance status must be one of: {', '.join(sorted(ATTENDANCE_STATUSES))}.",
+        )
+
+    return cleaned_status
+
+
+def validate_leave_status(status: str):
+    cleaned_status = status.strip().lower()
+
+    if cleaned_status not in LEAVE_REQUEST_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Leave status must be one of: {', '.join(sorted(LEAVE_REQUEST_STATUSES))}.",
+        )
+
+    return cleaned_status
+
+
+def validate_leave_reason(reason: str):
+    cleaned_reason = reason.strip()
+
+    if not cleaned_reason:
+        raise HTTPException(status_code=400, detail="Leave reason is required.")
+
+    return cleaned_reason
+
+
+def parse_iso_date(value: str, field_name: str):
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {field_name}. Use YYYY-MM-DD format.",
+        ) from exc
+
+
+def resolve_storage_path(file_path: str | None):
+    if not file_path:
+        return None
+
+    if os.path.isabs(file_path):
+        return file_path
+
+    normalized = str(file_path).replace("\\", "/").lstrip("/")
+
+    if normalized.startswith("uploads/"):
+        return os.path.join(BACKEND_DIR, *normalized.split("/"))
+
+    return os.path.join(UPLOAD_DIR, os.path.basename(normalized))
+
+
+def build_upload_url(file_path: str | None):
+    if not file_path:
+        return None
+
+    normalized = str(file_path).replace("\\", "/")
+
+    if normalized.startswith("/uploads/"):
+        return normalized
+
+    if normalized.startswith("uploads/"):
+        return f"/{normalized}"
+
+    return f"/uploads/{os.path.basename(normalized)}"
+
+
 def remove_file(file_path: str | None):
-    if file_path and os.path.exists(file_path):
-        os.remove(file_path)
+    storage_path = resolve_storage_path(file_path)
+
+    if storage_path and os.path.exists(storage_path):
+        os.remove(storage_path)
+
+
+def save_uploaded_file(face_image: UploadFile, prefix: str):
+    original_name = os.path.basename(face_image.filename or f"{prefix}.jpg")
+    file_extension = os.path.splitext(original_name.replace(" ", "_"))[1] or ".jpg"
+    file_name = f"{prefix}_{uuid4().hex}{file_extension}"
+    relative_path = f"uploads/{file_name}"
+    absolute_path = resolve_storage_path(relative_path)
+
+    with open(absolute_path, "wb") as buffer:
+        shutil.copyfileobj(face_image.file, buffer)
+
+    return relative_path, absolute_path
 
 
 def save_face_image(face_image: UploadFile, prefix: str = "student"):
-    original_name = os.path.basename(face_image.filename or "face.jpg")
-    file_extension = os.path.splitext(original_name.replace(" ", "_"))[1] or ".jpg"
-    file_name = f"{prefix}_{uuid4().hex}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, file_name)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(face_image.file, buffer)
+    relative_path, absolute_path = save_uploaded_file(face_image, prefix)
 
     try:
-        face_encoding = generate_face_encoding(file_path)
+        face_encoding = generate_face_encoding(absolute_path)
     except ValueError as exc:
-        remove_file(file_path)
+        remove_file(relative_path)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return file_path, face_encoding
+    return relative_path, face_encoding
+
+
+def save_temp_face_image(face_image: UploadFile):
+    relative_path, absolute_path = save_uploaded_file(face_image, "temp")
+    return relative_path, absolute_path
 
 
 def hash_password(password: str):
@@ -119,13 +252,42 @@ def verify_password(plain_password: str, stored_password: str):
     return hmac.compare_digest(password_hash, stored_hash)
 
 
+def verify_admin_password(plain_password: str):
+    return verify_password(plain_password, ADMIN_PASSWORD)
+
+
 def serialize_student(student: Student):
     return {
         "student_id": student.id,
         "full_name": student.full_name,
         "email": student.email,
         "face_image_path": student.face_image_path,
+        "face_image_url": build_upload_url(student.face_image_path),
         "created_at": student.created_at,
+    }
+
+
+def serialize_attendance(record: AttendanceRecord):
+    return {
+        "id": record.id,
+        "student_id": record.student_id,
+        "student_name": record.student.full_name if record.student else "Unknown Student",
+        "status": record.status,
+        "marked_at": record.marked_at,
+    }
+
+
+def serialize_leave_request(leave_request: LeaveRequest):
+    return {
+        "id": leave_request.id,
+        "student_id": leave_request.student_id,
+        "student_name": leave_request.student.full_name if leave_request.student else "Unknown Student",
+        "start_date": leave_request.start_date,
+        "end_date": leave_request.end_date,
+        "reason": leave_request.reason,
+        "status": leave_request.status,
+        "created_at": leave_request.created_at,
+        "days_requested": (leave_request.end_date - leave_request.start_date).days + 1,
     }
 
 
@@ -138,18 +300,61 @@ def get_student_or_404(student_id: int, db: Session):
     return student
 
 
-@app.get("/")
+def get_attendance_or_404(attendance_id: int, db: Session):
+    attendance = db.query(AttendanceRecord).filter(AttendanceRecord.id == attendance_id).first()
+
+    if not attendance:
+        raise HTTPException(status_code=404, detail="Attendance record not found.")
+
+    return attendance
+
+
+def get_leave_request_or_404(leave_request_id: int, db: Session):
+    leave_request = db.query(LeaveRequest).filter(LeaveRequest.id == leave_request_id).first()
+
+    if not leave_request:
+        raise HTTPException(status_code=404, detail="Leave request not found.")
+
+    return leave_request
+
+
+@app.get("/", include_in_schema=False)
 def home():
     return {"message": "WhosHere backend is running"}
 
 
-@app.post("/students/register")
+@app.post("/login/admin", tags=["Authentication"], summary="Admin login")
+def admin_login(
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    if username.strip() != ADMIN_USERNAME or not verify_admin_password(password):
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+
+    token = secrets.token_urlsafe(32)
+    ACTIVE_ADMIN_TOKENS.add(token)
+
+    return {
+        "message": "Admin login successful",
+        "username": ADMIN_USERNAME,
+        "token": token,
+    }
+
+
+@app.post("/logout/admin", tags=["Authentication"], summary="Admin logout")
+def admin_logout(admin_token: str = Depends(require_admin)):
+    ACTIVE_ADMIN_TOKENS.discard(admin_token)
+    return {"message": "Admin logged out successfully"}
+
+
+@app.post("/students/register", tags=["Students"], summary="Register a student")
 def register_student(
     full_name: str = Form(...),
     password: str = Form(...),
     email: str = Form(None),
     face_image: UploadFile = File(...),
     db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
 ):
     file_path, face_encoding = save_face_image(face_image)
 
@@ -179,19 +384,22 @@ def register_student(
     }
 
 
-@app.get("/students")
-def get_students(db: Session = Depends(get_db)):
+@app.get("/students", tags=["Students"], summary="List students")
+def get_students(
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
     students = db.query(Student).order_by(Student.created_at.desc()).all()
     return [serialize_student(student) for student in students]
 
 
-@app.get("/students/{student_id}")
+@app.get("/students/{student_id}", tags=["Students"], summary="Get one student")
 def get_student(student_id: int, db: Session = Depends(get_db)):
     student = get_student_or_404(student_id, db)
     return serialize_student(student)
 
 
-@app.put("/students/{student_id}")
+@app.put("/students/{student_id}", tags=["Students"], summary="Update a student")
 def update_student(
     student_id: int,
     full_name: str = Form(...),
@@ -199,6 +407,7 @@ def update_student(
     password: str = Form(None),
     face_image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
 ):
     student = get_student_or_404(student_id, db)
     previous_face_image_path = student.face_image_path
@@ -235,14 +444,23 @@ def update_student(
     }
 
 
-@app.delete("/students/{student_id}")
-def delete_student(student_id: int, db: Session = Depends(get_db)):
+@app.delete("/students/{student_id}", tags=["Students"], summary="Delete a student")
+def delete_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
     student = get_student_or_404(student_id, db)
     face_image_path = student.face_image_path
 
     deleted_attendance_records = (
         db.query(AttendanceRecord)
         .filter(AttendanceRecord.student_id == student.id)
+        .delete(synchronize_session=False)
+    )
+    deleted_leave_requests = (
+        db.query(LeaveRequest)
+        .filter(LeaveRequest.student_id == student.id)
         .delete(synchronize_session=False)
     )
 
@@ -253,10 +471,11 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
     return {
         "message": "Student deleted successfully",
         "attendance_records_deleted": deleted_attendance_records,
+        "leave_requests_deleted": deleted_leave_requests,
     }
 
 
-@app.post("/login/student")
+@app.post("/login/student", tags=["Authentication"], summary="Student login")
 def student_login(
     student_id: int = Form(...),
     password: str = Form(...),
@@ -272,24 +491,22 @@ def student_login(
         "student_id": student.id,
         "full_name": student.full_name,
         "email": student.email,
+        "face_image_url": build_upload_url(student.face_image_path),
+        "created_at": student.created_at,
     }
 
 
-@app.post("/attendance/mark")
+@app.post("/attendance/mark", tags=["Attendance"], summary="Mark attendance")
 def mark_attendance(
     face_image: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    safe_filename = face_image.filename.replace(" ", "_")
-    file_path = f"{UPLOAD_DIR}/temp_{safe_filename}"
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(face_image.file, buffer)
+    relative_temp_path, temp_file_path = save_temp_face_image(face_image)
 
     try:
-        new_encoding = generate_face_encoding(file_path)
+        new_encoding = generate_face_encoding(temp_file_path)
     except ValueError as exc:
-        remove_file(file_path)
+        remove_file(relative_temp_path)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     students = db.query(Student).all()
@@ -305,9 +522,32 @@ def mark_attendance(
                 min_distance = distance
                 best_match = student
 
-    remove_file(file_path)
+    remove_file(relative_temp_path)
 
     if best_match and min_distance < 5:
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_start = today_start + timedelta(days=1)
+        existing_attendance = (
+            db.query(AttendanceRecord)
+            .filter(
+                AttendanceRecord.student_id == best_match.id,
+                AttendanceRecord.status == "present",
+                AttendanceRecord.marked_at >= today_start,
+                AttendanceRecord.marked_at < tomorrow_start,
+            )
+            .order_by(AttendanceRecord.marked_at.desc())
+            .first()
+        )
+
+        if existing_attendance:
+            return {
+                "status": "duplicate",
+                "message": f"{best_match.full_name} has already been marked present today.",
+                "student": best_match.full_name,
+                "student_id": best_match.id,
+                "marked_at": existing_attendance.marked_at,
+            }
+
         attendance = AttendanceRecord(student_id=best_match.id, status="present")
 
         db.add(attendance)
@@ -328,23 +568,53 @@ def mark_attendance(
     }
 
 
-@app.get("/attendance")
-def get_attendance(db: Session = Depends(get_db)):
+@app.get("/attendance", tags=["Attendance"], summary="List attendance records")
+def get_attendance(
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
     records = db.query(AttendanceRecord).order_by(AttendanceRecord.marked_at.desc()).all()
-
-    return [
-        {
-            "id": record.id,
-            "student_id": record.student_id,
-            "student_name": record.student.full_name,
-            "status": record.status,
-            "marked_at": record.marked_at,
-        }
-        for record in records
-    ]
+    return [serialize_attendance(record) for record in records]
 
 
-@app.get("/attendance/student/{student_id}")
+@app.put("/attendance/{attendance_id}", tags=["Attendance"], summary="Update attendance")
+def update_attendance(
+    attendance_id: int,
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
+    attendance = get_attendance_or_404(attendance_id, db)
+    attendance.status = validate_attendance_status(status)
+
+    db.commit()
+    db.refresh(attendance)
+
+    return {
+        "message": "Attendance updated successfully",
+        "attendance": serialize_attendance(attendance),
+    }
+
+
+@app.delete("/attendance/{attendance_id}", tags=["Attendance"], summary="Delete attendance")
+def delete_attendance(
+    attendance_id: int,
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
+    attendance = get_attendance_or_404(attendance_id, db)
+
+    db.delete(attendance)
+    db.commit()
+
+    return {"message": "Attendance deleted successfully"}
+
+
+@app.get(
+    "/attendance/student/{student_id}",
+    tags=["Attendance"],
+    summary="Get attendance for one student",
+)
 def get_student_attendance(student_id: int, db: Session = Depends(get_db)):
     records = (
         db.query(AttendanceRecord)
@@ -353,12 +623,103 @@ def get_student_attendance(student_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    return [
-        {
-            "id": record.id,
-            "student_id": record.student_id,
-            "status": record.status,
-            "marked_at": record.marked_at,
-        }
-        for record in records
-    ]
+    return [serialize_attendance(record) for record in records]
+
+
+@app.post("/leave-requests", tags=["Leave Requests"], summary="Create leave request")
+def create_leave_request(
+    student_id: int = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    student = get_student_or_404(student_id, db)
+    parsed_start_date = parse_iso_date(start_date, "start date")
+    parsed_end_date = parse_iso_date(end_date, "end date")
+
+    if parsed_end_date < parsed_start_date:
+        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
+
+    leave_request = LeaveRequest(
+        student_id=student.id,
+        start_date=parsed_start_date,
+        end_date=parsed_end_date,
+        reason=validate_leave_reason(reason),
+        status="pending",
+    )
+
+    db.add(leave_request)
+    db.commit()
+    db.refresh(leave_request)
+
+    return {
+        "message": "Leave request submitted successfully",
+        "leave_request": serialize_leave_request(leave_request),
+    }
+
+
+@app.get("/leave-requests", tags=["Leave Requests"], summary="List leave requests")
+def get_leave_requests(
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
+    leave_requests = db.query(LeaveRequest).order_by(LeaveRequest.created_at.desc()).all()
+    return [serialize_leave_request(leave_request) for leave_request in leave_requests]
+
+
+@app.get(
+    "/leave-requests/student/{student_id}",
+    tags=["Leave Requests"],
+    summary="Get leave requests for one student",
+)
+def get_student_leave_requests(student_id: int, db: Session = Depends(get_db)):
+    leave_requests = (
+        db.query(LeaveRequest)
+        .filter(LeaveRequest.student_id == student_id)
+        .order_by(LeaveRequest.created_at.desc())
+        .all()
+    )
+
+    return [serialize_leave_request(leave_request) for leave_request in leave_requests]
+
+
+@app.put(
+    "/leave-requests/{leave_request_id}",
+    tags=["Leave Requests"],
+    summary="Update leave request status",
+)
+def update_leave_request_status(
+    leave_request_id: int,
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
+    leave_request = get_leave_request_or_404(leave_request_id, db)
+    leave_request.status = validate_leave_status(status)
+
+    db.commit()
+    db.refresh(leave_request)
+
+    return {
+        "message": "Leave request updated successfully",
+        "leave_request": serialize_leave_request(leave_request),
+    }
+
+
+@app.delete(
+    "/leave-requests/{leave_request_id}",
+    tags=["Leave Requests"],
+    summary="Delete leave request",
+)
+def delete_leave_request(
+    leave_request_id: int,
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
+    leave_request = get_leave_request_or_404(leave_request_id, db)
+
+    db.delete(leave_request)
+    db.commit()
+
+    return {"message": "Leave request deleted successfully"}
