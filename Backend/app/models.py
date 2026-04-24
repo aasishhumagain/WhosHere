@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
 
@@ -6,10 +7,21 @@ from app.database import Base
 class Student(Base):
     __tablename__ = "students"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)  # this is student_id
     full_name = Column(String, nullable=False)
-    roll_number = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)  # NEW
     email = Column(String, unique=True, nullable=True)
     face_image_path = Column(String, nullable=True)
     face_encoding = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AttendanceRecord(Base):
+    __tablename__ = "attendance_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    status = Column(String, default="present")
+    marked_at = Column(DateTime, default=datetime.utcnow)
+
+    student = relationship("Student", back_populates="attendance_records")

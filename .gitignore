@@ -1,4 +1,15 @@
-backend/venv/
+# Python
 __pycache__/
 *.pyc
+
+# Virtual environment
+backend/venv/
+
+# Database
+backend/whoshere.db
+
+# Uploaded images
+backend/uploads/
+
+# Env files
 .env

@@ -1,16 +1,25 @@
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.face_utils import generate_face_encoding
+from app.face_utils import generate_face_encoding, compare_faces
 import shutil
 import os
 
 from app.database import engine, Base, SessionLocal
-from app.models import Student
+from app.models import Student, AttendanceRecord
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -84,6 +93,7 @@ def get_students(db: Session = Depends(get_db)):
     students = db.query(Student).all()
     return students
 
+
 @app.post("/attendance/mark")
 def mark_attendance(
     face_image: UploadFile = File(...),
@@ -105,8 +115,6 @@ def mark_attendance(
     best_match = None
     min_distance = float("inf")
 
-    from app.face_utils import compare_faces
-
     for student in students:
         if student.face_encoding:
             distance = compare_faces(student.face_encoding, new_encoding)
@@ -117,15 +125,42 @@ def mark_attendance(
 
     os.remove(file_path)
 
-    if best_match and min_distance < 50:  # threshold (tune later)
+    if best_match and min_distance < 5:
+        attendance = AttendanceRecord(
+            student_id=best_match.id,
+            status="present"
+        )
+
+        db.add(attendance)
+        db.commit()
+        db.refresh(attendance)
+
         return {
             "status": "present",
             "student": best_match.full_name,
             "roll_number": best_match.roll_number,
-            "confidence": float(min_distance)
+            "confidence": float(min_distance),
+            "marked_at": attendance.marked_at
         }
 
     return {
         "status": "unknown",
         "message": "No matching student found"
     }
+
+
+@app.get("/attendance")
+def get_attendance(db: Session = Depends(get_db)):
+    records = db.query(AttendanceRecord).all()
+
+    return [
+        {
+            "id": record.id,
+            "student_id": record.student_id,
+            "student_name": record.student.full_name,
+            "roll_number": record.student.roll_number,
+            "status": record.status,
+            "marked_at": record.marked_at
+        }
+        for record in records
+    ]
