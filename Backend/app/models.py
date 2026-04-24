@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Text
 from datetime import datetime
 from app.database import Base
+
 
 class Student(Base):
     __tablename__ = "students"
@@ -10,4 +11,5 @@ class Student(Base):
     roll_number = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=True)
     face_image_path = Column(String, nullable=True)
+    face_encoding = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
