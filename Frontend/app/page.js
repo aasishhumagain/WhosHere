@@ -132,7 +132,13 @@ export default function WelcomePage() {
                 Use your student ID and password provided by the administrator.
               </p>
 
-              <div className="mt-8 space-y-4">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  studentLogin();
+                }}
+                className="mt-8 space-y-4"
+              >
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
                     Student ID
@@ -160,13 +166,13 @@ export default function WelcomePage() {
                 </div>
 
                 <button
-                  onClick={studentLogin}
+                  type="submit"
                   disabled={loadingStudent}
                   className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                 >
                   {loadingStudent ? "Signing In..." : "Login as Student"}
                 </button>
-              </div>
+              </form>
 
               {studentMessage ? (
                 <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -184,7 +190,13 @@ export default function WelcomePage() {
                 Admin login is now verified by the backend instead of a frontend-only password.
               </p>
 
-              <div className="mt-8 space-y-4">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  adminLogin();
+                }}
+                className="mt-8 space-y-4"
+              >
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
                     Username
@@ -212,13 +224,13 @@ export default function WelcomePage() {
                 </div>
 
                 <button
-                  onClick={adminLogin}
+                  type="submit"
                   disabled={loadingAdmin}
                   className="w-full rounded-2xl bg-emerald-600 px-4 py-3 font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                 >
                   {loadingAdmin ? "Signing In..." : "Login as Administrator"}
                 </button>
-              </div>
+              </form>
 
               {adminMessage ? (
                 <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
