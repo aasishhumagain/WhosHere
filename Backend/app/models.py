@@ -7,13 +7,15 @@ from app.database import Base
 class Student(Base):
     __tablename__ = "students"
 
-    id = Column(Integer, primary_key=True, index=True)  # this is student_id
+    id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, nullable=False)
-    password = Column(String, nullable=False)  # NEW
+    password = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=True)
     face_image_path = Column(String, nullable=True)
     face_encoding = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    attendance_records = relationship("AttendanceRecord", back_populates="student")
 
 
 class AttendanceRecord(Base):

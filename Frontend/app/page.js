@@ -6,22 +6,34 @@ import { useRouter } from "next/navigation";
 export default function WelcomePage() {
   const router = useRouter();
 
-  const [rollNumber, setRollNumber] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [studentPassword, setStudentPassword] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [message, setMessage] = useState("");
 
   async function studentLogin() {
     setMessage("");
 
+    const formData = new FormData();
+    formData.append("student_id", studentId);
+    formData.append("password", studentPassword);
+
     try {
-      const res = await fetch(`http://127.0.0.1:8000/students/${rollNumber}`);
+      const res = await fetch("http://127.0.0.1:8000/login/student", {
+        method: "POST",
+        body: formData,
+      });
 
       if (!res.ok) {
-        setMessage("You're not registered, please contact admin.");
+        setMessage("Invalid ID or password. Please contact admin if you are not registered.");
         return;
       }
 
-      localStorage.setItem("student_roll", rollNumber);
+      const data = await res.json();
+
+      localStorage.setItem("student_id", data.student_id);
+      localStorage.setItem("student_name", data.full_name);
+
       router.push("/student");
     } catch {
       setMessage("Could not connect to server.");
@@ -49,10 +61,18 @@ export default function WelcomePage() {
             <h2 className="text-2xl font-bold mb-4">Student Login</h2>
 
             <input
-              type="text"
-              placeholder="Enter Roll Number"
-              value={rollNumber}
-              onChange={(e) => setRollNumber(e.target.value)}
+              type="number"
+              placeholder="Enter Student ID"
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              className="border p-2 w-full mb-4 rounded"
+            />
+
+            <input
+              type="password"
+              placeholder="Enter Password"
+              value={studentPassword}
+              onChange={(e) => setStudentPassword(e.target.value)}
               className="border p-2 w-full mb-4 rounded"
             />
 
