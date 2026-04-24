@@ -137,7 +137,15 @@ function subscribeToSessionStore() {
   return () => {};
 }
 
-function getStudentSessionSnapshot() {
+function getClientReadySnapshot() {
+  return true;
+}
+
+function getServerReadySnapshot() {
+  return false;
+}
+
+function getStudentSessionFromStorage() {
   if (typeof window === "undefined") {
     return DEFAULT_STUDENT_SESSION;
   }
@@ -150,26 +158,16 @@ function getStudentSessionSnapshot() {
   };
 }
 
-function getClientReadySnapshot() {
-  return true;
-}
-
-function getServerReadySnapshot() {
-  return false;
-}
-
 export default function StudentPage() {
   const router = useRouter();
-  const studentSession = useSyncExternalStore(
-    subscribeToSessionStore,
-    getStudentSessionSnapshot,
-    () => DEFAULT_STUDENT_SESSION,
-  );
   const sessionReady = useSyncExternalStore(
     subscribeToSessionStore,
     getClientReadySnapshot,
     getServerReadySnapshot,
   );
+  const studentSession = sessionReady
+    ? getStudentSessionFromStorage()
+    : DEFAULT_STUDENT_SESSION;
 
   const [profile, setProfile] = useState(null);
   const [attendance, setAttendance] = useState([]);

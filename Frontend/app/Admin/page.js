@@ -299,7 +299,15 @@ function subscribeToSessionStore() {
   return () => {};
 }
 
-function getAdminSessionSnapshot() {
+function getClientReadySnapshot() {
+  return true;
+}
+
+function getServerReadySnapshot() {
+  return false;
+}
+
+function getAdminSessionFromStorage() {
   if (typeof window === "undefined") {
     return DEFAULT_ADMIN_SESSION;
   }
@@ -310,26 +318,16 @@ function getAdminSessionSnapshot() {
   };
 }
 
-function getClientReadySnapshot() {
-  return true;
-}
-
-function getServerReadySnapshot() {
-  return false;
-}
-
 export default function AdminPage() {
   const router = useRouter();
-  const adminSession = useSyncExternalStore(
-    subscribeToSessionStore,
-    getAdminSessionSnapshot,
-    () => DEFAULT_ADMIN_SESSION,
-  );
   const sessionReady = useSyncExternalStore(
     subscribeToSessionStore,
     getClientReadySnapshot,
     getServerReadySnapshot,
   );
+  const adminSession = sessionReady
+    ? getAdminSessionFromStorage()
+    : DEFAULT_ADMIN_SESSION;
 
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState([]);
