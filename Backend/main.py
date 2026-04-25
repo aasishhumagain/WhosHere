@@ -162,9 +162,27 @@ def parse_iso_date(value: str, field_name: str):
 
 
 def get_day_bounds(target_date: date):
-    day_start = datetime.combine(target_date, datetime.min.time())
-    next_day_start = day_start + timedelta(days=1)
-    return day_start, next_day_start
+    local_timezone = datetime.now().astimezone().tzinfo or timezone.utc
+    day_start_local = datetime.combine(target_date, datetime.min.time(), tzinfo=local_timezone)
+    next_day_start_local = day_start_local + timedelta(days=1)
+
+    return (
+        day_start_local.astimezone(timezone.utc).replace(tzinfo=None),
+        next_day_start_local.astimezone(timezone.utc).replace(tzinfo=None),
+    )
+
+
+def convert_storage_datetime_to_local(value: datetime | None):
+    if not value:
+        return None
+
+    local_timezone = datetime.now().astimezone().tzinfo or timezone.utc
+    return value.replace(tzinfo=timezone.utc).astimezone(local_timezone)
+
+
+def serialize_local_datetime(value: datetime | None):
+    local_datetime = convert_storage_datetime_to_local(value)
+    return local_datetime.isoformat(timespec="seconds") if local_datetime else None
 
 
 def resolve_storage_path(file_path: str | None):
@@ -287,7 +305,7 @@ def serialize_attendance(record: AttendanceRecord):
         "student_id": record.student_id,
         "student_name": record.student.full_name if record.student else "Unknown Student",
         "status": record.status,
-        "marked_at": record.marked_at,
+        "marked_at": serialize_local_datetime(record.marked_at),
     }
 
 
@@ -676,8 +694,8 @@ def mark_attendance(
         db.commit()
 
     if best_match and best_match_score >= FACE_MATCH_THRESHOLD:
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        tomorrow_start = today_start + timedelta(days=1)
+        local_today = datetime.now().astimezone().date()
+        today_start, tomorrow_start = get_day_bounds(local_today)
         existing_attendance = (
             db.query(AttendanceRecord)
             .filter(
@@ -696,7 +714,7 @@ def mark_attendance(
                 "message": f"{best_match.full_name} has already been marked present today.",
                 "student": best_match.full_name,
                 "student_id": best_match.id,
-                "marked_at": existing_attendance.marked_at,
+                "marked_at": serialize_local_datetime(existing_attendance.marked_at),
             }
 
         attendance = AttendanceRecord(student_id=best_match.id, status="present")
@@ -710,7 +728,7 @@ def mark_attendance(
             "student": best_match.full_name,
             "student_id": best_match.id,
             "confidence": float(best_match_score),
-            "marked_at": attendance.marked_at,
+            "marked_at": serialize_local_datetime(attendance.marked_at),
         }
 
     return {
@@ -768,11 +786,9 @@ def export_attendance(
         ]
     )
 
-    local_timezone = datetime.now().astimezone().tzinfo or timezone.utc
-
     for record in records:
         if record.marked_at:
-            local_marked_at = record.marked_at.replace(tzinfo=timezone.utc).astimezone(local_timezone)
+            local_marked_at = convert_storage_datetime_to_local(record.marked_at)
             marked_date = local_marked_at.strftime("%Y-%m-%d")
             marked_time = local_marked_at.strftime("%H:%M:%S")
         else:
