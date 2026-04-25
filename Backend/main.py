@@ -73,6 +73,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 STUDENT_CODE_SEQUENCE_WIDTH = 5
+STUDENT_CODE_YEAR_PREFIX_WIDTH = 3
+LEGACY_STUDENT_CODE_YEAR_PREFIX_WIDTH = 2
 
 
 def get_local_now():
@@ -80,7 +82,7 @@ def get_local_now():
 
 
 def get_student_code_year_prefix(year: int):
-    return f"{year % 100:02d}"
+    return f"0{year % 100:02d}"
 
 
 def build_student_code_from_prefix(year_prefix: str, sequence: int):
@@ -99,7 +101,7 @@ def get_student_code_year(student: Student):
 def is_valid_student_code(code: str | None, year: int | None = None):
     normalized_code = (code or "").strip()
 
-    if not normalized_code.isdigit() or len(normalized_code) != 2 + STUDENT_CODE_SEQUENCE_WIDTH:
+    if not normalized_code.isdigit() or len(normalized_code) != STUDENT_CODE_YEAR_PREFIX_WIDTH + STUDENT_CODE_SEQUENCE_WIDTH:
         return False
 
     if year is None:
@@ -133,6 +135,15 @@ def get_student_by_identifier(student_id: str | int, db: Session):
 
     if student:
         return student
+
+    if (
+        normalized_student_id.isdigit()
+        and len(normalized_student_id) == LEGACY_STUDENT_CODE_YEAR_PREFIX_WIDTH + STUDENT_CODE_SEQUENCE_WIDTH
+    ):
+        student = db.query(Student).filter(Student.student_code == f"0{normalized_student_id}").first()
+
+        if student:
+            return student
 
     if normalized_student_id.isdigit():
         return db.query(Student).filter(Student.id == int(normalized_student_id)).first()
