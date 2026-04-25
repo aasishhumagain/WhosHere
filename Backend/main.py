@@ -13,7 +13,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import Base, SessionLocal, engine
-from app.face_utils import compare_faces, generate_face_encoding
+from app.face_utils import (
+    FACE_MATCH_THRESHOLD,
+    compare_faces,
+    generate_face_encoding,
+    is_current_face_encoding,
+)
 from app.models import AttendanceRecord, LeaveRequest, Student
 
 Base.metadata.create_all(bind=engine)
@@ -318,6 +323,19 @@ def get_leave_request_or_404(leave_request_id: int, db: Session):
     return leave_request
 
 
+def refresh_student_face_encoding(student: Student):
+    if is_current_face_encoding(student.face_encoding):
+        return False
+
+    face_image_path = resolve_storage_path(student.face_image_path)
+
+    if not face_image_path or not os.path.exists(face_image_path):
+        return False
+
+    student.face_encoding = generate_face_encoding(face_image_path)
+    return True
+
+
 @app.get("/", include_in_schema=False)
 def home():
     return {"message": "WhosHere backend is running"}
@@ -512,19 +530,32 @@ def mark_attendance(
     students = db.query(Student).all()
 
     best_match = None
-    min_distance = float("inf")
+    best_match_score = float("-inf")
+    refreshed_student_encodings = False
 
     for student in students:
-        if student.face_encoding:
-            distance = compare_faces(student.face_encoding, new_encoding)
+        if not student.face_encoding or not is_current_face_encoding(student.face_encoding):
+            try:
+                refreshed_student_encodings = refresh_student_face_encoding(student) or refreshed_student_encodings
+            except ValueError:
+                continue
 
-            if distance < min_distance:
-                min_distance = distance
+        if student.face_encoding and is_current_face_encoding(student.face_encoding):
+            try:
+                similarity_score = compare_faces(student.face_encoding, new_encoding)
+            except ValueError:
+                continue
+
+            if similarity_score > best_match_score:
+                best_match_score = similarity_score
                 best_match = student
 
     remove_file(relative_temp_path)
 
-    if best_match and min_distance < 5:
+    if refreshed_student_encodings:
+        db.commit()
+
+    if best_match and best_match_score >= FACE_MATCH_THRESHOLD:
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         tomorrow_start = today_start + timedelta(days=1)
         existing_attendance = (
@@ -558,13 +589,14 @@ def mark_attendance(
             "status": "present",
             "student": best_match.full_name,
             "student_id": best_match.id,
-            "confidence": float(min_distance),
+            "confidence": float(best_match_score),
             "marked_at": attendance.marked_at,
         }
 
     return {
         "status": "unknown",
         "message": "No matching student found",
+        "confidence": None if best_match_score == float("-inf") else float(best_match_score),
     }
 
 
