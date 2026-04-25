@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   buildApiUrl,
   buildAssetUrl,
+  buildQueryString,
   getAdminAuthHeaders,
   parseApiResponse,
 } from "@/app/lib/api";
@@ -60,6 +61,10 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString();
 }
 
+function formatPercent(value) {
+  return `${Math.round(value)}%`;
+}
+
 function capitalizeWords(value) {
   if (!value) {
     return "";
@@ -69,6 +74,20 @@ function capitalizeWords(value) {
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function buildAttendanceExportFileName(filters) {
+  const nameParts = ["attendance_report", filters.date || "all_dates"];
+
+  if (filters.status !== "all") {
+    nameParts.push(filters.status);
+  }
+
+  if (filters.studentId !== "all") {
+    nameParts.push(`student_${filters.studentId}`);
+  }
+
+  return `${nameParts.join("_")}.csv`;
 }
 
 function getBannerClass(type) {
@@ -353,6 +372,7 @@ export default function AdminPage() {
   const [attendanceDrafts, setAttendanceDrafts] = useState({});
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState(null);
   const [deletingAttendanceId, setDeletingAttendanceId] = useState(null);
+  const [isExportingAttendance, setIsExportingAttendance] = useState(false);
   const [leaveDrafts, setLeaveDrafts] = useState({});
   const [updatingLeaveId, setUpdatingLeaveId] = useState(null);
   const [deletingLeaveId, setDeletingLeaveId] = useState(null);
@@ -763,6 +783,53 @@ export default function AdminPage() {
     }
   }
 
+  async function handleExportAttendanceCsv() {
+    setIsExportingAttendance(true);
+    setAttendanceMessage(null);
+
+    try {
+      const queryString = buildQueryString({
+        search: attendanceFilters.search.trim(),
+        status: attendanceFilters.status === "all" ? null : attendanceFilters.status,
+        student_id:
+          attendanceFilters.studentId === "all" ? null : attendanceFilters.studentId,
+        date: attendanceFilters.date || null,
+      });
+      const response = await fetch(buildApiUrl(`/attendance/export${queryString}`), {
+        headers: adminHeaders,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || errorData.message || "Could not export the attendance report.",
+        );
+      }
+
+      const csvBlob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(csvBlob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = buildAttendanceExportFileName(attendanceFilters);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setAttendanceMessage({
+        type: "success",
+        message: "Attendance CSV exported successfully.",
+      });
+    } catch (error) {
+      setAttendanceMessage({
+        type: "error",
+        message: error.message || "Could not export the attendance report.",
+      });
+    } finally {
+      setIsExportingAttendance(false);
+    }
+  }
+
   async function handleUpdateLeaveRequest(leaveRequest) {
     const nextStatus = leaveDrafts[leaveRequest.id] || leaveRequest.status;
     setUpdatingLeaveId(leaveRequest.id);
@@ -908,6 +975,69 @@ export default function AdminPage() {
 
     return matchesSearch && matchesStatus && matchesStudent && matchesDate;
   });
+
+  const attendanceStatusSummary = {
+    present: 0,
+    late: 0,
+    absent: 0,
+    excused: 0,
+  };
+  const attendanceStudentReportMap = new Map();
+  const attendanceDailyReportMap = new Map();
+
+  filteredAttendance.forEach((record) => {
+    attendanceStatusSummary[record.status] =
+      (attendanceStatusSummary[record.status] || 0) + 1;
+
+    const reportDateKey = new Date(record.marked_at).toISOString().slice(0, 10);
+    const dailyEntry = attendanceDailyReportMap.get(reportDateKey) || {
+      date: reportDateKey,
+      total: 0,
+      present: 0,
+      late: 0,
+      absent: 0,
+      excused: 0,
+    };
+    dailyEntry.total += 1;
+    dailyEntry[record.status] = (dailyEntry[record.status] || 0) + 1;
+    attendanceDailyReportMap.set(reportDateKey, dailyEntry);
+
+    const studentEntry = attendanceStudentReportMap.get(record.student_id) || {
+      student_id: record.student_id,
+      student_name: record.student_name,
+      total: 0,
+      present: 0,
+      late: 0,
+      absent: 0,
+      excused: 0,
+      latest_marked_at: "",
+    };
+    studentEntry.total += 1;
+    studentEntry[record.status] = (studentEntry[record.status] || 0) + 1;
+
+    if (!studentEntry.latest_marked_at || record.marked_at > studentEntry.latest_marked_at) {
+      studentEntry.latest_marked_at = record.marked_at;
+    }
+
+    attendanceStudentReportMap.set(record.student_id, studentEntry);
+  });
+
+  const attendanceUniqueStudents = attendanceStudentReportMap.size;
+  const attendanceCoveredCount =
+    attendanceStatusSummary.present +
+    attendanceStatusSummary.late +
+    attendanceStatusSummary.excused;
+  const attendanceCoverageRate = filteredAttendance.length
+    ? (attendanceCoveredCount / filteredAttendance.length) * 100
+    : 0;
+  const attendanceStudentReportRows = Array.from(attendanceStudentReportMap.values()).sort(
+    (leftRow, rightRow) =>
+      rightRow.total - leftRow.total ||
+      leftRow.student_name.localeCompare(rightRow.student_name),
+  );
+  const attendanceDailyReportRows = Array.from(attendanceDailyReportMap.values()).sort(
+    (leftRow, rightRow) => rightRow.date.localeCompare(leftRow.date),
+  );
 
   const filteredLeaveRequests = leaveRequests.filter((leaveRequest) => {
     const matchesSearch = `${leaveRequest.student_name} ${leaveRequest.reason} ${leaveRequest.start_date} ${leaveRequest.end_date}`
@@ -1382,6 +1512,187 @@ export default function AdminPage() {
                   {attendanceMessage.message}
                 </div>
               ) : null}
+
+              <div className="mt-6 rounded-[1.75rem] border border-amber-200 bg-amber-50/70 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">
+                      Attendance Report
+                    </p>
+                    <h3 className="mt-2 text-2xl font-semibold text-slate-900">
+                      Live summary for the current filters
+                    </h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                      Review the filtered attendance breakdown below, then export the same dataset
+                      as CSV for your report, records, or presentation demo.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExportAttendanceCsv}
+                    disabled={isExportingAttendance}
+                    className="rounded-2xl bg-amber-500 px-5 py-3 font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300"
+                  >
+                    {isExportingAttendance ? "Exporting CSV..." : "Export CSV Report"}
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                  <div className="rounded-[1.4rem] border border-amber-200 bg-white p-4">
+                    <p className="text-sm text-slate-500">Filtered Records</p>
+                    <p className="mt-3 text-3xl font-semibold text-slate-900">
+                      {filteredAttendance.length}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.4rem] border border-amber-200 bg-white p-4">
+                    <p className="text-sm text-slate-500">Unique Students</p>
+                    <p className="mt-3 text-3xl font-semibold text-slate-900">
+                      {attendanceUniqueStudents}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.4rem] border border-emerald-200 bg-white p-4">
+                    <p className="text-sm text-slate-500">Present</p>
+                    <p className="mt-3 text-3xl font-semibold text-emerald-700">
+                      {attendanceStatusSummary.present}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.4rem] border border-amber-200 bg-white p-4">
+                    <p className="text-sm text-slate-500">Late</p>
+                    <p className="mt-3 text-3xl font-semibold text-amber-700">
+                      {attendanceStatusSummary.late}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.4rem] border border-red-200 bg-white p-4">
+                    <p className="text-sm text-slate-500">Absent</p>
+                    <p className="mt-3 text-3xl font-semibold text-red-700">
+                      {attendanceStatusSummary.absent}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.4rem] border border-sky-200 bg-white p-4">
+                    <p className="text-sm text-slate-500">Coverage Rate</p>
+                    <p className="mt-3 text-3xl font-semibold text-sky-700">
+                      {formatPercent(attendanceCoverageRate)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-6 xl:grid-cols-2">
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                          Daily Breakdown
+                        </p>
+                        <p className="mt-2 text-sm text-slate-600">
+                          Attendance totals grouped by marked date.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto rounded-[1.25rem] border border-slate-200">
+                      <table className="w-full min-w-[32rem] text-sm">
+                        <thead className="bg-slate-100 text-left">
+                          <tr>
+                            <th className="border-b border-slate-200 p-3">Date</th>
+                            <th className="border-b border-slate-200 p-3">Total</th>
+                            <th className="border-b border-slate-200 p-3">Present</th>
+                            <th className="border-b border-slate-200 p-3">Late</th>
+                            <th className="border-b border-slate-200 p-3">Absent</th>
+                            <th className="border-b border-slate-200 p-3">Excused</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {attendanceDailyReportRows.length === 0 ? (
+                            <tr>
+                              <td className="p-4 text-slate-500" colSpan="6">
+                                No attendance records are available for this report.
+                              </td>
+                            </tr>
+                          ) : (
+                            attendanceDailyReportRows.map((row) => (
+                              <tr key={row.date} className="odd:bg-white even:bg-slate-50">
+                                <td className="border-b border-slate-100 p-3">
+                                  {formatDate(row.date)}
+                                </td>
+                                <td className="border-b border-slate-100 p-3">{row.total}</td>
+                                <td className="border-b border-slate-100 p-3">{row.present}</td>
+                                <td className="border-b border-slate-100 p-3">{row.late}</td>
+                                <td className="border-b border-slate-100 p-3">{row.absent}</td>
+                                <td className="border-b border-slate-100 p-3">{row.excused}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                          Student Breakdown
+                        </p>
+                        <p className="mt-2 text-sm text-slate-600">
+                          Per-student attendance totals for the current report.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto rounded-[1.25rem] border border-slate-200">
+                      <table className="w-full min-w-[42rem] text-sm">
+                        <thead className="bg-slate-100 text-left">
+                          <tr>
+                            <th className="border-b border-slate-200 p-3">Student</th>
+                            <th className="border-b border-slate-200 p-3">Total</th>
+                            <th className="border-b border-slate-200 p-3">Present</th>
+                            <th className="border-b border-slate-200 p-3">Late</th>
+                            <th className="border-b border-slate-200 p-3">Absent</th>
+                            <th className="border-b border-slate-200 p-3">Excused</th>
+                            <th className="border-b border-slate-200 p-3">Last Marked</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {attendanceStudentReportRows.length === 0 ? (
+                            <tr>
+                              <td className="p-4 text-slate-500" colSpan="7">
+                                No student attendance data is available for this report.
+                              </td>
+                            </tr>
+                          ) : (
+                            attendanceStudentReportRows.map((row) => (
+                              <tr
+                                key={row.student_id}
+                                className="odd:bg-white even:bg-slate-50"
+                              >
+                                <td className="border-b border-slate-100 p-3">
+                                  <div>
+                                    <p className="font-medium text-slate-900">
+                                      {row.student_name}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      ID #{row.student_id}
+                                    </p>
+                                  </div>
+                                </td>
+                                <td className="border-b border-slate-100 p-3">{row.total}</td>
+                                <td className="border-b border-slate-100 p-3">{row.present}</td>
+                                <td className="border-b border-slate-100 p-3">{row.late}</td>
+                                <td className="border-b border-slate-100 p-3">{row.absent}</td>
+                                <td className="border-b border-slate-100 p-3">{row.excused}</td>
+                                <td className="border-b border-slate-100 p-3">
+                                  {formatDateTime(row.latest_marked_at)}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <div className="mt-6 overflow-x-auto rounded-[1.5rem] border border-slate-200">
                 <table className="w-full min-w-[78rem] text-sm">

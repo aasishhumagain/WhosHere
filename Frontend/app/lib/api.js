@@ -36,6 +36,25 @@ export function getAdminAuthHeaders(token) {
   };
 }
 
+export function buildQueryString(params) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    if (typeof value === "string" && !value.trim()) {
+      return;
+    }
+
+    searchParams.set(key, String(value));
+  });
+
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
 export async function parseApiResponse(response, fallbackMessage) {
   const data = await response.json().catch(() => ({}));
 

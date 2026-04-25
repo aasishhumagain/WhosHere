@@ -1,16 +1,19 @@
+import csv
 import hashlib
 import hmac
+import io
 import os
 import secrets
 import shutil
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import Base, SessionLocal, engine
 from app.face_utils import (
@@ -156,6 +159,12 @@ def parse_iso_date(value: str, field_name: str):
             status_code=400,
             detail=f"Invalid {field_name}. Use YYYY-MM-DD format.",
         ) from exc
+
+
+def get_day_bounds(target_date: date):
+    day_start = datetime.combine(target_date, datetime.min.time())
+    next_day_start = day_start + timedelta(days=1)
+    return day_start, next_day_start
 
 
 def resolve_storage_path(file_path: str | None):
@@ -334,6 +343,67 @@ def refresh_student_face_encoding(student: Student):
 
     student.face_encoding = generate_face_encoding(face_image_path)
     return True
+
+
+def get_filtered_attendance_records(
+    db: Session,
+    search: str | None = None,
+    status: str | None = None,
+    student_id: int | None = None,
+    attendance_date: str | None = None,
+):
+    query = db.query(AttendanceRecord).options(joinedload(AttendanceRecord.student))
+
+    if status and status != "all":
+        query = query.filter(AttendanceRecord.status == validate_attendance_status(status))
+
+    if student_id is not None:
+        query = query.filter(AttendanceRecord.student_id == student_id)
+
+    if attendance_date:
+        parsed_date = parse_iso_date(attendance_date, "date")
+        day_start, next_day_start = get_day_bounds(parsed_date)
+        query = query.filter(
+            AttendanceRecord.marked_at >= day_start,
+            AttendanceRecord.marked_at < next_day_start,
+        )
+
+    records = query.order_by(AttendanceRecord.marked_at.desc()).all()
+    normalized_search = (search or "").strip().lower()
+
+    if not normalized_search:
+        return records
+
+    filtered_records = []
+
+    for record in records:
+        haystack = (
+            f"{record.student.full_name if record.student else ''} "
+            f"{record.student_id} "
+            f"{record.status}"
+        ).lower()
+
+        if normalized_search in haystack:
+            filtered_records.append(record)
+
+    return filtered_records
+
+
+def build_attendance_export_filename(status: str | None, student_id: int | None, attendance_date: str | None):
+    name_parts = ["attendance_report"]
+
+    if attendance_date:
+        name_parts.append(attendance_date)
+    else:
+        name_parts.append("all_dates")
+
+    if status and status != "all":
+        name_parts.append(status)
+
+    if student_id is not None:
+        name_parts.append(f"student_{student_id}")
+
+    return f"{'_'.join(name_parts)}.csv"
 
 
 @app.get("/", include_in_schema=False)
@@ -607,6 +677,56 @@ def get_attendance(
 ):
     records = db.query(AttendanceRecord).order_by(AttendanceRecord.marked_at.desc()).all()
     return [serialize_attendance(record) for record in records]
+
+
+@app.get("/attendance/export", tags=["Attendance"], summary="Export attendance CSV")
+def export_attendance(
+    search: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    student_id: int | None = Query(default=None),
+    date: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    _admin_token: str = Depends(require_admin),
+):
+    records = get_filtered_attendance_records(
+        db=db,
+        search=search,
+        status=status,
+        student_id=student_id,
+        attendance_date=date,
+    )
+
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+
+    writer.writerow(["Attendance Report"])
+    writer.writerow(["Generated At (UTC)", datetime.utcnow().isoformat(timespec="seconds")])
+    writer.writerow(["Search Filter", (search or "").strip()])
+    writer.writerow(["Status Filter", status or "all"])
+    writer.writerow(["Student Filter", student_id if student_id is not None else "all"])
+    writer.writerow(["Date Filter", date or "all"])
+    writer.writerow([])
+    writer.writerow(["Record ID", "Student ID", "Student Name", "Status", "Marked At (UTC)"])
+
+    for record in records:
+        writer.writerow(
+            [
+                record.id,
+                record.student_id,
+                record.student.full_name if record.student else "Unknown Student",
+                record.status,
+                record.marked_at.isoformat(sep=" ", timespec="seconds") if record.marked_at else "",
+            ]
+        )
+
+    csv_content = "\ufeff" + csv_buffer.getvalue()
+    file_name = build_attendance_export_filename(status, student_id, date)
+
+    return StreamingResponse(
+        iter([csv_content]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
+    )
 
 
 @app.put("/attendance/{attendance_id}", tags=["Attendance"], summary="Update attendance")
