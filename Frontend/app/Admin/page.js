@@ -25,7 +25,10 @@ function createFilterState() {
     search: "",
     status: "all",
     studentId: "all",
-    date: "",
+    dateFrom: "",
+    dateTo: "",
+    preset: "all",
+    sortOrder: "marked_at:desc",
   };
 }
 
@@ -65,6 +68,62 @@ function formatPercent(value) {
   return `${Math.round(value)}%`;
 }
 
+function padDateSegment(value) {
+  return String(value).padStart(2, "0");
+}
+
+function toDateInputValue(value) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}-${padDateSegment(date.getMonth() + 1)}-${padDateSegment(date.getDate())}`;
+}
+
+function parseDateInputValue(value) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function getAttendancePresetDates(preset) {
+  const today = new Date();
+  const todayValue = toDateInputValue(today);
+
+  if (preset === "today") {
+    return { dateFrom: todayValue, dateTo: todayValue };
+  }
+
+  if (preset === "last7") {
+    const dateFrom = new Date(today);
+    dateFrom.setDate(dateFrom.getDate() - 6);
+    return { dateFrom: toDateInputValue(dateFrom), dateTo: todayValue };
+  }
+
+  if (preset === "last30") {
+    const dateFrom = new Date(today);
+    dateFrom.setDate(dateFrom.getDate() - 29);
+    return { dateFrom: toDateInputValue(dateFrom), dateTo: todayValue };
+  }
+
+  if (preset === "thisMonth") {
+    const dateFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { dateFrom: toDateInputValue(dateFrom), dateTo: todayValue };
+  }
+
+  return { dateFrom: "", dateTo: "" };
+}
+
 function capitalizeWords(value) {
   if (!value) {
     return "";
@@ -77,7 +136,17 @@ function capitalizeWords(value) {
 }
 
 function buildAttendanceExportFileName(filters) {
-  const nameParts = ["attendance_report", filters.date || "all_dates"];
+  const nameParts = ["attendance_report"];
+
+  if (filters.dateFrom && filters.dateTo) {
+    nameParts.push(`${filters.dateFrom}_to_${filters.dateTo}`);
+  } else if (filters.dateFrom) {
+    nameParts.push(`from_${filters.dateFrom}`);
+  } else if (filters.dateTo) {
+    nameParts.push(`until_${filters.dateTo}`);
+  } else {
+    nameParts.push("all_dates");
+  }
 
   if (filters.status !== "all") {
     nameParts.push(filters.status);
@@ -381,6 +450,12 @@ export default function AdminPage() {
   const totalPendingLeaveRequests = leaveRequests.filter(
     (leaveRequest) => leaveRequest.status === "pending",
   ).length;
+  const attendancePresetOptions = [
+    { label: "Today", value: "today" },
+    { label: "Last 7 Days", value: "last7" },
+    { label: "Last 30 Days", value: "last30" },
+    { label: "This Month", value: "thisMonth" },
+  ];
 
   async function fetchStudents() {
     const response = await fetch(buildApiUrl("/students"), {
@@ -788,12 +863,16 @@ export default function AdminPage() {
     setAttendanceMessage(null);
 
     try {
+      const [sortBy, sortDirection] = attendanceFilters.sortOrder.split(":");
       const queryString = buildQueryString({
         search: attendanceFilters.search.trim(),
         status: attendanceFilters.status === "all" ? null : attendanceFilters.status,
         student_id:
           attendanceFilters.studentId === "all" ? null : attendanceFilters.studentId,
-        date: attendanceFilters.date || null,
+        date_from: normalizedDateFrom || null,
+        date_to: normalizedDateTo || null,
+        sort_by: sortBy,
+        sort_direction: sortDirection,
       });
       const response = await fetch(buildApiUrl(`/attendance/export${queryString}`), {
         headers: adminHeaders,
@@ -810,7 +889,11 @@ export default function AdminPage() {
       const downloadUrl = window.URL.createObjectURL(csvBlob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = buildAttendanceExportFileName(attendanceFilters);
+      link.download = buildAttendanceExportFileName({
+        ...attendanceFilters,
+        dateFrom: normalizedDateFrom,
+        dateTo: normalizedDateTo,
+      });
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -828,6 +911,20 @@ export default function AdminPage() {
     } finally {
       setIsExportingAttendance(false);
     }
+  }
+
+  function applyAttendancePreset(preset) {
+    const presetDates = getAttendancePresetDates(preset);
+
+    setAttendanceFilters((current) => ({
+      ...current,
+      ...presetDates,
+      preset,
+    }));
+  }
+
+  function clearAttendanceFilters() {
+    setAttendanceFilters(createFilterState());
   }
 
   async function handleUpdateLeaveRequest(leaveRequest) {
@@ -960,6 +1057,17 @@ export default function AdminPage() {
     return 0;
   });
 
+  const parsedDateFrom = parseDateInputValue(attendanceFilters.dateFrom);
+  const parsedDateTo = parseDateInputValue(attendanceFilters.dateTo);
+  const normalizedDateFrom =
+    parsedDateFrom && parsedDateTo && parsedDateFrom > parsedDateTo
+      ? attendanceFilters.dateTo
+      : attendanceFilters.dateFrom;
+  const normalizedDateTo =
+    parsedDateFrom && parsedDateTo && parsedDateFrom > parsedDateTo
+      ? attendanceFilters.dateFrom
+      : attendanceFilters.dateTo;
+
   const filteredAttendance = attendance.filter((record) => {
     const matchesSearch = `${record.student_name} ${record.student_id} ${record.status}`
       .toLowerCase()
@@ -969,11 +1077,46 @@ export default function AdminPage() {
     const matchesStudent =
       attendanceFilters.studentId === "all" ||
       String(record.student_id) === attendanceFilters.studentId;
-    const matchesDate =
-      !attendanceFilters.date ||
-      new Date(record.marked_at).toISOString().slice(0, 10) === attendanceFilters.date;
+    const recordDate = toDateInputValue(record.marked_at);
+    const matchesDateFrom = !normalizedDateFrom || recordDate >= normalizedDateFrom;
+    const matchesDateTo = !normalizedDateTo || recordDate <= normalizedDateTo;
 
-    return matchesSearch && matchesStatus && matchesStudent && matchesDate;
+    return matchesSearch && matchesStatus && matchesStudent && matchesDateFrom && matchesDateTo;
+  });
+
+  const [attendanceSortBy, attendanceSortDirection] = attendanceFilters.sortOrder.split(":");
+  const sortedAttendance = [...filteredAttendance].sort((leftRecord, rightRecord) => {
+    let leftValue;
+    let rightValue;
+
+    if (attendanceSortBy === "student_name") {
+      leftValue = leftRecord.student_name;
+      rightValue = rightRecord.student_name;
+    } else if (attendanceSortBy === "status") {
+      leftValue = leftRecord.status;
+      rightValue = rightRecord.status;
+    } else if (attendanceSortBy === "student_id") {
+      leftValue = leftRecord.student_id;
+      rightValue = rightRecord.student_id;
+    } else {
+      leftValue = new Date(leftRecord.marked_at).getTime();
+      rightValue = new Date(rightRecord.marked_at).getTime();
+    }
+
+    if (typeof leftValue === "string" || typeof rightValue === "string") {
+      leftValue = String(leftValue || "").toLowerCase();
+      rightValue = String(rightValue || "").toLowerCase();
+    }
+
+    if (leftValue < rightValue) {
+      return attendanceSortDirection === "asc" ? -1 : 1;
+    }
+
+    if (leftValue > rightValue) {
+      return attendanceSortDirection === "asc" ? 1 : -1;
+    }
+
+    return 0;
   });
 
   const attendanceStatusSummary = {
@@ -989,7 +1132,7 @@ export default function AdminPage() {
     attendanceStatusSummary[record.status] =
       (attendanceStatusSummary[record.status] || 0) + 1;
 
-    const reportDateKey = new Date(record.marked_at).toISOString().slice(0, 10);
+    const reportDateKey = toDateInputValue(record.marked_at);
     const dailyEntry = attendanceDailyReportMap.get(reportDateKey) || {
       date: reportDateKey,
       total: 0,
@@ -1439,12 +1582,12 @@ export default function AdminPage() {
                   </p>
                   <h2 className="mt-3 text-3xl font-semibold">Filter, correct, and remove attendance</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Search by student, narrow by date or status, then update or delete incorrect
-                    attendance records.
+                    Search by student, filter by date range or quick preset, and sort the results
+                    before correcting or deleting attendance records.
                   </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
                   <input
                     type="text"
                     placeholder="Search attendance..."
@@ -1495,16 +1638,84 @@ export default function AdminPage() {
 
                   <input
                     type="date"
-                    value={attendanceFilters.date}
+                    value={attendanceFilters.dateFrom}
                     onChange={(event) =>
                       setAttendanceFilters((current) => ({
                         ...current,
-                        date: event.target.value,
+                        dateFrom: event.target.value,
+                        preset: "custom",
                       }))
                     }
                     className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
                   />
+
+                  <input
+                    type="date"
+                    value={attendanceFilters.dateTo}
+                    min={attendanceFilters.dateFrom || undefined}
+                    onChange={(event) =>
+                      setAttendanceFilters((current) => ({
+                        ...current,
+                        dateTo: event.target.value,
+                        preset: "custom",
+                      }))
+                    }
+                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
+                  />
+
+                  <select
+                    value={attendanceFilters.sortOrder}
+                    onChange={(event) =>
+                      setAttendanceFilters((current) => ({
+                        ...current,
+                        sortOrder: event.target.value,
+                      }))
+                    }
+                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
+                  >
+                    <option value="marked_at:desc">Latest First</option>
+                    <option value="marked_at:asc">Oldest First</option>
+                    <option value="student_name:asc">Student A-Z</option>
+                    <option value="student_name:desc">Student Z-A</option>
+                    <option value="status:asc">Status A-Z</option>
+                    <option value="status:desc">Status Z-A</option>
+                    <option value="student_id:asc">Student ID Ascending</option>
+                    <option value="student_id:desc">Student ID Descending</option>
+                  </select>
                 </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {attendancePresetOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => applyAttendancePreset(option.value)}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                        attendanceFilters.preset === option.value
+                          ? "bg-amber-500 text-white shadow-sm"
+                          : "border border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={clearAttendanceFilters}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+
+                <p className="text-sm text-slate-600">
+                  Showing <span className="font-semibold text-slate-900">{sortedAttendance.length}</span>{" "}
+                  of <span className="font-semibold text-slate-900">{attendance.length}</span>{" "}
+                  attendance entries.
+                </p>
               </div>
 
               {attendanceMessage ? (
@@ -1708,14 +1919,14 @@ export default function AdminPage() {
                   </thead>
 
                   <tbody>
-                    {filteredAttendance.length === 0 ? (
+                    {sortedAttendance.length === 0 ? (
                       <tr>
                         <td className="p-4 text-slate-500" colSpan="6">
                           No attendance records matched the selected filters.
                         </td>
                       </tr>
                     ) : (
-                      filteredAttendance.map((record) => (
+                      sortedAttendance.map((record) => (
                         <tr key={record.id} className="odd:bg-white even:bg-slate-50">
                           <td className="border-b border-slate-100 p-3">{record.student_name}</td>
                           <td className="border-b border-slate-100 p-3">{record.student_id}</td>

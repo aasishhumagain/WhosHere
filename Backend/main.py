@@ -351,6 +351,10 @@ def get_filtered_attendance_records(
     status: str | None = None,
     student_id: int | None = None,
     attendance_date: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    sort_by: str | None = None,
+    sort_direction: str | None = None,
 ):
     query = db.query(AttendanceRecord).options(joinedload(AttendanceRecord.student))
 
@@ -368,32 +372,78 @@ def get_filtered_attendance_records(
             AttendanceRecord.marked_at < next_day_start,
         )
 
-    records = query.order_by(AttendanceRecord.marked_at.desc()).all()
+    if date_from:
+        parsed_date_from = parse_iso_date(date_from, "start date")
+        day_start, _ = get_day_bounds(parsed_date_from)
+        query = query.filter(AttendanceRecord.marked_at >= day_start)
+
+    if date_to:
+        parsed_date_to = parse_iso_date(date_to, "end date")
+        _, next_day_start = get_day_bounds(parsed_date_to)
+        query = query.filter(AttendanceRecord.marked_at < next_day_start)
+
+    records = query.all()
     normalized_search = (search or "").strip().lower()
 
-    if not normalized_search:
-        return records
+    if normalized_search:
+        filtered_records = []
 
-    filtered_records = []
+        for record in records:
+            haystack = (
+                f"{record.student.full_name if record.student else ''} "
+                f"{record.student_id} "
+                f"{record.status}"
+            ).lower()
 
-    for record in records:
-        haystack = (
-            f"{record.student.full_name if record.student else ''} "
-            f"{record.student_id} "
-            f"{record.status}"
-        ).lower()
+            if normalized_search in haystack:
+                filtered_records.append(record)
 
-        if normalized_search in haystack:
-            filtered_records.append(record)
+        records = filtered_records
 
-    return filtered_records
+    resolved_sort_by = sort_by or "marked_at"
+    resolved_sort_direction = (sort_direction or "desc").lower()
+
+    if resolved_sort_by == "student_name":
+        records.sort(
+            key=lambda record: (record.student.full_name.lower() if record.student else "", record.student_id),
+            reverse=resolved_sort_direction == "desc",
+        )
+    elif resolved_sort_by == "status":
+        records.sort(
+            key=lambda record: (record.status.lower(), record.student_id),
+            reverse=resolved_sort_direction == "desc",
+        )
+    elif resolved_sort_by == "student_id":
+        records.sort(
+            key=lambda record: record.student_id,
+            reverse=resolved_sort_direction == "desc",
+        )
+    else:
+        records.sort(
+            key=lambda record: record.marked_at or datetime.min,
+            reverse=resolved_sort_direction != "asc",
+        )
+
+    return records
 
 
-def build_attendance_export_filename(status: str | None, student_id: int | None, attendance_date: str | None):
+def build_attendance_export_filename(
+    status: str | None,
+    student_id: int | None,
+    attendance_date: str | None,
+    date_from: str | None,
+    date_to: str | None,
+):
     name_parts = ["attendance_report"]
 
     if attendance_date:
         name_parts.append(attendance_date)
+    elif date_from and date_to:
+        name_parts.append(f"{date_from}_to_{date_to}")
+    elif date_from:
+        name_parts.append(f"from_{date_from}")
+    elif date_to:
+        name_parts.append(f"until_{date_to}")
     else:
         name_parts.append("all_dates")
 
@@ -685,6 +735,10 @@ def export_attendance(
     status: str | None = Query(default=None),
     student_id: int | None = Query(default=None),
     date: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    sort_by: str | None = Query(default=None),
+    sort_direction: str | None = Query(default=None),
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
 ):
@@ -694,6 +748,10 @@ def export_attendance(
         status=status,
         student_id=student_id,
         attendance_date=date,
+        date_from=date_from,
+        date_to=date_to,
+        sort_by=sort_by,
+        sort_direction=sort_direction,
     )
 
     csv_buffer = io.StringIO()
@@ -705,6 +763,10 @@ def export_attendance(
     writer.writerow(["Status Filter", status or "all"])
     writer.writerow(["Student Filter", student_id if student_id is not None else "all"])
     writer.writerow(["Date Filter", date or "all"])
+    writer.writerow(["Date From Filter", date_from or "all"])
+    writer.writerow(["Date To Filter", date_to or "all"])
+    writer.writerow(["Sort By", sort_by or "marked_at"])
+    writer.writerow(["Sort Direction", sort_direction or "desc"])
     writer.writerow([])
     writer.writerow(["Record ID", "Student ID", "Student Name", "Status", "Marked At (UTC)"])
 
@@ -720,7 +782,7 @@ def export_attendance(
         )
 
     csv_content = "\ufeff" + csv_buffer.getvalue()
-    file_name = build_attendance_export_filename(status, student_id, date)
+    file_name = build_attendance_export_filename(status, student_id, date, date_from, date_to)
 
     return StreamingResponse(
         iter([csv_content]),

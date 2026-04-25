@@ -12,6 +12,7 @@ WhosHere is a face-recognition attendance system built with FastAPI, SQLite or P
 - Duplicate attendance prevention so a student cannot be marked present multiple times in one day.
 - Attendance management APIs and admin tools for updating or deleting attendance records.
 - Attendance report summaries and CSV export from the admin dashboard.
+- Better attendance filtering with student search, status, date ranges, quick presets, and sorting.
 - Leave request creation for students and leave request review for admins.
 - Profile details for students including email, join date, and stored face image.
 - Database configuration that supports SQLite by default and a real PostgreSQL migration path through environment variables and a copy script.
