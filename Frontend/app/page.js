@@ -144,8 +144,9 @@ export default function WelcomePage() {
                     Student ID
                   </label>
                   <input
-                    type="number"
-                    placeholder="Enter student ID"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Enter student ID (for example 2600001)"
                     value={studentId}
                     onChange={(event) => setStudentId(event.target.value)}
                     className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"

@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import sessionmaker
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -12,6 +12,17 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.database import Base, build_engine, get_default_database_url, normalize_database_url
 from app.models import AttendanceRecord, LeaveRequest, Student
+
+
+def ensure_student_code_column(engine):
+    inspector = inspect(engine)
+    student_columns = {column["name"] for column in inspector.get_columns("students")}
+
+    if "student_code" in student_columns:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE students ADD COLUMN student_code VARCHAR"))
 
 
 def parse_args():
@@ -47,6 +58,7 @@ def copy_students(source_session, target_session):
         target_session.merge(
             Student(
                 id=student.id,
+                student_code=student.student_code,
                 full_name=student.full_name,
                 password=student.password,
                 email=student.email,
@@ -124,6 +136,8 @@ def main():
     TargetSession = sessionmaker(bind=target_engine, autoflush=False, autocommit=False)
 
     Base.metadata.create_all(bind=target_engine)
+    ensure_student_code_column(source_engine)
+    ensure_student_code_column(target_engine)
 
     source_session = SourceSession()
     target_session = TargetSession()

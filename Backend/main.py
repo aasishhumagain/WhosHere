@@ -12,6 +12,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -70,6 +71,149 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+STUDENT_CODE_SEQUENCE_WIDTH = 5
+
+
+def get_local_now():
+    return datetime.now().astimezone()
+
+
+def get_student_code_year_prefix(year: int):
+    return f"{year % 100:02d}"
+
+
+def build_student_code_from_prefix(year_prefix: str, sequence: int):
+    return f"{year_prefix}{sequence:0{STUDENT_CODE_SEQUENCE_WIDTH}d}"
+
+
+def build_student_code(year: int, sequence: int):
+    return build_student_code_from_prefix(get_student_code_year_prefix(year), sequence)
+
+
+def get_student_code_year(student: Student):
+    created_at = student.created_at or datetime.utcnow()
+    return created_at.year
+
+
+def is_valid_student_code(code: str | None, year: int | None = None):
+    normalized_code = (code or "").strip()
+
+    if not normalized_code.isdigit() or len(normalized_code) != 2 + STUDENT_CODE_SEQUENCE_WIDTH:
+        return False
+
+    if year is None:
+        return True
+
+    return normalized_code.startswith(get_student_code_year_prefix(year))
+
+
+def get_public_student_id(student: Student | None):
+    if not student:
+        return None
+
+    if is_valid_student_code(student.student_code):
+        return student.student_code
+
+    return build_student_code(get_student_code_year(student), student.id)
+
+
+def normalize_student_identifier(student_id: str | int):
+    normalized = str(student_id).strip()
+
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Student ID is required.")
+
+    return normalized
+
+
+def get_student_by_identifier(student_id: str | int, db: Session):
+    normalized_student_id = normalize_student_identifier(student_id)
+    student = db.query(Student).filter(Student.student_code == normalized_student_id).first()
+
+    if student:
+        return student
+
+    if normalized_student_id.isdigit():
+        return db.query(Student).filter(Student.id == int(normalized_student_id)).first()
+
+    return None
+
+
+def assign_student_code(student: Student, db: Session):
+    registration_year = get_local_now().year
+    year_prefix = get_student_code_year_prefix(registration_year)
+    latest_student_code = (
+        db.query(Student.student_code)
+        .filter(Student.student_code.like(f"{year_prefix}%"))
+        .order_by(Student.student_code.desc())
+        .limit(1)
+        .scalar()
+    )
+
+    next_sequence = 1
+
+    if latest_student_code and is_valid_student_code(latest_student_code, registration_year):
+        next_sequence = int(latest_student_code[-STUDENT_CODE_SEQUENCE_WIDTH:]) + 1
+
+    student.student_code = build_student_code_from_prefix(year_prefix, next_sequence)
+
+
+def ensure_student_code_schema():
+    inspector = inspect(engine)
+    student_columns = {column["name"] for column in inspector.get_columns("students")}
+
+    with engine.begin() as connection:
+        if "student_code" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN student_code VARCHAR"))
+
+        connection.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS ix_students_student_code ON students (student_code)")
+        )
+
+
+def backfill_student_codes():
+    db = SessionLocal()
+
+    try:
+        students = db.query(Student).order_by(Student.created_at.asc(), Student.id.asc()).all()
+        next_sequence_by_prefix: dict[str, int] = {}
+        assigned_codes = set()
+        has_changes = False
+
+        for student in students:
+            registration_prefix = get_student_code_year_prefix(get_student_code_year(student))
+            existing_code = (student.student_code or "").strip()
+
+            if is_valid_student_code(existing_code) and existing_code not in assigned_codes:
+                assigned_codes.add(existing_code)
+                existing_prefix = existing_code[:2]
+                next_sequence_by_prefix[existing_prefix] = max(
+                    next_sequence_by_prefix.get(existing_prefix, 1),
+                    int(existing_code[-STUDENT_CODE_SEQUENCE_WIDTH:]) + 1,
+                )
+                continue
+
+            next_sequence = next_sequence_by_prefix.get(registration_prefix, 1)
+            next_code = build_student_code_from_prefix(registration_prefix, next_sequence)
+
+            while next_code in assigned_codes:
+                next_sequence += 1
+                next_code = build_student_code_from_prefix(registration_prefix, next_sequence)
+
+            student.student_code = next_code
+            assigned_codes.add(next_code)
+            next_sequence_by_prefix[registration_prefix] = next_sequence + 1
+            has_changes = True
+
+        if has_changes:
+            db.commit()
+    finally:
+        db.close()
+
+
+ensure_student_code_schema()
+backfill_student_codes()
 
 
 def get_db():
@@ -290,7 +434,7 @@ def verify_admin_password(plain_password: str):
 
 def serialize_student(student: Student):
     return {
-        "student_id": student.id,
+        "student_id": get_public_student_id(student),
         "full_name": student.full_name,
         "email": student.email,
         "face_image_path": student.face_image_path,
@@ -302,7 +446,7 @@ def serialize_student(student: Student):
 def serialize_attendance(record: AttendanceRecord):
     return {
         "id": record.id,
-        "student_id": record.student_id,
+        "student_id": get_public_student_id(record.student) or str(record.student_id),
         "student_name": record.student.full_name if record.student else "Unknown Student",
         "status": record.status,
         "marked_at": serialize_local_datetime(record.marked_at),
@@ -312,7 +456,7 @@ def serialize_attendance(record: AttendanceRecord):
 def serialize_leave_request(leave_request: LeaveRequest):
     return {
         "id": leave_request.id,
-        "student_id": leave_request.student_id,
+        "student_id": get_public_student_id(leave_request.student) or str(leave_request.student_id),
         "student_name": leave_request.student.full_name if leave_request.student else "Unknown Student",
         "start_date": leave_request.start_date,
         "end_date": leave_request.end_date,
@@ -323,8 +467,8 @@ def serialize_leave_request(leave_request: LeaveRequest):
     }
 
 
-def get_student_or_404(student_id: int, db: Session):
-    student = db.query(Student).filter(Student.id == student_id).first()
+def get_student_or_404(student_id: str | int, db: Session):
+    student = get_student_by_identifier(student_id, db)
 
     if not student:
         raise HTTPException(status_code=404, detail="Student not found.")
@@ -367,7 +511,7 @@ def get_filtered_attendance_records(
     db: Session,
     search: str | None = None,
     status: str | None = None,
-    student_id: int | None = None,
+    student_id: str | None = None,
     attendance_date: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
@@ -380,7 +524,12 @@ def get_filtered_attendance_records(
         query = query.filter(AttendanceRecord.status == validate_attendance_status(status))
 
     if student_id is not None:
-        query = query.filter(AttendanceRecord.student_id == student_id)
+        student = get_student_by_identifier(student_id, db)
+
+        if not student:
+            return []
+
+        query = query.filter(AttendanceRecord.student_id == student.id)
 
     if attendance_date:
         parsed_date = parse_iso_date(attendance_date, "date")
@@ -409,7 +558,7 @@ def get_filtered_attendance_records(
         for record in records:
             haystack = (
                 f"{record.student.full_name if record.student else ''} "
-                f"{record.student_id} "
+                f"{get_public_student_id(record.student) or record.student_id} "
                 f"{record.status}"
             ).lower()
 
@@ -423,17 +572,23 @@ def get_filtered_attendance_records(
 
     if resolved_sort_by == "student_name":
         records.sort(
-            key=lambda record: (record.student.full_name.lower() if record.student else "", record.student_id),
+            key=lambda record: (
+                record.student.full_name.lower() if record.student else "",
+                get_public_student_id(record.student) or str(record.student_id),
+            ),
             reverse=resolved_sort_direction == "desc",
         )
     elif resolved_sort_by == "status":
         records.sort(
-            key=lambda record: (record.status.lower(), record.student_id),
+            key=lambda record: (
+                record.status.lower(),
+                get_public_student_id(record.student) or str(record.student_id),
+            ),
             reverse=resolved_sort_direction == "desc",
         )
     elif resolved_sort_by == "student_id":
         records.sort(
-            key=lambda record: record.student_id,
+            key=lambda record: get_public_student_id(record.student) or str(record.student_id),
             reverse=resolved_sort_direction == "desc",
         )
     else:
@@ -447,7 +602,7 @@ def get_filtered_attendance_records(
 
 def build_attendance_export_filename(
     status: str | None,
-    student_id: int | None,
+    student_id: str | None,
     attendance_date: str | None,
     date_from: str | None,
     date_to: str | None,
@@ -515,12 +670,14 @@ def register_student(
     file_path, face_encoding = save_face_image(face_image)
 
     student = Student(
+        student_code=None,
         full_name=validate_full_name(full_name),
         password=hash_password(validate_required_password(password)),
         email=normalize_optional_text(email),
         face_image_path=file_path,
         face_encoding=face_encoding,
     )
+    assign_student_code(student, db)
 
     try:
         db.add(student)
@@ -550,14 +707,14 @@ def get_students(
 
 
 @app.get("/students/{student_id}", tags=["Students"], summary="Get one student")
-def get_student(student_id: int, db: Session = Depends(get_db)):
+def get_student(student_id: str, db: Session = Depends(get_db)):
     student = get_student_or_404(student_id, db)
     return serialize_student(student)
 
 
 @app.put("/students/{student_id}", tags=["Students"], summary="Update a student")
 def update_student(
-    student_id: int,
+    student_id: str,
     full_name: str = Form(...),
     email: str = Form(None),
     password: str = Form(None),
@@ -602,7 +759,7 @@ def update_student(
 
 @app.delete("/students/{student_id}", tags=["Students"], summary="Delete a student")
 def delete_student(
-    student_id: int,
+    student_id: str,
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
 ):
@@ -633,18 +790,18 @@ def delete_student(
 
 @app.post("/login/student", tags=["Authentication"], summary="Student login")
 def student_login(
-    student_id: int = Form(...),
+    student_id: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = get_student_by_identifier(student_id, db)
 
     if not student or not verify_password(password, student.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     return {
         "message": "Login successful",
-        "student_id": student.id,
+        "student_id": get_public_student_id(student),
         "full_name": student.full_name,
         "email": student.email,
         "face_image_url": build_upload_url(student.face_image_path),
@@ -713,7 +870,7 @@ def mark_attendance(
                 "status": "duplicate",
                 "message": f"{best_match.full_name} has already been marked present today.",
                 "student": best_match.full_name,
-                "student_id": best_match.id,
+                "student_id": get_public_student_id(best_match),
                 "marked_at": serialize_local_datetime(existing_attendance.marked_at),
             }
 
@@ -726,7 +883,7 @@ def mark_attendance(
         return {
             "status": "present",
             "student": best_match.full_name,
-            "student_id": best_match.id,
+            "student_id": get_public_student_id(best_match),
             "confidence": float(best_match_score),
             "marked_at": serialize_local_datetime(attendance.marked_at),
         }
@@ -751,7 +908,7 @@ def get_attendance(
 def export_attendance(
     search: str | None = Query(default=None),
     status: str | None = Query(default=None),
-    student_id: int | None = Query(default=None),
+    student_id: str | None = Query(default=None),
     date: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
@@ -798,7 +955,7 @@ def export_attendance(
         writer.writerow(
             [
                 record.id,
-                record.student_id,
+                get_public_student_id(record.student) or str(record.student_id),
                 record.student.full_name if record.student else "Unknown Student",
                 record.status,
                 marked_date,
@@ -854,10 +1011,11 @@ def delete_attendance(
     tags=["Attendance"],
     summary="Get attendance for one student",
 )
-def get_student_attendance(student_id: int, db: Session = Depends(get_db)):
+def get_student_attendance(student_id: str, db: Session = Depends(get_db)):
+    student = get_student_or_404(student_id, db)
     records = (
         db.query(AttendanceRecord)
-        .filter(AttendanceRecord.student_id == student_id)
+        .filter(AttendanceRecord.student_id == student.id)
         .order_by(AttendanceRecord.marked_at.desc())
         .all()
     )
@@ -867,7 +1025,7 @@ def get_student_attendance(student_id: int, db: Session = Depends(get_db)):
 
 @app.post("/leave-requests", tags=["Leave Requests"], summary="Create leave request")
 def create_leave_request(
-    student_id: int = Form(...),
+    student_id: str = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...),
     reason: str = Form(...),
@@ -912,10 +1070,11 @@ def get_leave_requests(
     tags=["Leave Requests"],
     summary="Get leave requests for one student",
 )
-def get_student_leave_requests(student_id: int, db: Session = Depends(get_db)):
+def get_student_leave_requests(student_id: str, db: Session = Depends(get_db)):
+    student = get_student_or_404(student_id, db)
     leave_requests = (
         db.query(LeaveRequest)
-        .filter(LeaveRequest.student_id == student_id)
+        .filter(LeaveRequest.student_id == student.id)
         .order_by(LeaveRequest.created_at.desc())
         .all()
     )
