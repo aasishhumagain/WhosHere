@@ -10,7 +10,7 @@ export default function WelcomePage() {
 
   const [studentId, setStudentId] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
-  const [adminUsername, setAdminUsername] = useState("admin");
+  const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [studentMessage, setStudentMessage] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
