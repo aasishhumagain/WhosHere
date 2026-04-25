@@ -5,7 +5,7 @@ import io
 import os
 import secrets
 import shutil
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
@@ -763,15 +763,18 @@ def export_attendance(
             "Student ID",
             "Student Name",
             "Status",
-            "Marked Date (UTC)",
-            "Marked Time (UTC)",
+            "Marked Date (Local)",
+            "Marked Time (Local)",
         ]
     )
 
+    local_timezone = datetime.now().astimezone().tzinfo or timezone.utc
+
     for record in records:
         if record.marked_at:
-            marked_date = record.marked_at.strftime("%Y-%m-%d")
-            marked_time = record.marked_at.strftime("%H:%M:%S")
+            local_marked_at = record.marked_at.replace(tzinfo=timezone.utc).astimezone(local_timezone)
+            marked_date = local_marked_at.strftime("%Y-%m-%d")
+            marked_time = local_marked_at.strftime("%H:%M:%S")
         else:
             marked_date = ""
             marked_time = ""
