@@ -13,14 +13,14 @@ WhosHere is a face-recognition attendance system built with FastAPI, SQLite or P
 - Attendance management APIs and admin tools for updating or deleting attendance records.
 - Leave request creation for students and leave request review for admins.
 - Profile details for students including email, join date, and stored face image.
-- Database configuration that supports SQLite by default and PostgreSQL through environment variables.
+- Database configuration that supports SQLite by default and a real PostgreSQL migration path through environment variables and a copy script.
 
 ## Tech Stack
 
 - Frontend: Next.js 16, React 19, Tailwind CSS 4
 - Backend: FastAPI, SQLAlchemy
 - Face recognition: OpenCV Haar cascade plus encoded grayscale comparison
-- Database: SQLite by default, PostgreSQL-ready through `DATABASE_URL`
+- Database: SQLite by default, PostgreSQL support through `DATABASE_URL` and a migration script
 
 ## Project Structure
 
@@ -70,7 +70,7 @@ The frontend runs by default at `http://127.0.0.1:3000`.
 
 ## Environment Variables
 
-You can place these in a root `.env` file or your shell environment.
+You can place these in a root `.env` file or your shell environment. A ready-to-edit template is included in `.env.example`.
 
 ```env
 DATABASE_URL=sqlite:///C:/path/to/whoshere.db
@@ -84,6 +84,52 @@ For PostgreSQL, use a connection string such as:
 ```env
 DATABASE_URL=postgresql://username:password@localhost:5432/whoshere
 ```
+
+## PostgreSQL Setup
+
+### Option A: Run PostgreSQL with Docker
+
+If Docker Desktop is installed, start PostgreSQL with:
+
+```bash
+docker compose up -d postgres
+```
+
+This uses `docker-compose.yml` and creates:
+
+- database: `whoshere`
+- username: `whoshere_user`
+- password: `whoshere_password`
+
+Then set:
+
+```env
+DATABASE_URL=postgresql://whoshere_user:whoshere_password@127.0.0.1:5432/whoshere
+```
+
+### Option B: Use your own local PostgreSQL install
+
+1. Create a database named `whoshere`.
+2. Create or choose a PostgreSQL user that has access to it.
+3. Put the matching connection string into `.env` as `DATABASE_URL`.
+
+## Migrating Existing SQLite Data to PostgreSQL
+
+If you already have student, attendance, or leave data in `backend/whoshere.db`, copy it into PostgreSQL with:
+
+```bash
+cd backend
+venv\Scripts\python.exe scripts\migrate_sqlite_to_postgres.py --target-url postgresql://whoshere_user:whoshere_password@127.0.0.1:5432/whoshere
+```
+
+What this script does:
+
+- creates the PostgreSQL tables if they do not exist
+- copies students, attendance records, and leave requests
+- preserves existing record IDs
+- resets PostgreSQL sequences so new inserts continue from the right ID
+
+If you want to migrate from a different SQLite file, pass `--source-url` too.
 
 ## Demo Flow
 
@@ -144,3 +190,5 @@ Recommended screenshots for your report:
 - Uploaded student images are served from the backend `uploads` directory.
 - Newly saved student passwords are hashed before storage.
 - Existing plain-text student passwords are still accepted so older demo data keeps working.
+- The backend still falls back to SQLite if `DATABASE_URL` is not set.
+- PostgreSQL migration copies database records only, so your existing uploaded images should stay in `backend/uploads`.
