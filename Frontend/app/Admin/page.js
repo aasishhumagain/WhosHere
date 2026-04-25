@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -457,6 +457,8 @@ export default function AdminPage() {
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
   const [isSavingEditStudent, setIsSavingEditStudent] = useState(false);
+  const [studentCameraOpen, setStudentCameraOpen] = useState(false);
+  const [studentCameraError, setStudentCameraError] = useState("");
   const [deletingStudentId, setDeletingStudentId] = useState(null);
   const [attendanceDrafts, setAttendanceDrafts] = useState({});
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState(null);
@@ -465,6 +467,9 @@ export default function AdminPage() {
   const [leaveDrafts, setLeaveDrafts] = useState({});
   const [updatingLeaveId, setUpdatingLeaveId] = useState(null);
   const [deletingLeaveId, setDeletingLeaveId] = useState(null);
+  const studentVideoRef = useRef(null);
+  const studentCanvasRef = useRef(null);
+  const studentStreamRef = useRef(null);
 
   const adminHeaders = getAdminAuthHeaders(adminSession.token);
   const totalPendingLeaveRequests = leaveRequests.filter(
@@ -584,27 +589,118 @@ export default function AdminPage() {
     };
   }, [adminSession.token, router, sessionReady]);
 
-  async function handleStudentImageChange(event) {
-    const selectedFile = event.target.files?.[0] || null;
+  useEffect(() => {
+    if (studentCameraOpen && studentVideoRef.current && studentStreamRef.current) {
+      studentVideoRef.current.srcObject = studentStreamRef.current;
+    }
+  }, [studentCameraOpen]);
 
-    setStudentForm((current) => ({
-      ...current,
-      face_image: selectedFile,
-    }));
+  useEffect(() => () => {
+    stopStudentCamera(false);
+  }, []);
 
-    if (!selectedFile) {
-      setStudentPreviewUrl("");
+  function stopStudentCamera(updateState = true) {
+    if (studentStreamRef.current) {
+      studentStreamRef.current.getTracks().forEach((track) => track.stop());
+      studentStreamRef.current = null;
+    }
+
+    if (studentVideoRef.current) {
+      studentVideoRef.current.srcObject = null;
+    }
+
+    if (updateState) {
+      setStudentCameraOpen(false);
+    }
+  }
+
+  async function startStudentCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStudentCameraError("Camera access is not supported in this browser.");
       return;
     }
 
+    stopStudentCamera(false);
+
     try {
-      setStudentPreviewUrl(await fileToDataUrl(selectedFile));
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+        },
+      });
+
+      studentStreamRef.current = stream;
+      setStudentCameraError("");
+      setStudentMessage(null);
+      setStudentCameraOpen(true);
+
+      if (studentVideoRef.current) {
+        studentVideoRef.current.srcObject = stream;
+      }
+    } catch {
+      setStudentCameraError("Could not access the camera. Please allow camera permission and try again.");
+    }
+  }
+
+  async function captureStudentFromCamera() {
+    if (!studentVideoRef.current || !studentCanvasRef.current) {
+      setStudentCameraError("Camera preview is not ready yet.");
+      return;
+    }
+
+    const video = studentVideoRef.current;
+    const canvas = studentCanvasRef.current;
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      setStudentCameraError("Could not capture the camera frame.");
+      return;
+    }
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.95);
+    });
+
+    if (!blob) {
+      setStudentCameraError("Could not capture the image.");
+      return;
+    }
+
+    const cameraFile = new File(
+      [blob],
+      `student_registration_${Date.now()}.jpg`,
+      { type: "image/jpeg" },
+    );
+
+    try {
+      setStudentForm((current) => ({
+        ...current,
+        face_image: cameraFile,
+      }));
+      setStudentPreviewUrl(await fileToDataUrl(cameraFile));
+      setStudentCameraError("");
+      setStudentMessage(null);
+      stopStudentCamera();
     } catch (error) {
       setStudentMessage({
         type: "error",
-        message: error.message || "Could not preview the selected image.",
+        message: error.message || "Could not preview the captured image.",
       });
     }
+  }
+
+  function clearStudentCapture() {
+    setStudentForm((current) => ({
+      ...current,
+      face_image: null,
+    }));
+    setStudentPreviewUrl("");
+    setStudentCameraError("");
+    stopStudentCamera();
   }
 
   async function handleEditImageChange(event) {
@@ -633,6 +729,8 @@ export default function AdminPage() {
   function resetStudentForm() {
     setStudentForm(createStudentForm());
     setStudentPreviewUrl("");
+    setStudentCameraError("");
+    stopStudentCamera();
   }
 
   function openEditModal(student) {
@@ -663,7 +761,7 @@ export default function AdminPage() {
     if (!studentForm.face_image) {
       setStudentMessage({
         type: "error",
-        message: "Please upload a face image before registering the student.",
+        message: "Please capture a face image before registering the student.",
       });
       return;
     }
@@ -1342,7 +1440,7 @@ export default function AdminPage() {
                   </p>
                   <h2 className="mt-3 text-3xl font-semibold">Register a new student</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Create a student account, upload a face image, and immediately preview the
+                    Create a student account, capture a live face photo, and preview the captured
                     image before saving.
                   </p>
 
@@ -1409,19 +1507,80 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700">
-                        Face Image
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleStudentImageChange}
-                        className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-white hover:file:bg-slate-700"
-                      />
-                      <p className="mt-2 text-xs text-slate-500">
-                        Upload a clear front-facing photo so the recognition model can match it reliably.
-                      </p>
+                    <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">
+                            Live Face Capture
+                          </label>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Use the live camera to capture a clear front-facing face photo for enrollment.
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={startStudentCamera}
+                            className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700"
+                          >
+                            {studentForm.face_image ? "Retake Capture" : "Open Live Camera"}
+                          </button>
+                          {studentCameraOpen ? (
+                            <button
+                              type="button"
+                              onClick={() => stopStudentCamera()}
+                              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white"
+                            >
+                              Close Camera
+                            </button>
+                          ) : null}
+                          {studentForm.face_image ? (
+                            <button
+                              type="button"
+                              onClick={clearStudentCapture}
+                              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white"
+                            >
+                              Clear Capture
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {studentCameraError ? (
+                        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                          {studentCameraError}
+                        </div>
+                      ) : null}
+
+                      {studentCameraOpen ? (
+                        <div className="mt-4">
+                          <video
+                            ref={studentVideoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full rounded-[1.25rem] border border-slate-200 bg-slate-900"
+                          />
+
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              onClick={captureStudentFromCamera}
+                              className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
+                            >
+                              Capture Face Photo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => stopStudentCamera()}
+                              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white"
+                            >
+                              Cancel Camera
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-wrap gap-3 pt-2">
@@ -1445,11 +1604,13 @@ export default function AdminPage() {
                 </div>
 
                 <div className="grid gap-4">
+                  <canvas ref={studentCanvasRef} className="hidden" />
+
                   <PhotoPreviewCard
-                    title="Upload Preview"
-                    subtitle="The selected face image appears here before you register the student."
+                    title="Capture Preview"
+                    subtitle="The captured face image appears here before you register the student."
                     imageUrl={studentPreviewUrl}
-                    fallbackLabel="Upload a student image to preview it here."
+                    fallbackLabel="Capture a student face image to preview it here."
                   />
 
                   <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
@@ -1457,7 +1618,7 @@ export default function AdminPage() {
                       Enrollment Tips
                     </p>
                     <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                      <li>Use one clear face per photo with good lighting.</li>
+                      <li>Ask the student to look straight at the camera in even lighting.</li>
                       <li>Passwords are hashed on the backend before storage.</li>
                       <li>Duplicate student emails are blocked automatically.</li>
                     </ul>

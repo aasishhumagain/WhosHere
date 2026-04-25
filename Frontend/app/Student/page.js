@@ -39,6 +39,18 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString();
 }
 
+function toLocalDayKey(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+}
+
 function capitalizeWords(value) {
   if (!value) {
     return "";
@@ -323,26 +335,6 @@ export default function StudentPage() {
     }
   }, [cameraOpen]);
 
-  async function handleFileChange(event) {
-    const file = event.target.files?.[0] || null;
-    setSelectedFile(file);
-
-    if (!file) {
-      setPreviewUrl("");
-      return;
-    }
-
-    try {
-      setPreviewUrl(await fileToDataUrl(file));
-    } catch (error) {
-      setAttendanceResult({
-        type: "error",
-        status: "error",
-        message: error.message || "Could not preview the selected image.",
-      });
-    }
-  }
-
   async function startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError("Camera access is not supported in this browser.");
@@ -366,7 +358,7 @@ export default function StudentPage() {
         videoRef.current.srcObject = stream;
       }
     } catch {
-      setCameraError("Could not access the camera. Please allow camera access or upload a photo.");
+      setCameraError("Could not access the camera. Please allow camera access and try again.");
     }
   }
 
@@ -404,10 +396,19 @@ export default function StudentPage() {
       { type: "image/jpeg" },
     );
 
-    setSelectedFile(cameraFile);
-    setPreviewUrl(await fileToDataUrl(cameraFile));
-    setCameraError("");
-    stopCamera();
+    try {
+      setSelectedFile(cameraFile);
+      setPreviewUrl(await fileToDataUrl(cameraFile));
+      setCameraError("");
+      setAttendanceResult(null);
+      stopCamera();
+    } catch (error) {
+      setAttendanceResult({
+        type: "error",
+        status: "error",
+        message: error.message || "Could not preview the captured image.",
+      });
+    }
   }
 
   async function markAttendance() {
@@ -415,7 +416,7 @@ export default function StudentPage() {
       setAttendanceResult({
         type: "error",
         status: "error",
-        message: "Please choose an image or capture one using the live camera.",
+        message: "Please capture a live face image before marking attendance.",
       });
       return;
     }
@@ -518,7 +519,8 @@ export default function StudentPage() {
   const uniquePresentDays = new Set(
     attendance
       .filter((record) => record.status === "present" || record.status === "late")
-      .map((record) => new Date(record.marked_at).toISOString().slice(0, 10)),
+      .map((record) => toLocalDayKey(record.marked_at))
+      .filter(Boolean),
   ).size;
   const approvedLeaveDays = leaveRequests
     .filter((leaveRequest) => leaveRequest.status === "approved")
@@ -594,8 +596,8 @@ export default function StudentPage() {
                 </p>
                 <h2 className="mt-3 text-4xl font-semibold">Track attendance and manage leave easily</h2>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                  Use a live camera or uploaded image to mark attendance, then review your records
-                  and submit leave requests from the same dashboard.
+                  Use the live camera to mark attendance, then review your records and submit leave
+                  requests from the same dashboard.
                 </p>
               </div>
 
@@ -645,43 +647,29 @@ export default function StudentPage() {
                 <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
                   Attendance Capture
                 </p>
-                <h2 className="mt-3 text-3xl font-semibold">Mark attendance with upload or live camera</h2>
+                <h2 className="mt-3 text-3xl font-semibold">Mark attendance with live camera capture</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Upload a clear image or capture one from the live camera, then submit it for face
+                  Open the live camera, capture a clear front-facing image, and submit it for face
                   recognition attendance matching.
                 </p>
 
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">
-                      Upload Face Image
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-white hover:file:bg-slate-700"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap items-end gap-3">
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="rounded-2xl bg-sky-600 px-4 py-3 font-medium text-white transition hover:bg-sky-700"
+                  >
+                    {selectedFile ? "Retake Capture" : "Open Live Camera"}
+                  </button>
+                  {cameraOpen ? (
                     <button
                       type="button"
-                      onClick={startCamera}
-                      className="rounded-2xl bg-sky-600 px-4 py-3 font-medium text-white transition hover:bg-sky-700"
+                      onClick={() => stopCamera()}
+                      className="rounded-2xl border border-slate-300 px-4 py-3 font-medium text-slate-700 transition hover:bg-slate-100"
                     >
-                      Open Live Camera
+                      Close Camera
                     </button>
-                    {cameraOpen ? (
-                      <button
-                        type="button"
-                        onClick={() => stopCamera()}
-                        className="rounded-2xl border border-slate-300 px-4 py-3 font-medium text-slate-700 transition hover:bg-slate-100"
-                      >
-                        Close Camera
-                      </button>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
 
                 {cameraError ? (
@@ -736,10 +724,12 @@ export default function StudentPage() {
                       setSelectedFile(null);
                       setPreviewUrl("");
                       setAttendanceResult(null);
+                      setCameraError("");
                     }}
-                    className="rounded-2xl border border-slate-300 px-5 py-3 font-medium text-slate-700 transition hover:bg-slate-100"
+                    disabled={!selectedFile}
+                    className="rounded-2xl border border-slate-300 px-5 py-3 font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                   >
-                    Clear Selected Image
+                    Clear Captured Image
                   </button>
                 </div>
 
@@ -769,10 +759,10 @@ export default function StudentPage() {
 
               <div className="grid gap-4">
                 <PhotoPreviewCard
-                  title="Selected Image Preview"
-                  subtitle="Review the current upload or camera capture before submitting attendance."
+                  title="Captured Image Preview"
+                  subtitle="Review the current live camera capture before submitting attendance."
                   imageUrl={previewUrl}
-                  fallbackLabel="Choose an image or capture one from the live camera."
+                  fallbackLabel="Capture an image from the live camera to preview it here."
                 />
 
                 <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
