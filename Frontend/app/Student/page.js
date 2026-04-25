@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
@@ -49,6 +50,23 @@ function capitalizeWords(value) {
     .join(" ");
 }
 
+function scrollToSection(sectionId) {
+  const section = document.getElementById(sectionId);
+
+  if (!section) {
+    return;
+  }
+
+  const topOffset = 24;
+  const nextScrollTop =
+    section.getBoundingClientRect().top + window.scrollY - topOffset;
+
+  window.scrollTo({
+    top: Math.max(nextScrollTop, 0),
+    behavior: "smooth",
+  });
+}
+
 function getStatusPillClass(status) {
   if (status === "approved" || status === "present") {
     return "bg-emerald-100 text-emerald-700";
@@ -85,11 +103,7 @@ function SidebarButton({ label, sectionId, accentClass }) {
   return (
     <button
       type="button"
-      onClick={() =>
-        document
-          .getElementById(sectionId)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" })
-      }
+      onClick={() => scrollToSection(sectionId)}
       className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition hover:translate-x-1 ${accentClass}`}
     >
       {label}
@@ -111,14 +125,20 @@ function PhotoPreviewCard({
       <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
 
       {imageUrl ? (
-        <div
-          role="img"
-          aria-label={title}
-          className="mt-4 h-56 rounded-[1.25rem] border border-slate-200 bg-cover bg-center"
-          style={{ backgroundImage: `url(${imageUrl})` }}
-        />
+        <div className="mt-4 flex h-64 items-center justify-center overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-3">
+          <div className="relative h-full w-full">
+            <Image
+              src={imageUrl}
+              alt={title}
+              fill
+              unoptimized
+              sizes="(max-width: 1024px) 100vw, 40vw"
+              className="rounded-[1rem] object-contain object-center"
+            />
+          </div>
+        </div>
       ) : (
-        <div className="mt-4 flex h-56 items-center justify-center rounded-[1.25rem] border border-dashed border-slate-300 bg-white text-center text-sm text-slate-400">
+        <div className="mt-4 flex h-64 items-center justify-center rounded-[1.25rem] border border-dashed border-slate-300 bg-white text-center text-sm text-slate-400">
           {fallbackLabel}
         </div>
       )}

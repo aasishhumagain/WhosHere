@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
@@ -135,6 +136,23 @@ function capitalizeWords(value) {
     .join(" ");
 }
 
+function scrollToSection(sectionId) {
+  const section = document.getElementById(sectionId);
+
+  if (!section) {
+    return;
+  }
+
+  const topOffset = 24;
+  const nextScrollTop =
+    section.getBoundingClientRect().top + window.scrollY - topOffset;
+
+  window.scrollTo({
+    top: Math.max(nextScrollTop, 0),
+    behavior: "smooth",
+  });
+}
+
 function buildAttendanceExportFileName(filters) {
   const nameParts = ["attendance_report"];
 
@@ -205,14 +223,20 @@ function PhotoPreviewCard({
       <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
 
       {imageUrl ? (
-        <div
-          role="img"
-          aria-label={title}
-          className="mt-4 h-52 rounded-[1.25rem] border border-slate-200 bg-cover bg-center shadow-inner"
-          style={{ backgroundImage: `url(${imageUrl})` }}
-        />
+        <div className="mt-4 flex h-60 items-center justify-center overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-3 shadow-inner">
+          <div className="relative h-full w-full">
+            <Image
+              src={imageUrl}
+              alt={title}
+              fill
+              unoptimized
+              sizes="(max-width: 1024px) 100vw, 40vw"
+              className="rounded-[1rem] object-contain object-center"
+            />
+          </div>
+        </div>
       ) : (
-        <div className="mt-4 flex h-52 items-center justify-center rounded-[1.25rem] border border-dashed border-slate-300 bg-white text-center text-sm text-slate-400">
+        <div className="mt-4 flex h-60 items-center justify-center rounded-[1.25rem] border border-dashed border-slate-300 bg-white text-center text-sm text-slate-400">
           {fallbackLabel}
         </div>
       )}
@@ -224,11 +248,7 @@ function SidebarButton({ label, sectionId, accentClass }) {
   return (
     <button
       type="button"
-      onClick={() =>
-        document
-          .getElementById(sectionId)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" })
-      }
+      onClick={() => scrollToSection(sectionId)}
       className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition hover:translate-x-1 ${accentClass}`}
     >
       {label}
@@ -1521,12 +1541,16 @@ export default function AdminPage() {
                           <tr key={student.student_id} className="odd:bg-white even:bg-slate-50">
                             <td className="border-b border-slate-100 p-3">
                               {photoUrl ? (
-                                <div
-                                  role="img"
-                                  aria-label={`${student.full_name} face preview`}
-                                  className="h-14 w-14 rounded-2xl border border-slate-200 bg-cover bg-center"
-                                  style={{ backgroundImage: `url(${photoUrl})` }}
-                                />
+                                <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                  <Image
+                                    src={photoUrl}
+                                    alt={`${student.full_name} face preview`}
+                                    fill
+                                    unoptimized
+                                    sizes="56px"
+                                    className="object-cover object-center"
+                                  />
+                                </div>
                               ) : (
                                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-[11px] text-slate-400">
                                   No image

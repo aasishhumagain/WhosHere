@@ -757,27 +757,33 @@ def export_attendance(
     csv_buffer = io.StringIO()
     writer = csv.writer(csv_buffer)
 
-    writer.writerow(["Attendance Report"])
-    writer.writerow(["Generated At (UTC)", datetime.utcnow().isoformat(timespec="seconds")])
-    writer.writerow(["Search Filter", (search or "").strip()])
-    writer.writerow(["Status Filter", status or "all"])
-    writer.writerow(["Student Filter", student_id if student_id is not None else "all"])
-    writer.writerow(["Date Filter", date or "all"])
-    writer.writerow(["Date From Filter", date_from or "all"])
-    writer.writerow(["Date To Filter", date_to or "all"])
-    writer.writerow(["Sort By", sort_by or "marked_at"])
-    writer.writerow(["Sort Direction", sort_direction or "desc"])
-    writer.writerow([])
-    writer.writerow(["Record ID", "Student ID", "Student Name", "Status", "Marked At (UTC)"])
+    writer.writerow(
+        [
+            "Record ID",
+            "Student ID",
+            "Student Name",
+            "Status",
+            "Marked Date (UTC)",
+            "Marked Time (UTC)",
+        ]
+    )
 
     for record in records:
+        if record.marked_at:
+            marked_date = record.marked_at.strftime("%Y-%m-%d")
+            marked_time = record.marked_at.strftime("%H:%M:%S")
+        else:
+            marked_date = ""
+            marked_time = ""
+
         writer.writerow(
             [
                 record.id,
                 record.student_id,
                 record.student.full_name if record.student else "Unknown Student",
                 record.status,
-                record.marked_at.isoformat(sep=" ", timespec="seconds") if record.marked_at else "",
+                marked_date,
+                marked_time,
             ]
         )
 
