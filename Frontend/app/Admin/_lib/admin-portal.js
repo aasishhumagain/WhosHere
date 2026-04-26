@@ -261,7 +261,7 @@ export function isAdminAuthError(error) {
 
 export function redirectAdminToLogin(router) {
   clearAdminSessionStorage();
-  router.replace("/");
+  router.replace("/login");
 }
 
 export function useAdminSessionGuard(router) {

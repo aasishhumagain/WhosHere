@@ -162,7 +162,7 @@ export default function StudentShell({
       // Best effort logout.
     } finally {
       clearStudentSessionStorage();
-      router.push("/");
+      router.push("/login");
     }
   }
 

@@ -192,7 +192,7 @@ export function isStudentAuthError(error) {
 
 export function redirectStudentToLogin(router) {
   clearStudentSessionStorage();
-  router.replace("/");
+  router.replace("/login");
 }
 
 export function useStudentSessionGuard(router) {

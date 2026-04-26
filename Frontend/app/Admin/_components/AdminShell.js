@@ -135,7 +135,7 @@ export default function AdminShell({
       // Best effort logout.
     } finally {
       clearAdminSessionStorage();
-      router.push("/");
+      router.push("/login");
     }
   }
 
