@@ -39,7 +39,6 @@ const MENU_LINKS = [
   {
     href: "/student/profile#change-password-section",
     label: "Change Password",
-    badge: "PW",
   },
 ];
 
@@ -87,21 +86,25 @@ function MenuLinkRow({ href, label, badge, active, onClick }) {
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center justify-between rounded-[1.1rem] px-3 py-3 text-sm transition ${
-        active ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-50"
+      className={`flex items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm transition ${
+        active
+          ? "bg-slate-100 text-slate-950 ring-1 ring-slate-200"
+          : "text-slate-700 hover:bg-slate-50"
       }`}
     >
       <div className="flex items-center gap-3">
-        <span
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-[0.7rem] font-semibold ${
-            active ? "bg-white/12 text-white" : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {badge}
-        </span>
+        {badge ? (
+          <span
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-[0.68rem] font-semibold ${
+              active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {badge}
+          </span>
+        ) : null}
         <span>{label}</span>
       </div>
-      <span className={`text-xs ${active ? "text-white/80" : "text-slate-400"}`}>{">"}</span>
+      <span className={`text-xs ${active ? "text-slate-500" : "text-slate-400"}`}>{">"}</span>
     </Link>
   );
 }
@@ -231,10 +234,10 @@ export default function StudentShell({
                   </button>
 
                   {menuOpen ? (
-                    <div className="absolute right-0 top-[calc(100%+0.85rem)] z-[100] w-[20rem] rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_35px_120px_rgba(15,23,42,0.22)]">
-                      <div className="flex items-center gap-3 rounded-[1.2rem] border border-slate-200 bg-slate-50 px-3 py-3">
+                    <div className="absolute right-0 top-[calc(100%+0.85rem)] z-[100] w-72 max-w-[calc(100vw-1.5rem)] rounded-[1.25rem] border border-slate-200 bg-white p-2.5 shadow-[0_35px_120px_rgba(15,23,42,0.22)]">
+                      <div className="flex items-center gap-3 rounded-[1rem] px-2.5 py-2">
                         <div className="relative">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
                             {studentInitials}
                           </div>
                           <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-50 bg-emerald-500" />
@@ -247,13 +250,13 @@ export default function StudentShell({
                           <p className="mt-1 truncate text-xs text-slate-500">
                             Student ID: {studentSession.studentId}
                           </p>
-                          <p className="mt-1 truncate text-xs text-slate-500">
+                          <p className="mt-0.5 truncate text-xs text-slate-500">
                             {studentSession.studentEmail || "No email added yet"}
                           </p>
                         </div>
                       </div>
 
-                      <div className="mt-3 space-y-1 border-t border-slate-100 pt-2">
+                      <div className="mt-1 space-y-1 border-t border-slate-100 pt-2">
                         {MENU_LINKS.map((link) => (
                           <MenuLinkRow
                             key={link.href}
@@ -274,15 +277,15 @@ export default function StudentShell({
                         type="button"
                         onClick={handleLogout}
                         disabled={loggingOut}
-                        className="mt-3 flex w-full items-center justify-between rounded-[1.1rem] bg-red-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                        className="mt-2 flex w-full items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-rose-300"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/12 text-[0.7rem] font-semibold">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-[0.68rem] font-semibold text-rose-600">
                             LO
                           </span>
                           <span>{loggingOut ? "Logging Out..." : "Logout"}</span>
                         </div>
-                        <span className="text-xs text-white/80">{">"}</span>
+                        <span className="text-xs text-rose-400">{">"}</span>
                       </button>
                     </div>
                   ) : null}
