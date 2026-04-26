@@ -134,7 +134,7 @@ export default function StudentDashboardPage() {
       studentSession={studentSession}
       pageLabel="Student Portal"
       title="Student Dashboard"
-      subtitle="Your student home now stays focused on overview and attendance capture. Use the main navigation for the core flow, then open the account menu for history, leave, profile details, and password settings."
+      subtitle="Your student home now stays focused on overview and attendance capture. Use the main navigation for the core flow, then open the account menu for history, leave, and profile details."
     >
       <div className="grid gap-6 xl:grid-cols-[1.08fr,0.92fr]">
         <PageCard>
@@ -310,8 +310,7 @@ export default function StudentDashboardPage() {
                   Next Step
                 </Badge>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  Open the account menu to reach attendance history, leave management, profile,
-                  and change-password settings.
+                  Open the account menu to reach attendance history, leave management, and profile details.
                 </p>
               </CardContent>
             </Card>

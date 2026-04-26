@@ -7,7 +7,6 @@ import {
   Camera,
   ChevronDown,
   Clock3,
-  KeyRound,
   LayoutDashboard,
   LogOut,
   UserRound,
@@ -69,12 +68,6 @@ const MENU_LINKS = [
     label: "Profile",
     icon: UserRound,
     description: "See account details",
-  },
-  {
-    href: "/student/profile#change-password-section",
-    label: "Change Password",
-    icon: null,
-    description: "Update your own password",
   },
 ];
 
@@ -276,14 +269,6 @@ export default function StudentShell({
                   </DropdownMenu>
                 </div>
 
-                <div className="flex w-full max-w-[24rem] items-center gap-3 rounded-full border border-border/70 bg-white/90 px-4 py-3 text-sm shadow-sm">
-                  <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <KeyRound className="size-4" />
-                  </div>
-                  <span className="text-muted-foreground">
-                    Password settings are available from the account menu.
-                  </span>
-                </div>
               </div>
             </div>
 
