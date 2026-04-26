@@ -802,23 +802,27 @@ def admin_logout(admin_session: dict = Depends(require_admin)):
 @app.post("/students/register", tags=["Students"], summary="Register a student")
 def register_student(
     full_name: str = Form(...),
-    password: str = Form(...),
+    password: str = Form(None),
     email: str = Form(None),
     face_image: UploadFile = File(...),
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
 ):
     file_path, face_encoding = save_face_image(face_image)
+    custom_password = normalize_optional_text(password)
 
     student = Student(
         student_code=None,
         full_name=validate_full_name(full_name),
-        password=hash_password(validate_required_password(password)),
+        password="",
         email=normalize_optional_text(email),
         face_image_path=file_path,
         face_encoding=face_encoding,
     )
     assign_student_code(student, db)
+    student.password = hash_password(
+        validate_required_password(custom_password or get_public_student_id(student))
+    )
 
     try:
         db.add(student)
@@ -834,6 +838,7 @@ def register_student(
 
     return {
         "message": "Student registered successfully",
+        "uses_student_id_password": not bool(custom_password),
         "student": serialize_student(student),
     }
 

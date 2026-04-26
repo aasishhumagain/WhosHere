@@ -16,6 +16,29 @@ export const DEFAULT_STUDENT_SESSION = {
   faceImageUrl: "",
 };
 
+const STUDENT_SESSION_EVENT = "whoshere-student-session-change";
+let cachedStudentSession = DEFAULT_STUDENT_SESSION;
+
+function buildStudentSessionSnapshot() {
+  return {
+    studentToken: localStorage.getItem("student_token") || "",
+    studentId: localStorage.getItem("student_id") || "",
+    studentName: localStorage.getItem("student_name") || "Student",
+    studentEmail: localStorage.getItem("student_email") || "",
+    faceImageUrl: localStorage.getItem("student_face_image_url") || "",
+  };
+}
+
+function studentSessionsMatch(left, right) {
+  return (
+    left.studentToken === right.studentToken &&
+    left.studentId === right.studentId &&
+    left.studentName === right.studentName &&
+    left.studentEmail === right.studentEmail &&
+    left.faceImageUrl === right.faceImageUrl
+  );
+}
+
 function subscribeToSessionStore(callback) {
   if (typeof window === "undefined") {
     return () => {};
@@ -23,8 +46,12 @@ function subscribeToSessionStore(callback) {
 
   const handleStorage = () => callback();
   window.addEventListener("storage", handleStorage);
+  window.addEventListener(STUDENT_SESSION_EVENT, handleStorage);
 
-  return () => window.removeEventListener("storage", handleStorage);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(STUDENT_SESSION_EVENT, handleStorage);
+  };
 }
 
 function getClientReadySnapshot() {
@@ -33,6 +60,18 @@ function getClientReadySnapshot() {
 
 function getServerReadySnapshot() {
   return false;
+}
+
+function getServerStudentSessionSnapshot() {
+  return DEFAULT_STUDENT_SESSION;
+}
+
+function emitStudentSessionChange() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(STUDENT_SESSION_EVENT));
 }
 
 export function createLeaveForm() {
@@ -159,13 +198,35 @@ export function getStudentSessionFromStorage() {
     return DEFAULT_STUDENT_SESSION;
   }
 
-  return {
-    studentToken: localStorage.getItem("student_token") || "",
-    studentId: localStorage.getItem("student_id") || "",
-    studentName: localStorage.getItem("student_name") || "Student",
-    studentEmail: localStorage.getItem("student_email") || "",
-    faceImageUrl: localStorage.getItem("student_face_image_url") || "",
-  };
+  const nextSnapshot = buildStudentSessionSnapshot();
+
+  if (studentSessionsMatch(cachedStudentSession, nextSnapshot)) {
+    return cachedStudentSession;
+  }
+
+  cachedStudentSession = nextSnapshot;
+  return cachedStudentSession;
+}
+
+export function setStudentSessionStorage(studentSession) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const previousSnapshot = buildStudentSessionSnapshot();
+
+  localStorage.setItem("student_token", studentSession.studentToken || "");
+  localStorage.setItem("student_id", studentSession.studentId || "");
+  localStorage.setItem("student_name", studentSession.studentName || "Student");
+  localStorage.setItem("student_email", studentSession.studentEmail || "");
+  localStorage.setItem("student_face_image_url", studentSession.faceImageUrl || "");
+
+  const nextSnapshot = buildStudentSessionSnapshot();
+  cachedStudentSession = nextSnapshot;
+
+  if (!studentSessionsMatch(previousSnapshot, nextSnapshot)) {
+    emitStudentSessionChange();
+  }
 }
 
 export function clearStudentSessionStorage() {
@@ -173,11 +234,19 @@ export function clearStudentSessionStorage() {
     return;
   }
 
+  const previousSnapshot = buildStudentSessionSnapshot();
+
   localStorage.removeItem("student_token");
   localStorage.removeItem("student_id");
   localStorage.removeItem("student_name");
   localStorage.removeItem("student_email");
   localStorage.removeItem("student_face_image_url");
+
+  cachedStudentSession = buildStudentSessionSnapshot();
+
+  if (!studentSessionsMatch(previousSnapshot, cachedStudentSession)) {
+    emitStudentSessionChange();
+  }
 }
 
 export function isStudentAuthError(error) {
@@ -201,9 +270,11 @@ export function useStudentSessionGuard(router) {
     getClientReadySnapshot,
     getServerReadySnapshot,
   );
-  const studentSession = sessionReady
-    ? getStudentSessionFromStorage()
-    : DEFAULT_STUDENT_SESSION;
+  const studentSession = useSyncExternalStore(
+    subscribeToSessionStore,
+    getStudentSessionFromStorage,
+    getServerStudentSessionSnapshot,
+  );
 
   useEffect(() => {
     if (!sessionReady) {

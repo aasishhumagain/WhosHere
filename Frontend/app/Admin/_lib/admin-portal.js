@@ -14,6 +14,20 @@ export const DEFAULT_ADMIN_SESSION = {
   username: "admin",
 };
 
+const ADMIN_SESSION_EVENT = "whoshere-admin-session-change";
+let cachedAdminSession = DEFAULT_ADMIN_SESSION;
+
+function buildAdminSessionSnapshot() {
+  return {
+    token: localStorage.getItem("admin_token") || "",
+    username: localStorage.getItem("admin_username") || "admin",
+  };
+}
+
+function adminSessionsMatch(left, right) {
+  return left.token === right.token && left.username === right.username;
+}
+
 function subscribeToSessionStore(callback) {
   if (typeof window === "undefined") {
     return () => {};
@@ -21,8 +35,12 @@ function subscribeToSessionStore(callback) {
 
   const handleStorage = () => callback();
   window.addEventListener("storage", handleStorage);
+  window.addEventListener(ADMIN_SESSION_EVENT, handleStorage);
 
-  return () => window.removeEventListener("storage", handleStorage);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(ADMIN_SESSION_EVENT, handleStorage);
+  };
 }
 
 function getClientReadySnapshot() {
@@ -31,6 +49,18 @@ function getClientReadySnapshot() {
 
 function getServerReadySnapshot() {
   return false;
+}
+
+function getServerAdminSessionSnapshot() {
+  return DEFAULT_ADMIN_SESSION;
+}
+
+function emitAdminSessionChange() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(ADMIN_SESSION_EVENT));
 }
 
 export function createStudentForm(student = {}) {
@@ -234,10 +264,32 @@ export function getAdminSessionFromStorage() {
     return DEFAULT_ADMIN_SESSION;
   }
 
-  return {
-    token: localStorage.getItem("admin_token") || "",
-    username: localStorage.getItem("admin_username") || "admin",
-  };
+  const nextSnapshot = buildAdminSessionSnapshot();
+
+  if (adminSessionsMatch(cachedAdminSession, nextSnapshot)) {
+    return cachedAdminSession;
+  }
+
+  cachedAdminSession = nextSnapshot;
+  return cachedAdminSession;
+}
+
+export function setAdminSessionStorage(adminSession) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const previousSnapshot = buildAdminSessionSnapshot();
+
+  localStorage.setItem("admin_token", adminSession.token || "");
+  localStorage.setItem("admin_username", adminSession.username || "admin");
+
+  const nextSnapshot = buildAdminSessionSnapshot();
+  cachedAdminSession = nextSnapshot;
+
+  if (!adminSessionsMatch(previousSnapshot, nextSnapshot)) {
+    emitAdminSessionChange();
+  }
 }
 
 export function clearAdminSessionStorage() {
@@ -245,8 +297,16 @@ export function clearAdminSessionStorage() {
     return;
   }
 
+  const previousSnapshot = buildAdminSessionSnapshot();
+
   localStorage.removeItem("admin_token");
   localStorage.removeItem("admin_username");
+
+  cachedAdminSession = buildAdminSessionSnapshot();
+
+  if (!adminSessionsMatch(previousSnapshot, cachedAdminSession)) {
+    emitAdminSessionChange();
+  }
 }
 
 export function isAdminAuthError(error) {
@@ -270,9 +330,11 @@ export function useAdminSessionGuard(router) {
     getClientReadySnapshot,
     getServerReadySnapshot,
   );
-  const adminSession = sessionReady
-    ? getAdminSessionFromStorage()
-    : DEFAULT_ADMIN_SESSION;
+  const adminSession = useSyncExternalStore(
+    subscribeToSessionStore,
+    getAdminSessionFromStorage,
+    getServerAdminSessionSnapshot,
+  );
 
   useEffect(() => {
     if (!sessionReady) {

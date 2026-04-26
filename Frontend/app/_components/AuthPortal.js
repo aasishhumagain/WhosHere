@@ -19,6 +19,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { setAdminSessionStorage } from "@/app/admin/_lib/admin-portal";
+import { setStudentSessionStorage } from "@/app/student/_lib/student-portal";
 
 const PLATFORM_FEATURES = [
   {
@@ -128,11 +130,13 @@ export default function AuthPortal() {
         "Invalid student ID or password.",
       );
 
-      localStorage.setItem("student_token", data.token || "");
-      localStorage.setItem("student_id", String(data.student_id));
-      localStorage.setItem("student_name", data.full_name || "Student");
-      localStorage.setItem("student_email", data.email || "");
-      localStorage.setItem("student_face_image_url", data.face_image_url || "");
+      setStudentSessionStorage({
+        studentToken: data.token || "",
+        studentId: String(data.student_id || ""),
+        studentName: data.full_name || "Student",
+        studentEmail: data.email || "",
+        faceImageUrl: data.face_image_url || "",
+      });
 
       router.push("/student");
     } catch (error) {
@@ -164,8 +168,10 @@ export default function AuthPortal() {
         "Invalid administrator credentials.",
       );
 
-      localStorage.setItem("admin_token", data.token);
-      localStorage.setItem("admin_username", data.username || adminUsername);
+      setAdminSessionStorage({
+        token: data.token || "",
+        username: data.username || adminUsername,
+      });
 
       router.push("/admin");
     } catch (error) {
@@ -240,7 +246,7 @@ export default function AuthPortal() {
           }}
           badgeLabel="Student Access"
           title="Student Login"
-          description="Use your student ID and password. You can update your password later from your own profile page."
+          description="Use your student ID and password. If the admin did not set a custom password, your first password is your student ID. You can update it later from your own profile page."
           loading={loadingStudent}
           loadingLabel="Signing In..."
           submitLabel="Login as Student"

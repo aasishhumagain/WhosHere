@@ -171,11 +171,6 @@ export default function AdminRegisterStudentPage() {
       return;
     }
 
-    if (!studentForm.password.trim()) {
-      setStudentMessage({ type: "error", message: "Password is required." });
-      return;
-    }
-
     if (!studentForm.face_image) {
       setStudentMessage({
         type: "error",
@@ -192,7 +187,11 @@ export default function AdminRegisterStudentPage() {
       resetStudentForm();
       setStudentMessage({
         type: "success",
-        message: response.message || "Student registered successfully.",
+        message:
+          response.message ||
+          (response.uses_student_id_password
+            ? "Student registered successfully. The initial password is the student ID."
+            : "Student registered successfully."),
       });
     } catch (error) {
       if (isAdminAuthError(error)) {
@@ -269,7 +268,7 @@ export default function AdminRegisterStudentPage() {
               </FieldBlock>
 
               <PasswordField
-                label="Password"
+                label="Password (Optional)"
                 value={studentForm.password}
                 onChange={(event) =>
                   setStudentForm((current) => ({
@@ -277,7 +276,7 @@ export default function AdminRegisterStudentPage() {
                     password: event.target.value,
                   }))
                 }
-                placeholder="Create a secure password"
+                placeholder="Leave blank to use the student ID"
                 inputClassName={ADMIN_FIELD_CLASSNAME}
               />
             </div>
@@ -406,6 +405,7 @@ export default function AdminRegisterStudentPage() {
             />
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
               <li>Ask the student to look straight at the camera in even lighting.</li>
+              <li>Leave the password blank if you want the student&apos;s initial password to be their student ID.</li>
               <li>Passwords are hashed on the backend before storage.</li>
               <li>Duplicate student emails are blocked automatically.</li>
             </ul>
