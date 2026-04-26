@@ -200,6 +200,7 @@ export default function StudentProfilePage() {
             subtitle="This is the face image currently linked to your account for recognition attendance."
             imageUrl={profilePhotoUrl}
             fallbackLabel="Your profile photo will appear here once one is registered by the admin."
+            imageLoading="eager"
           />
         </PageCard>
 

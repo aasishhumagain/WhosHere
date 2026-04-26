@@ -199,6 +199,7 @@ export default function StudentDashboardPage() {
             subtitle="This image is currently registered to your student account for face-based attendance matching."
             imageUrl={profilePhotoUrl}
             fallbackLabel="Your registered profile image will appear here once the admin adds one."
+            imageLoading="eager"
           />
         </PageCard>
       </div>

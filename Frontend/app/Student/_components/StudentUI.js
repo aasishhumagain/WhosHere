@@ -54,6 +54,7 @@ export function PhotoPreviewCard({
   subtitle,
   imageUrl,
   fallbackLabel,
+  imageLoading = "lazy",
 }) {
   return (
     <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
@@ -70,6 +71,7 @@ export function PhotoPreviewCard({
               alt={title}
               fill
               unoptimized
+              loading={imageLoading}
               sizes="(max-width: 1024px) 100vw, 40vw"
               className="rounded-[1rem] object-contain object-center"
             />

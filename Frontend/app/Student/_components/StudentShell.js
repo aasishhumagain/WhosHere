@@ -36,10 +36,6 @@ const MENU_LINKS = [
     label: "Profile",
     badge: "PR",
   },
-  {
-    href: "/student/profile#change-password-section",
-    label: "Change Password",
-  },
 ];
 
 function isLinkActive(pathname, href) {
