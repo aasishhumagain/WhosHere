@@ -1,0 +1,302 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  ChevronDown,
+  ClipboardCheck,
+  LayoutDashboard,
+  LogOut,
+  RefreshCcw,
+  UserPlus,
+  Users,
+  Waves,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+
+import {
+  clearAdminSessionStorage,
+  getAdminInitials,
+  logoutAdmin,
+} from "../_lib/admin-portal";
+
+const PRIMARY_LINKS = [
+  {
+    href: "/admin",
+    label: "Admin Dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/admin/register",
+    label: "Register Student",
+    icon: UserPlus,
+  },
+];
+
+const MENU_LINKS = [
+  {
+    href: "/admin/directory",
+    label: "Student Directory",
+    icon: Users,
+    description: "View and edit students",
+  },
+  {
+    href: "/admin/attendance",
+    label: "Attendance Control",
+    icon: ClipboardCheck,
+    description: "Review and correct attendance",
+  },
+  {
+    href: "/admin/leave",
+    label: "Leave Requests",
+    icon: Waves,
+    description: "Approve or reject leave",
+  },
+];
+
+function isLinkActive(pathname, href) {
+  if (href === "/admin") {
+    return pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function MenuLinkRow({ href, label, icon: Icon, description, active }) {
+  return (
+    <DropdownMenuItem
+      asChild
+      className={cn(
+        "rounded-2xl px-3 py-3 focus:bg-accent/70",
+        active && "bg-primary/8 text-foreground",
+      )}
+    >
+      <Link href={href} className="flex w-full items-center gap-3">
+        <span
+          className={cn(
+            "flex size-9 items-center justify-center rounded-xl border border-border/80 bg-white text-muted-foreground",
+            active && "border-primary/20 bg-primary/10 text-primary",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">{label}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {description}
+          </span>
+        </span>
+      </Link>
+    </DropdownMenuItem>
+  );
+}
+
+export default function AdminShell({
+  adminSession,
+  pageLabel,
+  title,
+  subtitle,
+  children,
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [loggingOut, setLoggingOut] = useState(false);
+  const adminInitials = getAdminInitials(adminSession.username);
+  const hasActiveMenuPage = MENU_LINKS.some((link) => isLinkActive(pathname, link.href));
+
+  async function handleLogout() {
+    setLoggingOut(true);
+
+    try {
+      await logoutAdmin(adminSession.token);
+    } catch {
+      // Best effort logout.
+    } finally {
+      clearAdminSessionStorage();
+      router.push("/");
+    }
+  }
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-10rem] top-[-8rem] size-80 rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute bottom-[-10rem] right-[-4rem] size-96 rounded-full bg-sky-300/25 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto max-w-7xl space-y-6">
+        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+          <CardHeader className="gap-6 p-6">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="max-w-3xl">
+                <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary">
+                  {pageLabel}
+                </Badge>
+                <CardTitle className="mt-4 text-4xl tracking-tight text-slate-950">
+                  {title}
+                </CardTitle>
+                <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                  {subtitle}
+                </CardDescription>
+              </div>
+
+              <div className="flex flex-col gap-4 xl:items-end">
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {PRIMARY_LINKS.map((link) => {
+                    const active = isLinkActive(pathname, link.href);
+                    const Icon = link.icon;
+
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className={cn(
+                          buttonVariants({
+                            variant: active ? "default" : "outline",
+                            size: "lg",
+                          }),
+                          "rounded-full",
+                        )}
+                      >
+                        <Icon className="size-4" />
+                        {link.label}
+                      </Link>
+                    );
+                  })}
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant={hasActiveMenuPage ? "secondary" : "outline"}
+                        size="lg"
+                        className={cn(
+                          "h-auto min-w-[16rem] justify-between rounded-full px-3 py-2.5 shadow-sm",
+                          hasActiveMenuPage && "border-primary/15 bg-primary/7 text-foreground",
+                        )}
+                      >
+                        <span className="flex items-center gap-3">
+                          <Avatar className="size-11 border border-white shadow-sm">
+                            <AvatarFallback className="bg-slate-950 text-sm text-white">
+                              {adminInitials}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <span className="min-w-0 text-left">
+                            <span className="block truncate text-sm font-semibold text-slate-950">
+                              {adminSession.username}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              Admin Menu
+                            </span>
+                          </span>
+                        </span>
+
+                        <ChevronDown className="size-4 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="end" className="w-80 p-2">
+                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-12 border border-border bg-white shadow-sm">
+                            <AvatarFallback className="bg-slate-950 text-sm text-white">
+                              {adminInitials}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-950">
+                              {adminSession.username}
+                            </p>
+                            <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
+                              Administrator Panel
+                            </p>
+                            <p className="truncate text-xs font-normal text-muted-foreground">
+                              Separate admin pages for dashboard, enrollment, records, and leave.
+                            </p>
+                          </div>
+                        </div>
+                      </DropdownMenuLabel>
+
+                      <DropdownMenuSeparator />
+
+                      {MENU_LINKS.map((link) => (
+                        <MenuLinkRow
+                          key={link.href}
+                          href={link.href}
+                          label={link.label}
+                          icon={link.icon}
+                          description={link.description}
+                          active={isLinkActive(pathname, link.href)}
+                        />
+                      ))}
+
+                      <DropdownMenuSeparator />
+
+                      <DropdownMenuItem
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handleLogout();
+                        }}
+                        disabled={loggingOut}
+                        className="rounded-2xl px-3 py-3 text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+                      >
+                        <span className="flex size-9 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                          <LogOut className="size-4" />
+                        </span>
+                        <span className="flex-1 text-sm font-medium">
+                          {loggingOut ? "Logging Out..." : "Logout"}
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex w-full max-w-[26rem] items-center gap-3 rounded-full border border-border/70 bg-white/90 px-4 py-3 text-sm shadow-sm">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <RefreshCcw className="size-4" />
+                  </div>
+                  <span className="text-muted-foreground">
+                    Use the admin menu to open directory, attendance, and leave pages.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="font-medium text-slate-700">Admin workspace</span>
+              <span>Dashboard and registration stay upfront.</span>
+              <span>Directory, attendance, and leave live on separate pages.</span>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {children}
+      </div>
+    </main>
+  );
+}
