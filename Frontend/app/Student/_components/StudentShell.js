@@ -28,7 +28,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -245,30 +244,6 @@ export default function StudentShell({
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end" className="w-80 p-2">
-                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="size-12 border border-border bg-white shadow-sm">
-                            <AvatarFallback className="bg-slate-950 text-sm text-white">
-                              {studentInitials}
-                            </AvatarFallback>
-                          </Avatar>
-
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-950">
-                              {studentSession.studentName}
-                            </p>
-                            <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-                              Student ID: {studentSession.studentId}
-                            </p>
-                            <p className="truncate text-xs font-normal text-muted-foreground">
-                              {studentSession.studentEmail || "No email added yet"}
-                            </p>
-                          </div>
-                        </div>
-                      </DropdownMenuLabel>
-
-                      <DropdownMenuSeparator />
-
                       {MENU_LINKS.map((link) => (
                         <MenuLinkRow
                           key={link.href}
