@@ -1,6 +1,22 @@
 "use client";
 
 import Image from "next/image";
+import {
+  Camera,
+  CameraOff,
+  CheckCheck,
+  ChevronDown,
+  ClipboardCheck,
+  Download,
+  LayoutDashboard,
+  LogOut,
+  PencilLine,
+  RefreshCcw,
+  Trash2,
+  UserPlus,
+  Users,
+  Waves,
+} from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
@@ -12,6 +28,37 @@ import {
   getAdminAuthHeaders,
   parseApiResponse,
 } from "@/app/lib/api";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function createStudentForm(student = {}) {
   return {
@@ -68,6 +115,22 @@ function formatDate(value) {
 
 function formatPercent(value) {
   return `${Math.round(value)}%`;
+}
+
+function getAdminInitials(username) {
+  const parts = String(username || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "AD";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
 }
 
 function padDateSegment(value) {
@@ -210,6 +273,176 @@ function getStatusPillClass(status) {
   return "bg-slate-100 text-slate-700";
 }
 
+const ADMIN_SHELL_CLASSNAME =
+  "min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6";
+
+const ADMIN_SECTION_CLASSNAME =
+  "rounded-[2rem] border border-white/80 bg-white/92 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm";
+
+const ADMIN_FIELD_CLASSNAME =
+  "h-12 rounded-2xl border-slate-200 bg-slate-50 shadow-none focus-visible:border-ring";
+
+const ADMIN_SELECT_CLASSNAME =
+  "h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-ring focus:ring-[3px] focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50";
+
+const ADMIN_FILE_INPUT_CLASSNAME =
+  "h-auto rounded-2xl border-slate-200 bg-slate-50 py-3 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800";
+
+const SECTION_LINKS = [
+  {
+    label: "Overview",
+    sectionId: "overview-section",
+    icon: LayoutDashboard,
+    description: "Dashboard summary",
+    accentClass: "border-slate-200 bg-slate-50/90",
+    iconClass: "bg-slate-100 text-slate-600",
+  },
+  {
+    label: "Register Student",
+    sectionId: "register-section",
+    icon: UserPlus,
+    description: "Create new account",
+    accentClass: "border-blue-200 bg-blue-50/90",
+    iconClass: "bg-blue-100 text-blue-700",
+  },
+  {
+    label: "Student Directory",
+    sectionId: "directory-section",
+    icon: Users,
+    description: "View and edit students",
+    accentClass: "border-emerald-200 bg-emerald-50/90",
+    iconClass: "bg-emerald-100 text-emerald-700",
+  },
+  {
+    label: "Attendance Control",
+    sectionId: "attendance-section",
+    icon: ClipboardCheck,
+    description: "Manage attendance",
+    accentClass: "border-amber-200 bg-amber-50/90",
+    iconClass: "bg-amber-100 text-amber-700",
+  },
+  {
+    label: "Leave Requests",
+    sectionId: "leave-section",
+    icon: Waves,
+    description: "Review student leave",
+    accentClass: "border-sky-200 bg-sky-50/90",
+    iconClass: "bg-sky-100 text-sky-700",
+  },
+];
+
+function getBannerVariant(type) {
+  if (type === "error") {
+    return "destructive";
+  }
+
+  if (type === "success") {
+    return "success";
+  }
+
+  return "default";
+}
+
+function AdminMessage({ message, className = "" }) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Alert
+      variant={getBannerVariant(message.type)}
+      className={cn("rounded-2xl", getBannerClass(message.type), className)}
+    >
+      <AlertDescription>{message.message}</AlertDescription>
+    </Alert>
+  );
+}
+
+function StatusPill({ status }) {
+  return (
+    <Badge
+      className={cn(
+        "rounded-full px-3 py-1 text-[0.72rem] font-semibold",
+        getStatusPillClass(status),
+      )}
+    >
+      {capitalizeWords(status)}
+    </Badge>
+  );
+}
+
+function SectionIntro({ eyebrow, title, description, className = "" }) {
+  return (
+    <div className={className}>
+      <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary/90">
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+        {title}
+      </h2>
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function SectionPanel({ id, className = "", children }) {
+  return (
+    <section id={id} className={cn(ADMIN_SECTION_CLASSNAME, className)}>
+      {children}
+    </section>
+  );
+}
+
+function MetricCard({ label, value, accentClass = "" }) {
+  return (
+    <Card className={cn("rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none", accentClass)}>
+      <CardContent className="p-5">
+        <p className="text-sm text-slate-500">{label}</p>
+        <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FieldBlock({ label, htmlFor, hint, children }) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {children}
+      {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+    </div>
+  );
+}
+
+function NativeSelect({ className = "", ...props }) {
+  return <select className={cn(ADMIN_SELECT_CLASSNAME, className)} {...props} />;
+}
+
+function PhotoThumb({ imageUrl, alt }) {
+  if (!imageUrl) {
+    return (
+      <div className="flex size-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-[11px] text-slate-400">
+        No image
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative size-14 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <Image
+        src={imageUrl}
+        alt={alt}
+        fill
+        unoptimized
+        sizes="56px"
+        className="object-cover object-center"
+      />
+    </div>
+  );
+}
+
 function PhotoPreviewCard({
   title,
   subtitle,
@@ -217,43 +450,72 @@ function PhotoPreviewCard({
   fallbackLabel,
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-slate-200/80 bg-slate-50/80 p-4 shadow-none">
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-        {title}
-      </p>
-      <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+    <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
+      <CardHeader className="gap-2">
+        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardDescription>{subtitle}</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <Separator className="mb-4" />
 
-      {imageUrl ? (
-        <div className="mt-4 flex h-60 items-center justify-center overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-3 shadow-inner">
-          <div className="relative h-full w-full">
-            <Image
-              src={imageUrl}
-              alt={title}
-              fill
-              unoptimized
-              sizes="(max-width: 1024px) 100vw, 40vw"
-              className="rounded-[1rem] object-contain object-center"
-            />
+        {imageUrl ? (
+          <div className="flex h-64 items-center justify-center overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-3 shadow-inner">
+            <div className="relative h-full w-full">
+              <Image
+                src={imageUrl}
+                alt={title}
+                fill
+                unoptimized
+                sizes="(max-width: 1024px) 100vw, 40vw"
+                className="rounded-[1rem] object-contain object-center"
+              />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="mt-4 flex h-60 items-center justify-center rounded-[1.25rem] border border-dashed border-slate-300 bg-white text-center text-sm text-slate-400">
-          {fallbackLabel}
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="flex h-64 items-center justify-center rounded-[1.25rem] border border-dashed border-slate-300 bg-white text-center text-sm text-slate-400">
+            {fallbackLabel}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-function SidebarButton({ label, sectionId, accentClass }) {
+function AdminMenuLinkRow({
+  label,
+  sectionId,
+  accentClass,
+  iconClass,
+  icon: Icon,
+  description,
+}) {
   return (
-    <button
-      type="button"
-      onClick={() => scrollToSection(sectionId)}
-      className={`w-full rounded-2xl border border-white/10 px-4 py-3 text-left text-sm font-medium transition hover:translate-x-1 hover:border-white/20 ${accentClass}`}
+    <DropdownMenuItem
+      onSelect={(event) => {
+        event.preventDefault();
+        scrollToSection(sectionId);
+      }}
+      className="rounded-2xl px-3 py-3 focus:bg-accent/70"
     >
-      {label}
-    </button>
+      {Icon ? (
+        <span
+          className={cn(
+            "flex size-10 items-center justify-center rounded-2xl border",
+            accentClass,
+            iconClass,
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+      ) : null}
+
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-slate-900">{label}</span>
+        {description ? (
+          <span className="mt-0.5 block text-xs text-slate-500">{description}</span>
+        ) : null}
+      </span>
+    </DropdownMenuItem>
   );
 }
 
@@ -276,31 +538,25 @@ function EditStudentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
-      <div className="max-h-full w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/70 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+      <Card className="max-h-full w-full max-w-4xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
+        <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 p-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-700">
+            <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
               Edit Student
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-              {student.full_name}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            </Badge>
+            <CardTitle className="mt-4 text-2xl">{student.full_name}</CardTitle>
+            <CardDescription className="mt-1 text-sm">
               Student ID #{student.student_id}. Update details and preview the face image before
               saving.
-            </p>
+            </CardDescription>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
-          >
+          <Button type="button" variant="outline" className="rounded-full" onClick={onClose}>
             Close
-          </button>
-        </div>
+          </Button>
+        </CardHeader>
 
-        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[0.88fr,1.12fr]">
+        <CardContent className="grid gap-6 p-6 lg:grid-cols-[0.88fr,1.12fr]">
           <PhotoPreviewCard
             title="Face Preview"
             subtitle="Current student photo or the new uploaded replacement."
@@ -309,54 +565,49 @@ function EditStudentModal({
           />
 
           <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Full Name
-              </label>
-              <input
+            <FieldBlock label="Full Name" htmlFor="edit-student-name">
+              <Input
+                id="edit-student-name"
                 type="text"
                 value={form.full_name}
                 onChange={(event) => onFieldChange("full_name", event.target.value)}
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+                className={ADMIN_FIELD_CLASSNAME}
               />
-            </div>
+            </FieldBlock>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Email
-              </label>
-              <input
+            <FieldBlock label="Email" htmlFor="edit-student-email">
+              <Input
+                id="edit-student-email"
                 type="email"
                 value={form.email}
                 onChange={(event) => onFieldChange("email", event.target.value)}
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+                className={ADMIN_FIELD_CLASSNAME}
               />
-            </div>
+            </FieldBlock>
 
             <PasswordField
               label="Password"
               value={form.password}
               onChange={(event) => onFieldChange("password", event.target.value)}
               placeholder="Leave blank to keep the existing password"
-              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+              inputClassName={ADMIN_FIELD_CLASSNAME}
             />
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Replace Face Image
-              </label>
-              <input
+            <FieldBlock
+              label="Replace Face Image"
+              htmlFor="edit-student-face-image"
+              hint="Upload a new image only if you want to update the stored face profile."
+            >
+              <Input
+                id="edit-student-face-image"
                 type="file"
                 accept="image/*"
                 onChange={onImageChange}
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-white hover:file:bg-slate-700"
+                className={ADMIN_FILE_INPUT_CLASSNAME}
               />
-              <p className="mt-2 text-xs text-slate-500">
-                Upload a new image only if you want to update the stored face profile.
-              </p>
-            </div>
+            </FieldBlock>
 
-            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
+            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
                   Student Email
@@ -372,24 +623,25 @@ function EditStudentModal({
             </div>
 
             <div className="flex flex-wrap gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 disabled={isSaving}
-                className="rounded-2xl bg-blue-600 px-5 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                className="rounded-full bg-blue-600 hover:bg-blue-700"
               >
                 {isSaving ? "Saving Changes..." : "Save Changes"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={onClose}
-                className="rounded-2xl border border-slate-300 px-5 py-3 font-medium text-slate-700 transition hover:bg-slate-100"
+                variant="outline"
+                className="rounded-full"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1306,16 +1558,32 @@ export default function AdminPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const filteredPendingLeaveRequests = filteredLeaveRequests.filter(
+    (leaveRequest) => leaveRequest.status === "pending",
+  ).length;
+  const filteredApprovedLeaveRequests = filteredLeaveRequests.filter(
+    (leaveRequest) => leaveRequest.status === "approved",
+  ).length;
+  const filteredRejectedLeaveRequests = filteredLeaveRequests.filter(
+    (leaveRequest) => leaveRequest.status === "rejected",
+  ).length;
+  const adminInitials = getAdminInitials(adminSession.username);
+
   if (!sessionReady) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
+      <main className={ADMIN_SHELL_CLASSNAME}>
         <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
-          <div className="rounded-[2rem] border border-white/80 bg-white/90 px-8 py-10 text-center shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
-              WhosHere
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold">Loading admin dashboard...</h1>
-          </div>
+          <Card className="w-full max-w-xl border-white/80 bg-white/92 text-center shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+            <CardHeader className="gap-4 p-8">
+              <Badge variant="outline" className="mx-auto rounded-full border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
+                WhosHere
+              </Badge>
+              <CardTitle className="text-3xl">Loading admin dashboard...</CardTitle>
+              <CardDescription className="text-sm leading-6">
+                Preparing student records, attendance history, and leave requests.
+              </CardDescription>
+            </CardHeader>
+          </Card>
         </div>
       </main>
     );
@@ -1323,135 +1591,199 @@ export default function AdminPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
-        <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[18rem,1fr]">
-          <aside className="h-fit rounded-[2rem] border border-white/70 bg-slate-950/96 p-6 text-white shadow-[0_30px_120px_rgba(15,23,42,0.25)] backdrop-blur-sm xl:sticky xl:top-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">
-              Admin Workspace
-            </p>
-            <h1 className="mt-4 text-3xl font-semibold">WhosHere</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Signed in as <span className="font-semibold text-white">{adminSession.username}</span>.
-            </p>
+      <main className={ADMIN_SHELL_CLASSNAME}>
+        <div className="mx-auto max-w-7xl space-y-6">
+          <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+            <CardHeader className="gap-6 p-6">
+              <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                <div className="max-w-3xl">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-amber-200 bg-amber-50 px-3 py-1 text-amber-700"
+                  >
+                    Admin Workspace
+                  </Badge>
+                  <CardTitle className="mt-4 text-4xl tracking-tight text-slate-950">
+                    WhosHere Admin
+                  </CardTitle>
+                  <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                    Everything from student enrollment to attendance corrections now lives inside
+                    one admin workspace. Open the admin menu to jump between sections quickly.
+                  </CardDescription>
+                </div>
 
-            <div className="mt-8 space-y-3">
-              <SidebarButton
-                label="Overview"
-                sectionId="overview-section"
-                accentClass="bg-white/8 text-white"
-              />
-              <SidebarButton
-                label="Register Student"
-                sectionId="register-section"
-                accentClass="bg-blue-500/15 text-blue-100"
-              />
-              <SidebarButton
-                label="Student Directory"
-                sectionId="directory-section"
-                accentClass="bg-emerald-500/15 text-emerald-100"
-              />
-              <SidebarButton
-                label="Attendance Control"
-                sectionId="attendance-section"
-                accentClass="bg-amber-500/15 text-amber-100"
-              />
-              <SidebarButton
-                label="Leave Requests"
-                sectionId="leave-section"
-                accentClass="bg-sky-500/15 text-sky-100"
-              />
-            </div>
+                <div className="flex flex-col gap-4 xl:items-end">
+                  <div className="flex flex-wrap items-center justify-end gap-3">
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="rounded-full"
+                      onClick={loadDashboard}
+                    >
+                      <RefreshCcw className={`size-4 ${isLoadingDashboard ? "animate-spin" : ""}`} />
+                      {isLoadingDashboard ? "Refreshing..." : "Refresh Dashboard"}
+                    </Button>
 
-            <button
-              type="button"
-              onClick={logout}
-              className="mt-8 w-full rounded-2xl bg-red-600 px-4 py-3 font-medium text-white transition hover:bg-red-700"
-            >
-              Logout
-            </button>
-          </aside>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="h-auto min-w-[16rem] justify-between rounded-full px-3 py-2.5 shadow-sm"
+                        >
+                          <span className="flex items-center gap-3">
+                            <Avatar className="size-11 border border-white shadow-sm">
+                              <AvatarFallback className="bg-slate-950 text-sm text-white">
+                                {adminInitials}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <span className="min-w-0 text-left">
+                              <span className="block truncate text-sm font-semibold text-slate-950">
+                                {adminSession.username}
+                              </span>
+                              <span className="block text-xs text-slate-500">Admin Menu</span>
+                            </span>
+                          </span>
+
+                          <ChevronDown className="size-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent align="end" className="w-80 p-2">
+                        <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="size-12 border border-slate-200 bg-white shadow-sm">
+                              <AvatarFallback className="bg-slate-950 text-sm text-white">
+                                {adminInitials}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-950">
+                                {adminSession.username}
+                              </p>
+                              <p className="mt-1 text-xs font-normal text-slate-500">
+                                Administrator Panel
+                              </p>
+                              <p className="text-xs font-normal text-slate-500">
+                                {students.length} students, {attendance.length} entries,{" "}
+                                {totalPendingLeaveRequests} pending
+                              </p>
+                            </div>
+                          </div>
+                        </DropdownMenuLabel>
+
+                        <DropdownMenuSeparator />
+
+                        {SECTION_LINKS.map((link) => (
+                          <AdminMenuLinkRow
+                            key={link.sectionId}
+                            label={link.label}
+                            sectionId={link.sectionId}
+                            icon={link.icon}
+                            accentClass={link.accentClass}
+                            iconClass={link.iconClass}
+                            description={link.description}
+                          />
+                        ))}
+
+                        <DropdownMenuSeparator />
+
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            logout();
+                          }}
+                          className="rounded-2xl px-3 py-3 text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+                        >
+                          <span className="flex size-10 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+                            <LogOut className="size-4" />
+                          </span>
+                          <span className="flex-1 text-sm font-semibold">Logout</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="grid w-full gap-3 sm:grid-cols-3 xl:min-w-[28rem]">
+                    <div className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                      <p className="text-[0.68rem] uppercase tracking-[0.2em] text-slate-400">
+                        Students
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-slate-950">{students.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                      <p className="text-[0.68rem] uppercase tracking-[0.2em] text-slate-400">
+                        Entries
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-slate-950">{attendance.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                      <p className="text-[0.68rem] uppercase tracking-[0.2em] text-slate-400">
+                        Pending
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-slate-950">
+                        {totalPendingLeaveRequests}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                <span className="font-medium text-slate-700">Admin workspace</span>
+                <span>Use the dropdown to jump between dashboard sections.</span>
+                <span>Enrollment, attendance, and leave controls stay on one page.</span>
+              </div>
+            </CardHeader>
+          </Card>
 
           <div className="space-y-6">
-            <section
-              id="overview-section"
-              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
-            >
+            <SectionPanel id="overview-section">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
-                    Dashboard Overview
-                  </p>
-                  <h2 className="mt-3 text-4xl font-semibold">Admin control with live student data</h2>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                    Manage students, prevent duplicate attendance, review leave requests, and
-                    correct attendance records from one place.
-                  </p>
-                </div>
+                <SectionIntro
+                  eyebrow="Dashboard Overview"
+                  title="Admin control with live student data"
+                  description="Manage students, prevent duplicate attendance, review leave requests, and correct attendance records from one place."
+                />
 
-                <button
-                  type="button"
-                  onClick={loadDashboard}
-                  className="rounded-2xl bg-slate-900 px-5 py-3 font-medium text-white transition hover:bg-slate-700"
-                >
-                  Refresh Dashboard
-                </button>
+                <Button type="button" size="lg" className="rounded-full" onClick={loadDashboard}>
+                  <RefreshCcw className={`size-4 ${isLoadingDashboard ? "animate-spin" : ""}`} />
+                  {isLoadingDashboard ? "Refreshing..." : "Refresh Dashboard"}
+                </Button>
               </div>
 
-              {dashboardError ? (
-                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {dashboardError}
-                </div>
-              ) : null}
+              <AdminMessage
+                message={dashboardError ? { type: "error", message: dashboardError } : null}
+                className="mt-5"
+              />
 
               <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Registered Students</p>
-                  <p className="mt-3 text-3xl font-semibold">{students.length}</p>
-                </div>
-                <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Attendance Entries</p>
-                  <p className="mt-3 text-3xl font-semibold">{attendance.length}</p>
-                </div>
-                <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Pending Leave Requests</p>
-                  <p className="mt-3 text-3xl font-semibold">{totalPendingLeaveRequests}</p>
-                </div>
-                <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Dashboard Status</p>
-                  <p className="mt-3 text-3xl font-semibold">
-                    {isLoadingDashboard ? "Loading" : "Ready"}
-                  </p>
-                </div>
+                <MetricCard label="Registered Students" value={students.length} />
+                <MetricCard label="Attendance Entries" value={attendance.length} />
+                <MetricCard label="Pending Leave Requests" value={totalPendingLeaveRequests} />
+                <MetricCard label="Dashboard Status" value={isLoadingDashboard ? "Loading" : "Ready"} />
               </div>
-            </section>
+            </SectionPanel>
 
-            <section
-              id="register-section"
-              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
-            >
-              <div className="grid gap-6 lg:grid-cols-[1.08fr,0.92fr]">
+            <SectionPanel id="register-section">
+              <div className="grid gap-6 lg:grid-cols-[1.04fr,0.96fr]">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
-                    Student Enrollment
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold">Register a new student</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Create a student account, capture a live face photo, and preview the captured
-                    image before saving.
-                  </p>
+                  <SectionIntro
+                    eyebrow="Student Enrollment"
+                    title="Register a new student"
+                    description="Create a student account, capture a live face photo, and preview the captured image before saving."
+                  />
 
-                  {studentMessage ? (
-                    <div className={`mt-5 rounded-2xl px-4 py-3 text-sm ${getBannerClass(studentMessage.type)}`}>
-                      {studentMessage.message}
-                    </div>
-                  ) : null}
+                  <AdminMessage message={studentMessage} className="mt-5" />
 
-                  <form onSubmit={handleRegisterStudent} className="mt-6 space-y-4">
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700">
-                        Full Name
-                      </label>
-                      <input
+                  <form onSubmit={handleRegisterStudent} className="mt-6 space-y-5">
+                    <FieldBlock label="Full Name" htmlFor="student-full-name">
+                      <Input
+                        id="student-full-name"
                         type="text"
                         value={studentForm.full_name}
                         onChange={(event) =>
@@ -1461,16 +1793,14 @@ export default function AdminPage() {
                           }))
                         }
                         placeholder="Enter the student's full name"
-                        className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                        className={ADMIN_FIELD_CLASSNAME}
                       />
-                    </div>
+                    </FieldBlock>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Email
-                        </label>
-                        <input
+                      <FieldBlock label="Email" htmlFor="student-email">
+                        <Input
+                          id="student-email"
                           type="email"
                           value={studentForm.email}
                           onChange={(event) =>
@@ -1480,9 +1810,9 @@ export default function AdminPage() {
                             }))
                           }
                           placeholder="student@example.com"
-                          className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                          className={ADMIN_FIELD_CLASSNAME}
                         />
-                      </div>
+                      </FieldBlock>
 
                       <PasswordField
                         label="Password"
@@ -1494,102 +1824,114 @@ export default function AdminPage() {
                           }))
                         }
                         placeholder="Create a secure password"
-                        inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                        inputClassName={ADMIN_FIELD_CLASSNAME}
                       />
                     </div>
 
-                    <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700">
-                            Live Face Capture
-                          </label>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Use the live camera to capture a clear front-facing face photo for enrollment.
-                          </p>
-                        </div>
+                    <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
+                      <CardContent className="p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <Badge variant="outline" className="rounded-full px-3 py-1">
+                              Live Face Capture
+                            </Badge>
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                              Use the live camera to capture a clear front-facing face photo for
+                              enrollment.
+                            </p>
+                          </div>
 
-                        <div className="flex flex-wrap gap-3">
-                          <button
-                            type="button"
-                            onClick={startStudentCamera}
-                            className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700"
-                          >
-                            {studentForm.face_image ? "Retake Capture" : "Open Live Camera"}
-                          </button>
-                          {studentCameraOpen ? (
-                            <button
+                          <div className="flex flex-wrap gap-3">
+                            <Button
                               type="button"
-                              onClick={() => stopStudentCamera()}
-                              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white"
+                              className="rounded-full bg-sky-600 hover:bg-sky-700"
+                              onClick={startStudentCamera}
                             >
-                              Close Camera
-                            </button>
-                          ) : null}
-                          {studentForm.face_image ? (
-                            <button
-                              type="button"
-                              onClick={clearStudentCapture}
-                              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white"
-                            >
-                              Clear Capture
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {studentCameraError ? (
-                        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                          {studentCameraError}
-                        </div>
-                      ) : null}
-
-                      {studentCameraOpen ? (
-                        <div className="mt-4">
-                          <video
-                            ref={studentVideoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full rounded-[1.25rem] border border-slate-200 bg-slate-900"
-                          />
-
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            <button
-                              type="button"
-                              onClick={captureStudentFromCamera}
-                              className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
-                            >
-                              Capture Face Photo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => stopStudentCamera()}
-                              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white"
-                            >
-                              Cancel Camera
-                            </button>
+                              <Camera className="size-4" />
+                              {studentForm.face_image ? "Retake Capture" : "Open Live Camera"}
+                            </Button>
+                            {studentCameraOpen ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={() => stopStudentCamera()}
+                              >
+                                <CameraOff className="size-4" />
+                                Close Camera
+                              </Button>
+                            ) : null}
+                            {studentForm.face_image ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={clearStudentCapture}
+                              >
+                                Clear Capture
+                              </Button>
+                            ) : null}
                           </div>
                         </div>
-                      ) : null}
-                    </div>
+
+                        <AdminMessage
+                          message={
+                            studentCameraError
+                              ? { type: "error", message: studentCameraError }
+                              : null
+                          }
+                          className="mt-4"
+                        />
+
+                        {studentCameraOpen ? (
+                          <div className="mt-4">
+                            <video
+                              ref={studentVideoRef}
+                              autoPlay
+                              playsInline
+                              muted
+                              className="w-full rounded-[1.25rem] border border-slate-200 bg-slate-900"
+                            />
+
+                            <div className="mt-4 flex flex-wrap gap-3">
+                              <Button
+                                type="button"
+                                className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                                onClick={captureStudentFromCamera}
+                              >
+                                <CheckCheck className="size-4" />
+                                Capture Face Photo
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={() => stopStudentCamera()}
+                              >
+                                Cancel Camera
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </CardContent>
+                    </Card>
 
                     <div className="flex flex-wrap gap-3 pt-2">
-                      <button
+                      <Button
                         type="submit"
                         disabled={isSavingStudent}
-                        className="rounded-2xl bg-emerald-600 px-5 py-3 font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                        className="rounded-full bg-emerald-600 hover:bg-emerald-700"
                       >
                         {isSavingStudent ? "Registering..." : "Register Student"}
-                      </button>
-
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="outline"
+                        className="rounded-full"
                         onClick={resetStudentForm}
-                        className="rounded-2xl border border-slate-300 px-5 py-3 font-medium text-slate-700 transition hover:bg-slate-100"
                       >
                         Clear Form
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 </div>
@@ -1604,167 +1946,154 @@ export default function AdminPage() {
                     fallbackLabel="Capture a student face image to preview it here."
                   />
 
-                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                      Enrollment Tips
-                    </p>
-                    <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                      <li>Ask the student to look straight at the camera in even lighting.</li>
-                      <li>Passwords are hashed on the backend before storage.</li>
-                      <li>Duplicate student emails are blocked automatically.</li>
-                    </ul>
-                  </div>
+                  <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
+                    <CardHeader className="gap-2">
+                      <CardTitle className="text-lg">Enrollment Tips</CardTitle>
+                      <CardDescription>
+                        A clearer enrollment photo and clean account details make recognition and
+                        account recovery smoother later.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <Separator className="mb-4" />
+                      <ul className="space-y-3 text-sm leading-6 text-slate-600">
+                        <li>Ask the student to look straight at the camera in even lighting.</li>
+                        <li>Passwords are hashed on the backend before storage.</li>
+                        <li>Duplicate student emails are blocked automatically.</li>
+                      </ul>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
-            </section>
+            </SectionPanel>
 
-            <section
-              id="directory-section"
-              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
-            >
+            <SectionPanel id="directory-section">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-sky-700">
-                    Student Directory
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold">View, sort, edit, and delete students</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Sort the directory in ascending or descending order and open the edit popup to
-                    review each student photo and detail set.
-                  </p>
-                </div>
+                <SectionIntro
+                  eyebrow="Student Directory"
+                  title="View, sort, edit, and delete students"
+                  description="Sort the directory in ascending or descending order and open the edit popup to review each student photo and detail set."
+                />
 
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <input
+                  <Input
                     type="text"
                     placeholder="Search students..."
                     value={studentSearch}
                     onChange={(event) => setStudentSearch(event.target.value)}
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-sky-500 focus:bg-white"
+                    className={ADMIN_FIELD_CLASSNAME}
                   />
 
-                  <select
+                  <NativeSelect
                     value={studentSortField}
                     onChange={(event) => setStudentSortField(event.target.value)}
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-sky-500 focus:bg-white"
                   >
                     <option value="full_name">Sort by Name</option>
                     <option value="student_id">Sort by ID</option>
                     <option value="email">Sort by Email</option>
                     <option value="created_at">Sort by Created Date</option>
-                  </select>
+                  </NativeSelect>
 
-                  <select
+                  <NativeSelect
                     value={studentSortDirection}
                     onChange={(event) => setStudentSortDirection(event.target.value)}
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-sky-500 focus:bg-white"
                   >
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
 
-              <div className="mt-6 overflow-x-auto rounded-[1.5rem] border border-slate-200">
-                <table className="w-full min-w-[70rem] text-sm">
-                  <thead className="bg-slate-100 text-left">
-                    <tr>
-                      <th className="border-b border-slate-200 p-3">Photo</th>
-                      <th className="border-b border-slate-200 p-3">ID</th>
-                      <th className="border-b border-slate-200 p-3">Name</th>
-                      <th className="border-b border-slate-200 p-3">Email</th>
-                      <th className="border-b border-slate-200 p-3">Registered</th>
-                      <th className="border-b border-slate-200 p-3">Actions</th>
-                    </tr>
-                  </thead>
+              <div className="mt-4 flex items-center justify-between gap-4 text-sm text-slate-600">
+                <p>
+                  Showing <span className="font-semibold text-slate-900">{sortedStudents.length}</span>{" "}
+                  of <span className="font-semibold text-slate-900">{students.length}</span> students.
+                </p>
+                <p className="hidden text-right md:block">
+                  Edit records, replace face images, or remove student accounts directly from the
+                  directory.
+                </p>
+              </div>
 
-                  <tbody>
+              <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-border/80 bg-white">
+                <Table className="min-w-[70rem]">
+                  <TableHeader className="bg-slate-50">
+                    <TableRow>
+                      <TableHead>Photo</TableHead>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Registered</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
                     {sortedStudents.length === 0 ? (
-                      <tr>
-                        <td className="p-4 text-slate-500" colSpan="6">
+                      <TableRow>
+                        <TableCell colSpan="6" className="h-24 text-slate-500">
                           No students matched the current search and sort settings.
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ) : (
                       sortedStudents.map((student) => {
                         const photoUrl = buildAssetUrl(student.face_image_url);
 
                         return (
-                          <tr key={student.student_id} className="odd:bg-white even:bg-slate-50">
-                            <td className="border-b border-slate-100 p-3">
-                              {photoUrl ? (
-                                <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                                  <Image
-                                    src={photoUrl}
-                                    alt={`${student.full_name} face preview`}
-                                    fill
-                                    unoptimized
-                                    sizes="56px"
-                                    className="object-cover object-center"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-[11px] text-slate-400">
-                                  No image
-                                </div>
-                              )}
-                            </td>
-                            <td className="border-b border-slate-100 p-3 font-medium">
-                              {student.student_id}
-                            </td>
-                            <td className="border-b border-slate-100 p-3">{student.full_name}</td>
-                            <td className="border-b border-slate-100 p-3">
-                              {student.email || "-"}
-                            </td>
-                            <td className="border-b border-slate-100 p-3">
-                              {formatDateTime(student.created_at)}
-                            </td>
-                            <td className="border-b border-slate-100 p-3">
-                              <div className="flex flex-wrap gap-2">
-                                <button
+                          <TableRow key={student.student_id}>
+                            <TableCell>
+                              <PhotoThumb
+                                imageUrl={photoUrl}
+                                alt={`${student.full_name} face preview`}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{student.student_id}</TableCell>
+                            <TableCell>{student.full_name}</TableCell>
+                            <TableCell>{student.email || "-"}</TableCell>
+                            <TableCell>{formatDateTime(student.created_at)}</TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button
                                   type="button"
+                                  size="sm"
+                                  className="rounded-full bg-blue-600 hover:bg-blue-700"
                                   onClick={() => openEditModal(student)}
-                                  className="rounded-xl bg-blue-600 px-3 py-2 text-white transition hover:bg-blue-700"
                                 >
+                                  <PencilLine className="size-4" />
                                   Edit
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   type="button"
+                                  size="sm"
+                                  variant="destructive"
+                                  className="rounded-full"
                                   onClick={() => handleDeleteStudent(student)}
                                   disabled={deletingStudentId === student.student_id}
-                                  className="rounded-xl bg-red-600 px-3 py-2 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
                                 >
+                                  <Trash2 className="size-4" />
                                   {deletingStudentId === student.student_id ? "Deleting..." : "Delete"}
-                                </button>
+                                </Button>
                               </div>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
-            </section>
+            </SectionPanel>
 
-            <section
-              id="attendance-section"
-              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
-            >
+            <SectionPanel id="attendance-section">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-700">
-                    Attendance Control
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold">Filter, correct, and remove attendance</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Search by student, filter by date range or quick preset, and sort the results
-                    before correcting or deleting attendance records.
-                  </p>
-                </div>
+                <SectionIntro
+                  eyebrow="Attendance Control"
+                  title="Filter, correct, and remove attendance"
+                  description="Search by student, filter by date range or quick preset, and sort the results before correcting or deleting attendance records."
+                />
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-                  <input
+                  <Input
                     type="text"
                     placeholder="Search attendance..."
                     value={attendanceFilters.search}
@@ -1774,10 +2103,10 @@ export default function AdminPage() {
                         search: event.target.value,
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
+                    className={ADMIN_FIELD_CLASSNAME}
                   />
 
-                  <select
+                  <NativeSelect
                     value={attendanceFilters.status}
                     onChange={(event) =>
                       setAttendanceFilters((current) => ({
@@ -1785,16 +2114,15 @@ export default function AdminPage() {
                         status: event.target.value,
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
                   >
                     <option value="all">All Statuses</option>
                     <option value="present">Present</option>
                     <option value="late">Late</option>
                     <option value="absent">Absent</option>
                     <option value="excused">Excused</option>
-                  </select>
+                  </NativeSelect>
 
-                  <select
+                  <NativeSelect
                     value={attendanceFilters.studentId}
                     onChange={(event) =>
                       setAttendanceFilters((current) => ({
@@ -1802,7 +2130,6 @@ export default function AdminPage() {
                         studentId: event.target.value,
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
                   >
                     <option value="all">All Students</option>
                     {students.map((student) => (
@@ -1810,9 +2137,9 @@ export default function AdminPage() {
                         #{student.student_id} {student.full_name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
 
-                  <input
+                  <Input
                     type="date"
                     value={attendanceFilters.dateFrom}
                     onChange={(event) =>
@@ -1822,10 +2149,10 @@ export default function AdminPage() {
                         preset: "custom",
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
+                    className={ADMIN_FIELD_CLASSNAME}
                   />
 
-                  <input
+                  <Input
                     type="date"
                     value={attendanceFilters.dateTo}
                     min={attendanceFilters.dateFrom || undefined}
@@ -1836,10 +2163,10 @@ export default function AdminPage() {
                         preset: "custom",
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
+                    className={ADMIN_FIELD_CLASSNAME}
                   />
 
-                  <select
+                  <NativeSelect
                     value={attendanceFilters.sortOrder}
                     onChange={(event) =>
                       setAttendanceFilters((current) => ({
@@ -1847,7 +2174,6 @@ export default function AdminPage() {
                         sortOrder: event.target.value,
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-amber-500 focus:bg-white"
                   >
                     <option value="marked_at:desc">Latest First</option>
                     <option value="marked_at:asc">Oldest First</option>
@@ -1857,34 +2183,39 @@ export default function AdminPage() {
                     <option value="status:desc">Status Z-A</option>
                     <option value="student_id:asc">Student ID Ascending</option>
                     <option value="student_id:desc">Student ID Descending</option>
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
 
               <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap gap-2">
                   {attendancePresetOptions.map((option) => (
-                    <button
+                    <Button
                       key={option.value}
                       type="button"
-                      onClick={() => applyAttendancePreset(option.value)}
-                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      size="sm"
+                      variant={attendanceFilters.preset === option.value ? "default" : "outline"}
+                      className={cn(
+                        "rounded-full",
                         attendanceFilters.preset === option.value
-                          ? "bg-amber-500 text-white shadow-sm"
-                          : "border border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
-                      }`}
+                          ? "bg-amber-500 hover:bg-amber-600"
+                          : "border-amber-200 text-amber-700 hover:bg-amber-50",
+                      )}
+                      onClick={() => applyAttendancePreset(option.value)}
                     >
                       {option.label}
-                    </button>
+                    </Button>
                   ))}
 
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full"
                     onClick={clearAttendanceFilters}
-                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
                   >
                     Clear Filters
-                  </button>
+                  </Button>
                 </div>
 
                 <p className="text-sm text-slate-600">
@@ -1894,230 +2225,169 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              {attendanceMessage ? (
-                <div className={`mt-5 rounded-2xl px-4 py-3 text-sm ${getBannerClass(attendanceMessage.type)}`}>
-                  {attendanceMessage.message}
-                </div>
-              ) : null}
+              <AdminMessage message={attendanceMessage} className="mt-5" />
 
-              <div className="mt-6 rounded-[1.75rem] border border-amber-200 bg-amber-50/70 p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <Card className="mt-6 rounded-[1.85rem] border-amber-200 bg-amber-50/75 shadow-none">
+                <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">
+                    <Badge className="rounded-full border-0 bg-amber-200/70 px-3 py-1 text-amber-800">
                       Attendance Report
-                    </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-slate-900">
-                      Live summary for the current filters
-                    </h3>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    </Badge>
+                    <CardTitle className="mt-3 text-2xl">Live summary for the current filters</CardTitle>
+                    <CardDescription className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                       Review the filtered attendance breakdown below, then export the same dataset
                       as CSV for your report, records, or presentation demo.
-                    </p>
+                    </CardDescription>
                   </div>
 
-                  <button
+                  <Button
                     type="button"
-                    onClick={handleExportAttendanceCsv}
                     disabled={isExportingAttendance}
-                    className="rounded-2xl bg-amber-500 px-5 py-3 font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300"
+                    className="rounded-full bg-amber-500 hover:bg-amber-600"
+                    onClick={handleExportAttendanceCsv}
                   >
+                    <Download className="size-4" />
                     {isExportingAttendance ? "Exporting CSV..." : "Export CSV Report"}
-                  </button>
-                </div>
+                  </Button>
+                </CardHeader>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                  <div className="rounded-[1.4rem] border border-amber-200 bg-white p-4">
-                    <p className="text-sm text-slate-500">Filtered Records</p>
-                    <p className="mt-3 text-3xl font-semibold text-slate-900">
-                      {filteredAttendance.length}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.4rem] border border-amber-200 bg-white p-4">
-                    <p className="text-sm text-slate-500">Unique Students</p>
-                    <p className="mt-3 text-3xl font-semibold text-slate-900">
-                      {attendanceUniqueStudents}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.4rem] border border-emerald-200 bg-white p-4">
-                    <p className="text-sm text-slate-500">Present</p>
-                    <p className="mt-3 text-3xl font-semibold text-emerald-700">
-                      {attendanceStatusSummary.present}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.4rem] border border-amber-200 bg-white p-4">
-                    <p className="text-sm text-slate-500">Late</p>
-                    <p className="mt-3 text-3xl font-semibold text-amber-700">
-                      {attendanceStatusSummary.late}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.4rem] border border-red-200 bg-white p-4">
-                    <p className="text-sm text-slate-500">Absent</p>
-                    <p className="mt-3 text-3xl font-semibold text-red-700">
-                      {attendanceStatusSummary.absent}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.4rem] border border-sky-200 bg-white p-4">
-                    <p className="text-sm text-slate-500">Coverage Rate</p>
-                    <p className="mt-3 text-3xl font-semibold text-sky-700">
-                      {formatPercent(attendanceCoverageRate)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-6 xl:grid-cols-2">
-                  <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                          Daily Breakdown
-                        </p>
-                        <p className="mt-2 text-sm text-slate-600">
-                          Attendance totals grouped by marked date.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 overflow-x-auto rounded-[1.25rem] border border-slate-200">
-                      <table className="w-full min-w-[32rem] text-sm">
-                        <thead className="bg-slate-100 text-left">
-                          <tr>
-                            <th className="border-b border-slate-200 p-3">Date</th>
-                            <th className="border-b border-slate-200 p-3">Total</th>
-                            <th className="border-b border-slate-200 p-3">Present</th>
-                            <th className="border-b border-slate-200 p-3">Late</th>
-                            <th className="border-b border-slate-200 p-3">Absent</th>
-                            <th className="border-b border-slate-200 p-3">Excused</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {attendanceDailyReportRows.length === 0 ? (
-                            <tr>
-                              <td className="p-4 text-slate-500" colSpan="6">
-                                No attendance records are available for this report.
-                              </td>
-                            </tr>
-                          ) : (
-                            attendanceDailyReportRows.map((row) => (
-                              <tr key={row.date} className="odd:bg-white even:bg-slate-50">
-                                <td className="border-b border-slate-100 p-3">
-                                  {formatDate(row.date)}
-                                </td>
-                                <td className="border-b border-slate-100 p-3">{row.total}</td>
-                                <td className="border-b border-slate-100 p-3">{row.present}</td>
-                                <td className="border-b border-slate-100 p-3">{row.late}</td>
-                                <td className="border-b border-slate-100 p-3">{row.absent}</td>
-                                <td className="border-b border-slate-100 p-3">{row.excused}</td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                    <MetricCard label="Filtered Records" value={filteredAttendance.length} accentClass="border-amber-200 bg-white" />
+                    <MetricCard label="Unique Students" value={attendanceUniqueStudents} accentClass="border-amber-200 bg-white" />
+                    <MetricCard label="Present" value={attendanceStatusSummary.present} accentClass="border-emerald-200 bg-white" />
+                    <MetricCard label="Late" value={attendanceStatusSummary.late} accentClass="border-amber-200 bg-white" />
+                    <MetricCard label="Absent" value={attendanceStatusSummary.absent} accentClass="border-rose-200 bg-white" />
+                    <MetricCard label="Coverage Rate" value={formatPercent(attendanceCoverageRate)} accentClass="border-sky-200 bg-white" />
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                          Student Breakdown
-                        </p>
-                        <p className="mt-2 text-sm text-slate-600">
-                          Per-student attendance totals for the current report.
-                        </p>
-                      </div>
-                    </div>
+                  <div className="mt-6 grid gap-6 xl:grid-cols-2">
+                    <Card className="rounded-[1.75rem] border-border/80 bg-white shadow-none">
+                      <CardHeader className="gap-2">
+                        <CardTitle className="text-lg">Daily Breakdown</CardTitle>
+                        <CardDescription>Attendance totals grouped by marked date.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="overflow-hidden rounded-[1.25rem] border border-slate-200">
+                          <Table className="min-w-[32rem]">
+                            <TableHeader className="bg-slate-50">
+                              <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead>Present</TableHead>
+                                <TableHead>Late</TableHead>
+                                <TableHead>Absent</TableHead>
+                                <TableHead>Excused</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {attendanceDailyReportRows.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan="6" className="h-20 text-slate-500">
+                                    No attendance records are available for this report.
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                attendanceDailyReportRows.map((row) => (
+                                  <TableRow key={row.date}>
+                                    <TableCell>{formatDate(row.date)}</TableCell>
+                                    <TableCell>{row.total}</TableCell>
+                                    <TableCell>{row.present}</TableCell>
+                                    <TableCell>{row.late}</TableCell>
+                                    <TableCell>{row.absent}</TableCell>
+                                    <TableCell>{row.excused}</TableCell>
+                                  </TableRow>
+                                ))
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                    <div className="mt-4 overflow-x-auto rounded-[1.25rem] border border-slate-200">
-                      <table className="w-full min-w-[42rem] text-sm">
-                        <thead className="bg-slate-100 text-left">
-                          <tr>
-                            <th className="border-b border-slate-200 p-3">Student</th>
-                            <th className="border-b border-slate-200 p-3">Total</th>
-                            <th className="border-b border-slate-200 p-3">Present</th>
-                            <th className="border-b border-slate-200 p-3">Late</th>
-                            <th className="border-b border-slate-200 p-3">Absent</th>
-                            <th className="border-b border-slate-200 p-3">Excused</th>
-                            <th className="border-b border-slate-200 p-3">Last Marked</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {attendanceStudentReportRows.length === 0 ? (
-                            <tr>
-                              <td className="p-4 text-slate-500" colSpan="7">
-                                No student attendance data is available for this report.
-                              </td>
-                            </tr>
-                          ) : (
-                            attendanceStudentReportRows.map((row) => (
-                              <tr
-                                key={row.student_id}
-                                className="odd:bg-white even:bg-slate-50"
-                              >
-                                <td className="border-b border-slate-100 p-3">
-                                  <div>
-                                    <p className="font-medium text-slate-900">
-                                      {row.student_name}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      ID #{row.student_id}
-                                    </p>
-                                  </div>
-                                </td>
-                                <td className="border-b border-slate-100 p-3">{row.total}</td>
-                                <td className="border-b border-slate-100 p-3">{row.present}</td>
-                                <td className="border-b border-slate-100 p-3">{row.late}</td>
-                                <td className="border-b border-slate-100 p-3">{row.absent}</td>
-                                <td className="border-b border-slate-100 p-3">{row.excused}</td>
-                                <td className="border-b border-slate-100 p-3">
-                                  {formatDateTime(row.latest_marked_at)}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                    <Card className="rounded-[1.75rem] border-border/80 bg-white shadow-none">
+                      <CardHeader className="gap-2">
+                        <CardTitle className="text-lg">Student Breakdown</CardTitle>
+                        <CardDescription>Per-student attendance totals for the current report.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="overflow-hidden rounded-[1.25rem] border border-slate-200">
+                          <Table className="min-w-[42rem]">
+                            <TableHeader className="bg-slate-50">
+                              <TableRow>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead>Present</TableHead>
+                                <TableHead>Late</TableHead>
+                                <TableHead>Absent</TableHead>
+                                <TableHead>Excused</TableHead>
+                                <TableHead>Last Marked</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {attendanceStudentReportRows.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan="7" className="h-20 text-slate-500">
+                                    No student attendance data is available for this report.
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                attendanceStudentReportRows.map((row) => (
+                                  <TableRow key={row.student_id}>
+                                    <TableCell>
+                                      <div>
+                                        <p className="font-medium text-slate-900">{row.student_name}</p>
+                                        <p className="text-xs text-slate-500">ID #{row.student_id}</p>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>{row.total}</TableCell>
+                                    <TableCell>{row.present}</TableCell>
+                                    <TableCell>{row.late}</TableCell>
+                                    <TableCell>{row.absent}</TableCell>
+                                    <TableCell>{row.excused}</TableCell>
+                                    <TableCell>{formatDateTime(row.latest_marked_at)}</TableCell>
+                                  </TableRow>
+                                ))
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              <div className="mt-6 overflow-x-auto rounded-[1.5rem] border border-slate-200">
-                <table className="w-full min-w-[78rem] text-sm">
-                  <thead className="bg-slate-100 text-left">
-                    <tr>
-                      <th className="border-b border-slate-200 p-3">Student</th>
-                      <th className="border-b border-slate-200 p-3">ID</th>
-                      <th className="border-b border-slate-200 p-3">Current Status</th>
-                      <th className="border-b border-slate-200 p-3">Marked At</th>
-                      <th className="border-b border-slate-200 p-3">Edit Status</th>
-                      <th className="border-b border-slate-200 p-3">Actions</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
+              <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-border/80 bg-white">
+                <Table className="min-w-[78rem]">
+                  <TableHeader className="bg-slate-50">
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Current Status</TableHead>
+                      <TableHead>Marked At</TableHead>
+                      <TableHead>Edit Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {sortedAttendance.length === 0 ? (
-                      <tr>
-                        <td className="p-4 text-slate-500" colSpan="6">
+                      <TableRow>
+                        <TableCell colSpan="6" className="h-24 text-slate-500">
                           No attendance records matched the selected filters.
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ) : (
                       sortedAttendance.map((record) => (
-                        <tr key={record.id} className="odd:bg-white even:bg-slate-50">
-                          <td className="border-b border-slate-100 p-3">{record.student_name}</td>
-                          <td className="border-b border-slate-100 p-3">{record.student_id}</td>
-                          <td className="border-b border-slate-100 p-3">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusPillClass(record.status)}`}
-                            >
-                              {capitalizeWords(record.status)}
-                            </span>
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
-                            {formatDateTime(record.marked_at)}
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
-                            <select
+                        <TableRow key={record.id}>
+                          <TableCell>{record.student_name}</TableCell>
+                          <TableCell>{record.student_id}</TableCell>
+                          <TableCell>
+                            <StatusPill status={record.status} />
+                          </TableCell>
+                          <TableCell>{formatDateTime(record.marked_at)}</TableCell>
+                          <TableCell>
+                            <NativeSelect
                               value={attendanceDrafts[record.id] || record.status}
                               onChange={(event) =>
                                 setAttendanceDrafts((current) => ({
@@ -2125,60 +2395,55 @@ export default function AdminPage() {
                                   [record.id]: event.target.value,
                                 }))
                               }
-                              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none transition focus:border-amber-500"
+                              className="h-10 rounded-xl bg-white px-3 py-2"
                             >
                               <option value="present">Present</option>
                               <option value="late">Late</option>
                               <option value="absent">Absent</option>
                               <option value="excused">Excused</option>
-                            </select>
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
-                            <div className="flex flex-wrap gap-2">
-                              <button
+                            </NativeSelect>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-2">
+                              <Button
                                 type="button"
+                                size="sm"
+                                className="rounded-full bg-amber-500 hover:bg-amber-600"
                                 onClick={() => handleUpdateAttendance(record)}
                                 disabled={updatingAttendanceId === record.id}
-                                className="rounded-xl bg-amber-500 px-3 py-2 text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300"
                               >
                                 {updatingAttendanceId === record.id ? "Saving..." : "Save"}
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 type="button"
+                                size="sm"
+                                variant="destructive"
+                                className="rounded-full"
                                 onClick={() => handleDeleteAttendance(record)}
                                 disabled={deletingAttendanceId === record.id}
-                                className="rounded-xl bg-red-600 px-3 py-2 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
                               >
                                 {deletingAttendanceId === record.id ? "Deleting..." : "Delete"}
-                              </button>
+                              </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
-            </section>
+            </SectionPanel>
 
-            <section
-              id="leave-section"
-              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
-            >
+            <SectionPanel id="leave-section">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
-                    Leave Requests
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold">Review and decide student leave requests</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Pending requests can be approved or rejected here, and old requests can be
-                    removed if needed.
-                  </p>
-                </div>
+                <SectionIntro
+                  eyebrow="Leave Requests"
+                  title="Review and decide student leave requests"
+                  description="Pending requests can be approved or rejected here, and old requests can be removed if needed."
+                />
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input
+                  <Input
                     type="text"
                     placeholder="Search leave requests..."
                     value={leaveFilters.search}
@@ -2188,10 +2453,10 @@ export default function AdminPage() {
                         search: event.target.value,
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+                    className={ADMIN_FIELD_CLASSNAME}
                   />
 
-                  <select
+                  <NativeSelect
                     value={leaveFilters.status}
                     onChange={(event) =>
                       setLeaveFilters((current) => ({
@@ -2199,72 +2464,67 @@ export default function AdminPage() {
                         status: event.target.value,
                       }))
                     }
-                    className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
                   >
                     <option value="all">All Statuses</option>
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
 
-              {leaveMessage ? (
-                <div className={`mt-5 rounded-2xl px-4 py-3 text-sm ${getBannerClass(leaveMessage.type)}`}>
-                  {leaveMessage.message}
-                </div>
-              ) : null}
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <MetricCard label="Pending" value={filteredPendingLeaveRequests} accentClass="border-amber-200 bg-amber-50/70" />
+                <MetricCard label="Approved" value={filteredApprovedLeaveRequests} accentClass="border-emerald-200 bg-emerald-50/70" />
+                <MetricCard label="Rejected" value={filteredRejectedLeaveRequests} accentClass="border-rose-200 bg-rose-50/70" />
+              </div>
 
-              <div className="mt-6 overflow-x-auto rounded-[1.5rem] border border-slate-200">
-                <table className="w-full min-w-[82rem] text-sm">
-                  <thead className="bg-slate-100 text-left">
-                    <tr>
-                      <th className="border-b border-slate-200 p-3">Student</th>
-                      <th className="border-b border-slate-200 p-3">Dates</th>
-                      <th className="border-b border-slate-200 p-3">Days</th>
-                      <th className="border-b border-slate-200 p-3">Reason</th>
-                      <th className="border-b border-slate-200 p-3">Current Status</th>
-                      <th className="border-b border-slate-200 p-3">Update Status</th>
-                      <th className="border-b border-slate-200 p-3">Actions</th>
-                    </tr>
-                  </thead>
+              <AdminMessage message={leaveMessage} className="mt-5" />
 
-                  <tbody>
+              <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-border/80 bg-white">
+                <Table className="min-w-[82rem]">
+                  <TableHeader className="bg-slate-50">
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Dates</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Current Status</TableHead>
+                      <TableHead>Update Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
                     {filteredLeaveRequests.length === 0 ? (
-                      <tr>
-                        <td className="p-4 text-slate-500" colSpan="7">
+                      <TableRow>
+                        <TableCell colSpan="7" className="h-24 text-slate-500">
                           No leave requests matched the current filters.
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ) : (
                       filteredLeaveRequests.map((leaveRequest) => (
-                        <tr key={leaveRequest.id} className="odd:bg-white even:bg-slate-50">
-                          <td className="border-b border-slate-100 p-3">
+                        <TableRow key={leaveRequest.id}>
+                          <TableCell>
                             <div>
                               <p className="font-medium text-slate-900">{leaveRequest.student_name}</p>
                               <p className="text-xs text-slate-500">ID #{leaveRequest.student_id}</p>
                             </div>
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
+                          </TableCell>
+                          <TableCell>
                             {formatDate(leaveRequest.start_date)} to {formatDate(leaveRequest.end_date)}
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
-                            {leaveRequest.days_requested}
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
+                          </TableCell>
+                          <TableCell>{leaveRequest.days_requested}</TableCell>
+                          <TableCell>
                             <p className="max-w-xs whitespace-pre-wrap text-slate-700">
                               {leaveRequest.reason}
                             </p>
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusPillClass(leaveRequest.status)}`}
-                            >
-                              {capitalizeWords(leaveRequest.status)}
-                            </span>
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
-                            <select
+                          </TableCell>
+                          <TableCell>
+                            <StatusPill status={leaveRequest.status} />
+                          </TableCell>
+                          <TableCell>
+                            <NativeSelect
                               value={leaveDrafts[leaveRequest.id] || leaveRequest.status}
                               onChange={(event) =>
                                 setLeaveDrafts((current) => ({
@@ -2272,40 +2532,43 @@ export default function AdminPage() {
                                   [leaveRequest.id]: event.target.value,
                                 }))
                               }
-                              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none transition focus:border-blue-500"
+                              className="h-10 rounded-xl bg-white px-3 py-2"
                             >
                               <option value="pending">Pending</option>
                               <option value="approved">Approved</option>
                               <option value="rejected">Rejected</option>
-                            </select>
-                          </td>
-                          <td className="border-b border-slate-100 p-3">
-                            <div className="flex flex-wrap gap-2">
-                              <button
+                            </NativeSelect>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-2">
+                              <Button
                                 type="button"
+                                size="sm"
+                                className="rounded-full bg-blue-600 hover:bg-blue-700"
                                 onClick={() => handleUpdateLeaveRequest(leaveRequest)}
                                 disabled={updatingLeaveId === leaveRequest.id}
-                                className="rounded-xl bg-blue-600 px-3 py-2 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                               >
                                 {updatingLeaveId === leaveRequest.id ? "Saving..." : "Save"}
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 type="button"
+                                size="sm"
+                                variant="destructive"
+                                className="rounded-full"
                                 onClick={() => handleDeleteLeaveRequest(leaveRequest)}
                                 disabled={deletingLeaveId === leaveRequest.id}
-                                className="rounded-xl bg-red-600 px-3 py-2 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
                               >
                                 {deletingLeaveId === leaveRequest.id ? "Deleting..." : "Delete"}
-                              </button>
+                              </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
-            </section>
+            </SectionPanel>
           </div>
         </div>
       </main>
