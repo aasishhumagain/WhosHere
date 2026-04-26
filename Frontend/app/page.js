@@ -130,7 +130,8 @@ export default function WelcomePage() {
               </p>
               <h2 className="mt-4 text-3xl font-semibold">Student Login</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Use your student ID and password provided by the administrator.
+                Use your student ID and current password. You can update your password later from
+                your student profile.
               </p>
 
               <form

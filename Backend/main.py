@@ -857,6 +857,37 @@ def get_student(
     return serialize_student(student)
 
 
+@app.post(
+    "/students/{student_id}/change-password",
+    tags=["Students"],
+    summary="Allow a student to change their own password",
+)
+def change_student_password(
+    student_id: str,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    db: Session = Depends(get_db),
+    student_session: dict = Depends(require_student_session),
+):
+    student = authorize_student_access(student_id, student_session, db)
+    validated_current_password = validate_required_password(current_password)
+    validated_new_password = validate_required_password(new_password)
+
+    if not verify_password(validated_current_password, student.password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    if verify_password(validated_new_password, student.password):
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from the current password.",
+        )
+
+    student.password = hash_password(validated_new_password)
+    db.commit()
+
+    return {"message": "Password changed successfully."}
+
+
 @app.put("/students/{student_id}", tags=["Students"], summary="Update a student")
 def update_student(
     student_id: str,
