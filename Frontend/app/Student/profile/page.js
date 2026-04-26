@@ -291,7 +291,8 @@ export default function StudentProfilePage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.02fr,0.98fr]">
-        <PageCard>
+        <div id="change-password-section" className="scroll-mt-28">
+          <PageCard>
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">
             Password Settings
           </p>
@@ -379,7 +380,8 @@ export default function StudentProfilePage() {
               </button>
             </div>
           </form>
-        </PageCard>
+          </PageCard>
+        </div>
 
         <PageCard>
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">

@@ -129,7 +129,7 @@ export default function StudentDashboardPage() {
       studentSession={studentSession}
       pageLabel="Student Portal"
       title="Student Dashboard"
-      subtitle="Your main student workspace now stays focused on overview and attendance capture. Use the two main buttons above for the core flow, and open More Pages for history, leave requests, and profile settings."
+      subtitle="Your main student workspace now stays focused on overview and attendance capture. Use the two main buttons above for the core flow, then open the account dropdown for history, leave requests, profile details, and password settings."
     >
       <div className="grid gap-6 xl:grid-cols-[1.08fr,0.92fr]">
         <PageCard>
@@ -292,8 +292,8 @@ export default function StudentDashboardPage() {
                 Next Step
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Use More Pages for attendance history, leave management, and your profile
-                settings.
+                Open the account dropdown to reach attendance history, leave management, profile,
+                and change-password settings.
               </p>
             </div>
           </div>
