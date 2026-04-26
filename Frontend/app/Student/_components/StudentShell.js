@@ -159,8 +159,8 @@ export default function StudentShell({
 
   return (
     <main className="min-h-screen bg-[linear-gradient(140deg,#f8fafc_0%,#e0f2fe_52%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="relative mx-auto max-w-7xl space-y-6">
+        <header className="relative z-30 rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
@@ -170,8 +170,8 @@ export default function StudentShell({
               <p className="mt-3 text-sm leading-6 text-slate-600">{subtitle}</p>
             </div>
 
-            <div className="flex flex-col gap-4 xl:items-end">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="relative z-40 flex flex-col gap-4 xl:items-end">
+              <div className="flex flex-wrap items-center justify-end gap-3">
                 {PRIMARY_LINKS.map((link) => (
                   <NavLink
                     key={link.href}
@@ -185,7 +185,7 @@ export default function StudentShell({
                   <button
                     type="button"
                     onClick={() => setMenuOpen((current) => !current)}
-                    className={`flex items-center gap-3 rounded-[1.5rem] border px-3 py-2 text-left transition ${
+                    className={`flex min-h-[4.25rem] items-center gap-3 rounded-full border px-3 py-2 text-left transition ${
                       hasActiveMenuPage || menuOpen
                         ? "border-slate-900 bg-slate-950 text-white shadow-[0_14px_32px_rgba(15,23,42,0.18)]"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -222,7 +222,7 @@ export default function StudentShell({
                     </div>
 
                     <span
-                      className={`text-xs transition ${menuOpen ? "rotate-180" : ""} ${
+                      className={`pr-1 text-xs transition ${menuOpen ? "rotate-180" : ""} ${
                         hasActiveMenuPage || menuOpen ? "text-slate-300" : "text-slate-400"
                       }`}
                     >
@@ -231,7 +231,7 @@ export default function StudentShell({
                   </button>
 
                   {menuOpen ? (
-                    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-10 w-[20rem] rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_25px_80px_rgba(15,23,42,0.14)]">
+                    <div className="absolute right-0 top-[calc(100%+0.85rem)] z-[100] w-[20rem] rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_35px_120px_rgba(15,23,42,0.22)]">
                       <div className="flex items-center gap-3 rounded-[1.2rem] border border-slate-200 bg-slate-50 px-3 py-3">
                         <div className="relative">
                           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
@@ -253,7 +253,7 @@ export default function StudentShell({
                         </div>
                       </div>
 
-                      <div className="mt-3 space-y-1">
+                      <div className="mt-3 space-y-1 border-t border-slate-100 pt-2">
                         {MENU_LINKS.map((link) => (
                           <MenuLinkRow
                             key={link.href}
