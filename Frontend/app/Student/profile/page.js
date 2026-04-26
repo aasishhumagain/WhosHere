@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import PasswordField from "@/app/_components/PasswordField";
 import { buildAssetUrl } from "@/app/lib/api";
 
 import StudentShell from "../_components/StudentShell";
@@ -310,56 +311,41 @@ export default function StudentProfilePage() {
           ) : null}
 
           <form onSubmit={handleChangePassword} className="mt-6 space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Current Password
-              </label>
-              <input
-                type="password"
-                value={passwordForm.current_password}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({
-                    ...current,
-                    current_password: event.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-              />
-            </div>
+            <PasswordField
+              label="Current Password"
+              value={passwordForm.current_password}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  current_password: event.target.value,
+                }))
+              }
+              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+            />
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                New Password
-              </label>
-              <input
-                type="password"
-                value={passwordForm.new_password}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({
-                    ...current,
-                    new_password: event.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-              />
-            </div>
+            <PasswordField
+              label="New Password"
+              value={passwordForm.new_password}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  new_password: event.target.value,
+                }))
+              }
+              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+            />
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Confirm New Password
-              </label>
-              <input
-                type="password"
-                value={passwordForm.confirm_password}
-                onChange={(event) =>
-                  setPasswordForm((current) => ({
-                    ...current,
-                    confirm_password: event.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-              />
-            </div>
+            <PasswordField
+              label="Confirm New Password"
+              value={passwordForm.confirm_password}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  confirm_password: event.target.value,
+                }))
+              }
+              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+            />
 
             <div className="flex flex-wrap gap-3 pt-2">
               <button

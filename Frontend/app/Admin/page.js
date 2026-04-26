@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
+import PasswordField from "@/app/_components/PasswordField";
 import {
   buildApiUrl,
   buildAssetUrl,
@@ -332,18 +333,13 @@ function EditStudentModal({
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(event) => onFieldChange("password", event.target.value)}
-                placeholder="Leave blank to keep the existing password"
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-              />
-            </div>
+            <PasswordField
+              label="Password"
+              value={form.password}
+              onChange={(event) => onFieldChange("password", event.target.value)}
+              placeholder="Leave blank to keep the existing password"
+              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+            />
 
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -1488,23 +1484,18 @@ export default function AdminPage() {
                         />
                       </div>
 
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Password
-                        </label>
-                        <input
-                          type="password"
-                          value={studentForm.password}
-                          onChange={(event) =>
-                            setStudentForm((current) => ({
-                              ...current,
-                              password: event.target.value,
-                            }))
-                          }
-                          placeholder="Create a secure password"
-                          className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
-                        />
-                      </div>
+                      <PasswordField
+                        label="Password"
+                        value={studentForm.password}
+                        onChange={(event) =>
+                          setStudentForm((current) => ({
+                            ...current,
+                            password: event.target.value,
+                          }))
+                        }
+                        placeholder="Create a secure password"
+                        inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                      />
                     </div>
 
                     <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">

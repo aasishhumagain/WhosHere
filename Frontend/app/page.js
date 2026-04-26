@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import PasswordField from "@/app/_components/PasswordField";
 import { buildApiUrl, parseApiResponse } from "@/app/lib/api";
 
 export default function WelcomePage() {
@@ -155,18 +156,13 @@ export default function WelcomePage() {
                   />
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter password"
-                    value={studentPassword}
-                    onChange={(event) => setStudentPassword(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-                  />
-                </div>
+                <PasswordField
+                  label="Password"
+                  placeholder="Enter password"
+                  value={studentPassword}
+                  onChange={(event) => setStudentPassword(event.target.value)}
+                  inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+                />
 
                 <button
                   type="submit"
@@ -213,18 +209,13 @@ export default function WelcomePage() {
                   />
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter admin password"
-                    value={adminPassword}
-                    onChange={(event) => setAdminPassword(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
-                  />
-                </div>
+                <PasswordField
+                  label="Password"
+                  placeholder="Enter admin password"
+                  value={adminPassword}
+                  onChange={(event) => setAdminPassword(event.target.value)}
+                  inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                />
 
                 <button
                   type="submit"
