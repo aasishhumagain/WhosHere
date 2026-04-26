@@ -4,7 +4,12 @@ import Image from "next/image";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
-import { buildApiUrl, buildAssetUrl, parseApiResponse } from "@/app/lib/api";
+import {
+  buildApiUrl,
+  buildAssetUrl,
+  getStudentAuthHeaders,
+  parseApiResponse,
+} from "@/app/lib/api";
 
 function createLeaveForm() {
   return {
@@ -159,6 +164,7 @@ function PhotoPreviewCard({
 }
 
 const DEFAULT_STUDENT_SESSION = {
+  studentToken: "",
   studentId: "",
   studentName: "Student",
   studentEmail: "",
@@ -183,11 +189,34 @@ function getStudentSessionFromStorage() {
   }
 
   return {
+    studentToken: localStorage.getItem("student_token") || "",
     studentId: localStorage.getItem("student_id") || "",
     studentName: localStorage.getItem("student_name") || "Student",
     studentEmail: localStorage.getItem("student_email") || "",
     faceImageUrl: localStorage.getItem("student_face_image_url") || "",
   };
+}
+
+function clearStudentSessionStorage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("student_token");
+  localStorage.removeItem("student_id");
+  localStorage.removeItem("student_name");
+  localStorage.removeItem("student_email");
+  localStorage.removeItem("student_face_image_url");
+}
+
+function isStudentAuthError(error) {
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    message.includes("authentication") ||
+    message.includes("session is invalid or expired") ||
+    message.includes("student authentication required")
+  );
 }
 
 export default function StudentPage() {
@@ -220,38 +249,50 @@ export default function StudentPage() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  async function fetchStudentProfile(studentId) {
-    const response = await fetch(buildApiUrl(`/students/${studentId}`));
+  async function fetchStudentProfile(studentId, studentToken) {
+    const response = await fetch(buildApiUrl(`/students/${studentId}`), {
+      headers: getStudentAuthHeaders(studentToken),
+    });
     const data = await parseApiResponse(response, "Could not load your profile.");
     setProfile(data);
     return data;
   }
 
-  async function fetchStudentAttendance(studentId) {
-    const response = await fetch(buildApiUrl(`/attendance/student/${studentId}`));
+  async function fetchStudentAttendance(studentId, studentToken) {
+    const response = await fetch(buildApiUrl(`/attendance/student/${studentId}`), {
+      headers: getStudentAuthHeaders(studentToken),
+    });
     const data = await parseApiResponse(response, "Could not load attendance history.");
     setAttendance(data);
     return data;
   }
 
-  async function fetchStudentLeaveRequests(studentId) {
-    const response = await fetch(buildApiUrl(`/leave-requests/student/${studentId}`));
+  async function fetchStudentLeaveRequests(studentId, studentToken) {
+    const response = await fetch(buildApiUrl(`/leave-requests/student/${studentId}`), {
+      headers: getStudentAuthHeaders(studentToken),
+    });
     const data = await parseApiResponse(response, "Could not load leave requests.");
     setLeaveRequests(data);
     return data;
   }
 
-  async function loadStudentDashboard(studentId) {
+  async function loadStudentDashboard(studentId, studentToken) {
     setLoadingDashboard(true);
     setDashboardError("");
 
     try {
       await Promise.all([
-        fetchStudentProfile(studentId),
-        fetchStudentAttendance(studentId),
-        fetchStudentLeaveRequests(studentId),
+        fetchStudentProfile(studentId, studentToken),
+        fetchStudentAttendance(studentId, studentToken),
+        fetchStudentLeaveRequests(studentId, studentToken),
       ]);
     } catch (error) {
+      if (isStudentAuthError(error)) {
+        clearStudentSessionStorage();
+        router.replace("/");
+        return;
+      }
+
       setDashboardError(error.message || "Could not load the student dashboard.");
     } finally {
       setLoadingDashboard(false);
@@ -278,7 +319,8 @@ export default function StudentPage() {
       return undefined;
     }
 
-    if (!studentSession.studentId) {
+    if (!studentSession.studentId || !studentSession.studentToken) {
+      clearStudentSessionStorage();
       router.replace("/");
       return undefined;
     }
@@ -288,16 +330,15 @@ export default function StudentPage() {
     async function loadInitialStudentDashboard() {
       try {
         const [profileData, attendanceData, leaveRequestData] = await Promise.all([
-          fetch(buildApiUrl(`/students/${studentSession.studentId}`)).then((response) =>
-            parseApiResponse(response, "Could not load your profile."),
-          ),
-          fetch(buildApiUrl(`/attendance/student/${studentSession.studentId}`)).then(
-            (response) =>
-              parseApiResponse(response, "Could not load attendance history."),
-          ),
-          fetch(buildApiUrl(`/leave-requests/student/${studentSession.studentId}`)).then(
-            (response) => parseApiResponse(response, "Could not load leave requests."),
-          ),
+          fetch(buildApiUrl(`/students/${studentSession.studentId}`), {
+            headers: getStudentAuthHeaders(studentSession.studentToken),
+          }).then((response) => parseApiResponse(response, "Could not load your profile.")),
+          fetch(buildApiUrl(`/attendance/student/${studentSession.studentId}`), {
+            headers: getStudentAuthHeaders(studentSession.studentToken),
+          }).then((response) => parseApiResponse(response, "Could not load attendance history.")),
+          fetch(buildApiUrl(`/leave-requests/student/${studentSession.studentId}`), {
+            headers: getStudentAuthHeaders(studentSession.studentToken),
+          }).then((response) => parseApiResponse(response, "Could not load leave requests.")),
         ]);
 
         if (!isActive) {
@@ -310,6 +351,12 @@ export default function StudentPage() {
         setDashboardError("");
       } catch (error) {
         if (!isActive) {
+          return;
+        }
+
+        if (isStudentAuthError(error)) {
+          clearStudentSessionStorage();
+          router.replace("/");
           return;
         }
 
@@ -327,7 +374,7 @@ export default function StudentPage() {
       isActive = false;
       stopCamera(false);
     };
-  }, [router, sessionReady, studentSession.studentId]);
+  }, [router, sessionReady, studentSession.studentId, studentSession.studentToken]);
 
   useEffect(() => {
     if (cameraOpen && videoRef.current && streamRef.current) {
@@ -430,6 +477,7 @@ export default function StudentPage() {
     try {
       const response = await fetch(buildApiUrl("/attendance/mark"), {
         method: "POST",
+        headers: getStudentAuthHeaders(studentSession.studentToken),
         body: formData,
       });
 
@@ -443,10 +491,16 @@ export default function StudentPage() {
         ...data,
       });
 
-      if (studentSession.studentId) {
-        await fetchStudentAttendance(studentSession.studentId);
+      if (studentSession.studentId && studentSession.studentToken) {
+        await fetchStudentAttendance(studentSession.studentId, studentSession.studentToken);
       }
     } catch (error) {
+      if (isStudentAuthError(error)) {
+        clearStudentSessionStorage();
+        router.replace("/");
+        return;
+      }
+
       setAttendanceResult({
         type: "error",
         status: "error",
@@ -480,6 +534,7 @@ export default function StudentPage() {
     try {
       const response = await fetch(buildApiUrl("/leave-requests"), {
         method: "POST",
+        headers: getStudentAuthHeaders(studentSession.studentToken),
         body: formData,
       });
 
@@ -489,12 +544,18 @@ export default function StudentPage() {
       );
 
       setLeaveForm(createLeaveForm());
-      await fetchStudentLeaveRequests(studentSession.studentId);
+      await fetchStudentLeaveRequests(studentSession.studentId, studentSession.studentToken);
       setLeaveMessage({
         type: "success",
         message: data.message || "Leave request submitted successfully.",
       });
     } catch (error) {
+      if (isStudentAuthError(error)) {
+        clearStudentSessionStorage();
+        router.replace("/");
+        return;
+      }
+
       setLeaveMessage({
         type: "error",
         message: error.message || "Could not submit your leave request.",
@@ -504,12 +565,21 @@ export default function StudentPage() {
     }
   }
 
-  function logout() {
+  async function logout() {
     stopCamera(false);
-    localStorage.removeItem("student_id");
-    localStorage.removeItem("student_name");
-    localStorage.removeItem("student_email");
-    localStorage.removeItem("student_face_image_url");
+
+    try {
+      if (studentSession.studentToken) {
+        await fetch(buildApiUrl("/logout/student"), {
+          method: "POST",
+          headers: getStudentAuthHeaders(studentSession.studentToken),
+        });
+      }
+    } catch {
+      // Best effort logout.
+    }
+
+    clearStudentSessionStorage();
     router.push("/");
   }
 
@@ -603,7 +673,9 @@ export default function StudentPage() {
 
               <button
                 type="button"
-                onClick={() => loadStudentDashboard(studentSession.studentId)}
+                onClick={() =>
+                  loadStudentDashboard(studentSession.studentId, studentSession.studentToken)
+                }
                 className="rounded-2xl bg-slate-900 px-5 py-3 font-medium text-white transition hover:bg-slate-700"
               >
                 Refresh Dashboard
@@ -796,7 +868,9 @@ export default function StudentPage() {
 
               <button
                 type="button"
-                onClick={() => fetchStudentAttendance(studentSession.studentId)}
+                onClick={() =>
+                  fetchStudentAttendance(studentSession.studentId, studentSession.studentToken)
+                }
                 className="rounded-2xl bg-slate-900 px-5 py-3 font-medium text-white transition hover:bg-slate-700"
               >
                 Refresh Attendance

@@ -1,7 +1,9 @@
 import csv
+import base64
 import hashlib
 import hmac
 import io
+import json
 import os
 import secrets
 import shutil
@@ -65,12 +67,18 @@ ATTENDANCE_STATUSES = {"present", "absent", "late", "excused"}
 LEAVE_REQUEST_STATUSES = {"pending", "approved", "rejected"}
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
-ACTIVE_ADMIN_TOKENS = set()
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+SESSION_SECRET = os.getenv("SESSION_SECRET") or hashlib.sha256(
+    f"{ADMIN_USERNAME}:{ADMIN_PASSWORD}:{BACKEND_DIR}".encode("utf-8")
+).hexdigest()
+ADMIN_SESSION_TTL_SECONDS = int(os.getenv("ADMIN_SESSION_TTL_SECONDS", "43200"))
+STUDENT_SESSION_TTL_SECONDS = int(os.getenv("STUDENT_SESSION_TTL_SECONDS", "43200"))
+REVOKED_SESSION_TOKENS = set()
 
 STUDENT_CODE_SEQUENCE_WIDTH = 5
 STUDENT_CODE_YEAR_PREFIX_WIDTH = 3
@@ -235,16 +243,133 @@ def get_db():
         db.close()
 
 
-def require_admin(authorization: str | None = Header(default=None)):
+def encode_token_segment(value: bytes):
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("utf-8")
+
+
+def decode_token_segment(value: str):
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(f"{value}{padding}")
+
+
+def create_session_token(role: str, subject: str, ttl_seconds: int, extra_payload: dict | None = None):
+    issued_at = int(get_local_now().timestamp())
+    payload = {
+        "role": role,
+        "sub": str(subject),
+        "iat": issued_at,
+        "exp": issued_at + ttl_seconds,
+        "jti": uuid4().hex,
+    }
+
+    if extra_payload:
+        payload.update(extra_payload)
+
+    payload_segment = encode_token_segment(
+        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
+    signature_segment = encode_token_segment(
+        hmac.new(
+            SESSION_SECRET.encode("utf-8"),
+            payload_segment.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+    )
+
+    return f"{payload_segment}.{signature_segment}"
+
+
+def extract_bearer_token(
+    authorization: str | None,
+    error_detail: str = "Authentication required.",
+):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Admin authentication required.")
+        raise HTTPException(status_code=401, detail=error_detail)
 
-    token = authorization.removeprefix("Bearer ").strip()
+    return authorization.removeprefix("Bearer ").strip()
 
-    if token not in ACTIVE_ADMIN_TOKENS:
-        raise HTTPException(status_code=401, detail="Admin session is invalid or expired.")
 
-    return token
+def verify_session_token(token: str):
+    if token in REVOKED_SESSION_TOKENS:
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.")
+
+    try:
+        payload_segment, signature_segment = token.split(".", 1)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.") from exc
+
+    expected_signature = encode_token_segment(
+        hmac.new(
+            SESSION_SECRET.encode("utf-8"),
+            payload_segment.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+    )
+
+    if not hmac.compare_digest(expected_signature, signature_segment):
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.")
+
+    try:
+        payload = json.loads(decode_token_segment(payload_segment).decode("utf-8"))
+    except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.") from exc
+
+    expires_at = int(payload.get("exp", 0))
+
+    if expires_at <= int(get_local_now().timestamp()):
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.")
+
+    return payload
+
+
+def get_authenticated_session(authorization: str | None = Header(default=None)):
+    token = extract_bearer_token(authorization)
+    payload = verify_session_token(token)
+    payload["token"] = token
+    return payload
+
+
+def require_admin(authenticated_session: dict = Depends(get_authenticated_session)):
+    if authenticated_session.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin authentication required.")
+
+    return authenticated_session
+
+
+def require_student_session(
+    authenticated_session: dict = Depends(get_authenticated_session),
+    db: Session = Depends(get_db),
+):
+    if authenticated_session.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Student authentication required.")
+
+    student_internal_id = authenticated_session.get("sub")
+
+    if not str(student_internal_id or "").isdigit():
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.")
+
+    student = db.query(Student).filter(Student.id == int(student_internal_id)).first()
+
+    if not student:
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.")
+
+    authenticated_session["student"] = student
+    return authenticated_session
+
+
+def authorize_student_access(student_id: str | int, authenticated_session: dict, db: Session):
+    student = get_student_or_404(student_id, db)
+
+    if authenticated_session.get("role") == "admin":
+        return student
+
+    if (
+        authenticated_session.get("role") == "student"
+        and str(authenticated_session.get("sub")) == str(student.id)
+    ):
+        return student
+
+    raise HTTPException(status_code=403, detail="You can only access your own student account.")
 
 
 def normalize_optional_text(value: str | None):
@@ -653,19 +778,24 @@ def admin_login(
     if username.strip() != ADMIN_USERNAME or not verify_admin_password(password):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
 
-    token = secrets.token_urlsafe(32)
-    ACTIVE_ADMIN_TOKENS.add(token)
+    token = create_session_token(
+        role="admin",
+        subject=ADMIN_USERNAME,
+        ttl_seconds=ADMIN_SESSION_TTL_SECONDS,
+        extra_payload={"username": ADMIN_USERNAME},
+    )
 
     return {
         "message": "Admin login successful",
         "username": ADMIN_USERNAME,
         "token": token,
+        "expires_in": ADMIN_SESSION_TTL_SECONDS,
     }
 
 
 @app.post("/logout/admin", tags=["Authentication"], summary="Admin logout")
-def admin_logout(admin_token: str = Depends(require_admin)):
-    ACTIVE_ADMIN_TOKENS.discard(admin_token)
+def admin_logout(admin_session: dict = Depends(require_admin)):
+    REVOKED_SESSION_TOKENS.add(admin_session["token"])
     return {"message": "Admin logged out successfully"}
 
 
@@ -718,8 +848,12 @@ def get_students(
 
 
 @app.get("/students/{student_id}", tags=["Students"], summary="Get one student")
-def get_student(student_id: str, db: Session = Depends(get_db)):
-    student = get_student_or_404(student_id, db)
+def get_student(
+    student_id: str,
+    db: Session = Depends(get_db),
+    authenticated_session: dict = Depends(get_authenticated_session),
+):
+    student = authorize_student_access(student_id, authenticated_session, db)
     return serialize_student(student)
 
 
@@ -810,6 +944,16 @@ def student_login(
     if not student or not verify_password(password, student.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    token = create_session_token(
+        role="student",
+        subject=str(student.id),
+        ttl_seconds=STUDENT_SESSION_TTL_SECONDS,
+        extra_payload={
+            "student_id": get_public_student_id(student),
+            "full_name": student.full_name,
+        },
+    )
+
     return {
         "message": "Login successful",
         "student_id": get_public_student_id(student),
@@ -817,13 +961,22 @@ def student_login(
         "email": student.email,
         "face_image_url": build_upload_url(student.face_image_path),
         "created_at": student.created_at,
+        "token": token,
+        "expires_in": STUDENT_SESSION_TTL_SECONDS,
     }
+
+
+@app.post("/logout/student", tags=["Authentication"], summary="Student logout")
+def student_logout(student_session: dict = Depends(require_student_session)):
+    REVOKED_SESSION_TOKENS.add(student_session["token"])
+    return {"message": "Student logged out successfully"}
 
 
 @app.post("/attendance/mark", tags=["Attendance"], summary="Mark attendance")
 def mark_attendance(
     face_image: UploadFile = File(...),
     db: Session = Depends(get_db),
+    student_session: dict = Depends(require_student_session),
 ):
     relative_temp_path, temp_file_path = save_temp_face_image(face_image)
 
@@ -862,6 +1015,14 @@ def mark_attendance(
         db.commit()
 
     if best_match and best_match_score >= FACE_MATCH_THRESHOLD:
+        authenticated_student = student_session["student"]
+
+        if best_match.id != authenticated_student.id:
+            raise HTTPException(
+                status_code=403,
+                detail="The captured face does not match the authenticated student account.",
+            )
+
         local_today = datetime.now().astimezone().date()
         today_start, tomorrow_start = get_day_bounds(local_today)
         existing_attendance = (
@@ -1022,8 +1183,12 @@ def delete_attendance(
     tags=["Attendance"],
     summary="Get attendance for one student",
 )
-def get_student_attendance(student_id: str, db: Session = Depends(get_db)):
-    student = get_student_or_404(student_id, db)
+def get_student_attendance(
+    student_id: str,
+    db: Session = Depends(get_db),
+    authenticated_session: dict = Depends(get_authenticated_session),
+):
+    student = authorize_student_access(student_id, authenticated_session, db)
     records = (
         db.query(AttendanceRecord)
         .filter(AttendanceRecord.student_id == student.id)
@@ -1041,8 +1206,13 @@ def create_leave_request(
     end_date: str = Form(...),
     reason: str = Form(...),
     db: Session = Depends(get_db),
+    student_session: dict = Depends(require_student_session),
 ):
     student = get_student_or_404(student_id, db)
+
+    if student.id != student_session["student"].id:
+        raise HTTPException(status_code=403, detail="You can only create leave requests for your own account.")
+
     parsed_start_date = parse_iso_date(start_date, "start date")
     parsed_end_date = parse_iso_date(end_date, "end date")
 
@@ -1081,8 +1251,12 @@ def get_leave_requests(
     tags=["Leave Requests"],
     summary="Get leave requests for one student",
 )
-def get_student_leave_requests(student_id: str, db: Session = Depends(get_db)):
-    student = get_student_or_404(student_id, db)
+def get_student_leave_requests(
+    student_id: str,
+    db: Session = Depends(get_db),
+    authenticated_session: dict = Depends(get_authenticated_session),
+):
+    student = authorize_student_access(student_id, authenticated_session, db)
     leave_requests = (
         db.query(LeaveRequest)
         .filter(LeaveRequest.student_id == student.id)

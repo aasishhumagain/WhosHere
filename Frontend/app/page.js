@@ -36,6 +36,7 @@ export default function WelcomePage() {
         "Invalid student ID or password.",
       );
 
+      localStorage.setItem("student_token", data.token || "");
       localStorage.setItem("student_id", String(data.student_id));
       localStorage.setItem("student_name", data.full_name || "Student");
       localStorage.setItem("student_email", data.email || "");

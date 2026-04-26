@@ -26,7 +26,7 @@ export function buildAssetUrl(path) {
   return buildApiUrl(path);
 }
 
-export function getAdminAuthHeaders(token) {
+function getBearerAuthHeaders(token) {
   if (!token) {
     return {};
   }
@@ -34,6 +34,14 @@ export function getAdminAuthHeaders(token) {
   return {
     Authorization: `Bearer ${token}`,
   };
+}
+
+export function getAdminAuthHeaders(token) {
+  return getBearerAuthHeaders(token);
+}
+
+export function getStudentAuthHeaders(token) {
+  return getBearerAuthHeaders(token);
 }
 
 export function buildQueryString(params) {
