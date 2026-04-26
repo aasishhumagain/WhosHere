@@ -2,50 +2,116 @@
 
 import Image from "next/image";
 
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+
 import {
   capitalizeWords,
   getMessageClass,
   getStatusPillClass,
 } from "../_lib/student-portal";
 
-function joinClassNames(...values) {
-  return values.filter(Boolean).join(" ");
+function getAlertVariant(type) {
+  if (type === "error") {
+    return "destructive";
+  }
+
+  if (type === "success") {
+    return "success";
+  }
+
+  return "default";
+}
+
+function getBadgeVariant(status) {
+  if (status === "approved" || status === "present") {
+    return "success";
+  }
+
+  if (status === "rejected" || status === "absent") {
+    return "destructive";
+  }
+
+  if (status === "late") {
+    return "warning";
+  }
+
+  if (status === "duplicate") {
+    return "info";
+  }
+
+  return "muted";
 }
 
 export function PageCard({ children, className = "" }) {
   return (
-    <section
-      className={joinClassNames(
-        "rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur",
+    <Card
+      className={cn(
+        "overflow-hidden border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm",
         className,
       )}
     >
-      {children}
-    </section>
+      <CardContent className="p-6">{children}</CardContent>
+    </Card>
   );
 }
 
-export function MessageBanner({ type = "info", children, className = "" }) {
+export function MessageBanner({ type = "info", title, children, className = "" }) {
   return (
-    <div
-      className={joinClassNames(
-        "rounded-2xl px-4 py-3 text-sm",
-        getMessageClass(type),
-        className,
-      )}
+    <Alert
+      variant={getAlertVariant(type)}
+      className={cn(getMessageClass(type), className)}
     >
-      {children}
-    </div>
+      {title ? <AlertTitle>{title}</AlertTitle> : null}
+      <AlertDescription>{children}</AlertDescription>
+    </Alert>
   );
 }
 
 export function StatusPill({ status }) {
   return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusPillClass(status)}`}
+    <Badge
+      variant={getBadgeVariant(status)}
+      className={cn("rounded-full px-3 py-1 text-[0.72rem]", getStatusPillClass(status))}
     >
       {capitalizeWords(status)}
-    </span>
+    </Badge>
+  );
+}
+
+export function SectionIntro({
+  eyebrow,
+  title,
+  description,
+  className = "",
+}) {
+  return (
+    <div className={className}>
+      {eyebrow ? (
+        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-primary/90">
+          {eyebrow}
+        </p>
+      ) : null}
+      {title ? (
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
+      ) : null}
+      {description ? (
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -57,32 +123,35 @@ export function PhotoPreviewCard({
   imageLoading = "lazy",
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-        {title}
-      </p>
-      <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+    <Card className="border-border/70 bg-slate-50/70 shadow-none">
+      <CardHeader className="gap-2">
+        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardDescription>{subtitle}</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <Separator className="mb-4" />
 
-      {imageUrl ? (
-        <div className="mt-4 flex h-64 items-center justify-center overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white p-3">
-          <div className="relative h-full w-full">
-            <Image
-              src={imageUrl}
-              alt={title}
-              fill
-              unoptimized
-              loading={imageLoading}
-              sizes="(max-width: 1024px) 100vw, 40vw"
-              className="rounded-[1rem] object-contain object-center"
-            />
+        {imageUrl ? (
+          <div className="flex h-72 items-center justify-center overflow-hidden rounded-2xl border border-border/80 bg-white p-4 shadow-inner">
+            <div className="relative h-full w-full">
+              <Image
+                src={imageUrl}
+                alt={title}
+                fill
+                unoptimized
+                loading={imageLoading}
+                sizes="(max-width: 1024px) 100vw, 40vw"
+                className="rounded-xl object-contain object-center"
+              />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="mt-4 flex h-64 items-center justify-center rounded-[1.25rem] border border-dashed border-slate-300 bg-white px-6 text-center text-sm text-slate-400">
-          {fallbackLabel}
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="flex h-72 items-center justify-center rounded-2xl border border-dashed border-border bg-white/80 px-6 text-center text-sm text-muted-foreground">
+            {fallbackLabel}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -90,14 +159,16 @@ export function StatCard({
   label,
   value,
   helper,
-  accentClass = "border-slate-200 bg-slate-50 text-slate-900",
+  accentClass = "border-slate-200/80 bg-white text-slate-900",
 }) {
   return (
-    <div className={`rounded-[1.6rem] border p-5 ${accentClass}`}>
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-3 text-3xl font-semibold">{value}</p>
-      {helper ? <p className="mt-2 text-sm text-slate-500">{helper}</p> : null}
-    </div>
+    <Card className={cn("gap-0 rounded-[1.75rem] shadow-none", accentClass)}>
+      <CardContent className="p-5">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p>
+        {helper ? <p className="mt-2 text-sm text-muted-foreground">{helper}</p> : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -106,15 +177,19 @@ export function StudentLoadingScreen({
   description = "Preparing your student workspace.",
 }) {
   return (
-    <main className="min-h-screen bg-[linear-gradient(140deg,#f8fafc_0%,#e0f2fe_52%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(254,240,138,0.45),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
       <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
-        <div className="rounded-[2rem] border border-white/70 bg-white/85 px-8 py-10 text-center shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
-            WhosHere
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold">{title}</h1>
-          <p className="mt-3 text-sm text-slate-600">{description}</p>
-        </div>
+        <Card className="w-full max-w-xl border-white/80 bg-white/90 shadow-[0_24px_90px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+          <CardHeader className="pb-2 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-primary/90">
+              WhosHere
+            </p>
+            <CardTitle className="mt-2 text-3xl">{title}</CardTitle>
+            <CardDescription className="mx-auto max-w-md text-sm leading-6">
+              {description}
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     </main>
   );

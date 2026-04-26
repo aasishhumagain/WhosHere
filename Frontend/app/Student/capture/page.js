@@ -1,13 +1,18 @@
 "use client";
 
+import { Camera, CameraOff, CheckCircle2, RotateCcw, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 import StudentShell from "../_components/StudentShell";
 import {
   MessageBanner,
   PageCard,
   PhotoPreviewCard,
+  SectionIntro,
   StudentLoadingScreen,
 } from "../_components/StudentUI";
 import {
@@ -177,40 +182,40 @@ export default function StudentAttendanceCapturePage() {
       studentSession={studentSession}
       pageLabel="Attendance Capture"
       title="Mark Attendance"
-      subtitle="Use the live camera to capture a clear front-facing photo and submit it for recognition. This page is now separated from the rest of the student tools so the attendance flow stays simple."
+      subtitle="Use the live camera to capture a clear front-facing photo and submit it for recognition. This page stays separate so the daily attendance flow remains simple and focused."
     >
       <canvas ref={canvasRef} className="hidden" />
 
       <div className="grid gap-6 xl:grid-cols-[1.04fr,0.96fr]">
         <PageCard>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
-            Live Camera
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold text-slate-950">
-            Capture and submit today&apos;s attendance
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            Open the camera, take a clear photo, and then submit it. WhosHere will compare the
-            captured image against the face image stored on your student account.
-          </p>
+          <SectionIntro
+            eyebrow="Live Camera"
+            title="Capture and submit today's attendance"
+            description="Open the camera, take a clear photo, and then submit it. WhosHere will compare the captured image against the face image stored on your student account."
+          />
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <button
+            <Button
               type="button"
               onClick={startCamera}
-              className="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700"
+              size="lg"
+              className="rounded-full bg-sky-600 hover:bg-sky-700"
             >
+              <Camera className="size-4" />
               {selectedFile ? "Retake Capture" : "Open Live Camera"}
-            </button>
+            </Button>
 
             {cameraOpen ? (
-              <button
+              <Button
                 type="button"
                 onClick={() => stopCamera()}
-                className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                variant="outline"
+                size="lg"
+                className="rounded-full"
               >
+                <CameraOff className="size-4" />
                 Close Camera
-              </button>
+              </Button>
             ) : null}
           </div>
 
@@ -221,10 +226,11 @@ export default function StudentAttendanceCapturePage() {
           ) : null}
 
           {cameraOpen ? (
-            <div className="mt-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Live Preview
-              </p>
+            <Card className="mt-6 rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Live Preview
+                </p>
               <video
                 ref={videoRef}
                 autoPlay
@@ -234,35 +240,43 @@ export default function StudentAttendanceCapturePage() {
               />
 
               <div className="mt-4 flex flex-wrap gap-3">
-                <button
+                <Button
                   type="button"
                   onClick={captureFromCamera}
-                  className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-700"
+                  size="lg"
+                  className="rounded-full bg-emerald-600 hover:bg-emerald-700"
                 >
+                  <UploadCloud className="size-4" />
                   Capture Photo
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => stopCamera()}
-                  className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full"
                 >
+                  <RotateCcw className="size-4" />
                   Cancel Camera
-                </button>
+                </Button>
               </div>
-            </div>
+              </CardContent>
+            </Card>
           ) : null}
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <button
+            <Button
               type="button"
               onClick={handleMarkAttendance}
               disabled={!selectedFile || loadingAttendance}
-              className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              size="lg"
+              className="rounded-full"
             >
+              <CheckCircle2 className="size-4" />
               {loadingAttendance ? "Processing..." : "Mark Me Present"}
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setSelectedFile(null);
@@ -271,10 +285,13 @@ export default function StudentAttendanceCapturePage() {
                 setCameraError("");
               }}
               disabled={!selectedFile}
-              className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              variant="outline"
+              size="lg"
+              className="rounded-full"
             >
+              <RotateCcw className="size-4" />
               Clear Captured Image
-            </button>
+            </Button>
           </div>
 
           {attendanceResult ? (
@@ -306,9 +323,11 @@ export default function StudentAttendanceCapturePage() {
           </PageCard>
 
           <PageCard>
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Attendance Notes
-            </p>
+            <SectionIntro
+              eyebrow="Attendance Notes"
+              title="Tips for accurate capture"
+              description="A clearer photo gives the recognition check a better chance of matching your stored face image correctly."
+            />
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
               <li>Only one present entry is allowed per student per day.</li>
               <li>Use good lighting and face the camera directly for better matching accuracy.</li>

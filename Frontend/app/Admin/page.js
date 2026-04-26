@@ -217,7 +217,7 @@ function PhotoPreviewCard({
   fallbackLabel,
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-[1.75rem] border border-slate-200/80 bg-slate-50/80 p-4 shadow-none">
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
         {title}
       </p>
@@ -250,7 +250,7 @@ function SidebarButton({ label, sectionId, accentClass }) {
     <button
       type="button"
       onClick={() => scrollToSection(sectionId)}
-      className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition hover:translate-x-1 ${accentClass}`}
+      className={`w-full rounded-2xl border border-white/10 px-4 py-3 text-left text-sm font-medium transition hover:translate-x-1 hover:border-white/20 ${accentClass}`}
     >
       {label}
     </button>
@@ -276,7 +276,7 @@ function EditStudentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
-      <div className="max-h-full w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_35px_120px_rgba(15,23,42,0.35)]">
+      <div className="max-h-full w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/70 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-700">
@@ -1308,9 +1308,9 @@ export default function AdminPage() {
 
   if (!sessionReady) {
     return (
-      <main className="min-h-screen bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
         <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
-          <div className="rounded-[2rem] border border-white/70 bg-white/85 px-8 py-10 text-center shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="rounded-[2rem] border border-white/80 bg-white/90 px-8 py-10 text-center shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
               WhosHere
             </p>
@@ -1323,9 +1323,9 @@ export default function AdminPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
         <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[18rem,1fr]">
-          <aside className="h-fit rounded-[2rem] border border-white/60 bg-slate-950 p-6 text-white shadow-[0_30px_120px_rgba(15,23,42,0.25)] xl:sticky xl:top-6">
+          <aside className="h-fit rounded-[2rem] border border-white/70 bg-slate-950/96 p-6 text-white shadow-[0_30px_120px_rgba(15,23,42,0.25)] backdrop-blur-sm xl:sticky xl:top-6">
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">
               Admin Workspace
             </p>
@@ -1374,7 +1374,7 @@ export default function AdminPage() {
           <div className="space-y-6">
             <section
               id="overview-section"
-              className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur"
+              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -1427,7 +1427,7 @@ export default function AdminPage() {
 
             <section
               id="register-section"
-              className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur"
+              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
             >
               <div className="grid gap-6 lg:grid-cols-[1.08fr,0.92fr]">
                 <div>
@@ -1620,7 +1620,7 @@ export default function AdminPage() {
 
             <section
               id="directory-section"
-              className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur"
+              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div>
@@ -1749,7 +1749,7 @@ export default function AdminPage() {
 
             <section
               id="attendance-section"
-              className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur"
+              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div>
@@ -2163,7 +2163,7 @@ export default function AdminPage() {
 
             <section
               id="leave-section"
-              className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur"
+              className="rounded-[2rem] border border-white/80 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm"
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div>

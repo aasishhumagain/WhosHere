@@ -1,12 +1,27 @@
 "use client";
 
+import { RefreshCcw, SendHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 
 import StudentShell from "../_components/StudentShell";
 import {
   MessageBanner,
   PageCard,
+  SectionIntro,
   StatCard,
   StudentLoadingScreen,
   StatusPill,
@@ -168,15 +183,11 @@ export default function StudentLeaveRequestsPage() {
       subtitle="Submit a new leave request and review the status of your previous requests in one dedicated page."
     >
       <PageCard>
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-sky-700">
-          Leave Summary
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold text-slate-950">
-          Keep track of your leave requests
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          Add the leave dates and a reason, then monitor the request status from the table below.
-        </p>
+        <SectionIntro
+          eyebrow="Leave Summary"
+          title="Keep track of your leave requests"
+          description="Add the leave dates and a reason, then monitor the request status from the table below."
+        />
 
         {pageError ? (
           <MessageBanner type="error" className="mt-5">
@@ -205,10 +216,11 @@ export default function StudentLeaveRequestsPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.01fr,0.99fr]">
         <PageCard>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-sky-700">
-            New Request
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold text-slate-950">Submit leave details</h2>
+          <SectionIntro
+            eyebrow="New Request"
+            title="Submit leave details"
+            description="Choose your date range, add a reason, and send the request to the administrator for review."
+          />
 
           {leaveMessage ? (
             <MessageBanner type={leaveMessage.type} className="mt-5">
@@ -218,11 +230,10 @@ export default function StudentLeaveRequestsPage() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Start Date
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="leave-start-date">Start Date</Label>
+                <Input
+                  id="leave-start-date"
                   type="date"
                   value={leaveForm.start_date}
                   onChange={(event) =>
@@ -231,15 +242,14 @@ export default function StudentLeaveRequestsPage() {
                       start_date: event.target.value,
                     }))
                   }
-                  className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-sky-500 focus:bg-white"
+                  className="h-12 rounded-2xl border-slate-200 bg-slate-50"
                 />
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  End Date
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="leave-end-date">End Date</Label>
+                <Input
+                  id="leave-end-date"
                   type="date"
                   value={leaveForm.end_date}
                   onChange={(event) =>
@@ -248,14 +258,15 @@ export default function StudentLeaveRequestsPage() {
                       end_date: event.target.value,
                     }))
                   }
-                  className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-sky-500 focus:bg-white"
+                  className="h-12 rounded-2xl border-slate-200 bg-slate-50"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Reason</label>
-              <textarea
+            <div className="space-y-2">
+              <Label htmlFor="leave-reason">Reason</Label>
+              <Textarea
+                id="leave-reason"
                 rows="5"
                 value={leaveForm.reason}
                 onChange={(event) =>
@@ -265,25 +276,29 @@ export default function StudentLeaveRequestsPage() {
                   }))
                 }
                 placeholder="Explain why you are requesting leave..."
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-sky-500 focus:bg-white"
+                className="rounded-2xl border-slate-200 bg-slate-50"
               />
             </div>
 
             <div className="flex flex-wrap gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 disabled={submittingLeaveRequest}
-                className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
+                size="lg"
+                className="rounded-full bg-sky-600 hover:bg-sky-700"
               >
+                <SendHorizontal className="size-4" />
                 {submittingLeaveRequest ? "Submitting..." : "Submit Leave Request"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setLeaveForm(createLeaveForm())}
-                className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                variant="outline"
+                size="lg"
+                className="rounded-full"
               >
                 Clear Form
-              </button>
+              </Button>
             </div>
           </form>
         </PageCard>
@@ -291,66 +306,66 @@ export default function StudentLeaveRequestsPage() {
         <PageCard className="overflow-hidden p-0">
           <div className="border-b border-slate-200 px-6 py-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Leave History
-                </p>
-                <h2 className="mt-3 text-3xl font-semibold text-slate-950">Previous requests</h2>
-              </div>
+              <SectionIntro
+                eyebrow="Leave History"
+                title="Previous requests"
+                description="Every request you have submitted appears below with dates, status, and your original reason."
+              />
 
-              <button
+              <Button
                 type="button"
                 onClick={refreshLeaveRequests}
-                className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                variant="outline"
+                size="lg"
+                className="rounded-full"
               >
+                <RefreshCcw className={`size-4 ${loadingLeaveRequests ? "animate-spin" : ""}`} />
                 {loadingLeaveRequests ? "Refreshing..." : "Refresh History"}
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[42rem] text-sm">
-              <thead className="bg-slate-100 text-left">
-                <tr>
-                  <th className="border-b border-slate-200 px-6 py-4">Dates</th>
-                  <th className="border-b border-slate-200 px-6 py-4">Days</th>
-                  <th className="border-b border-slate-200 px-6 py-4">Status</th>
-                  <th className="border-b border-slate-200 px-6 py-4">Reason</th>
-                </tr>
-              </thead>
+          <Table className="min-w-[42rem]">
+            <TableHeader className="bg-slate-50">
+              <TableRow>
+                <TableHead className="px-6">Dates</TableHead>
+                <TableHead className="px-6">Days</TableHead>
+                <TableHead className="px-6">Status</TableHead>
+                <TableHead className="px-6">Reason</TableHead>
+              </TableRow>
+            </TableHeader>
 
-              <tbody>
-                {leaveRequests.length === 0 ? (
-                  <tr>
-                    <td className="px-6 py-8 text-slate-500" colSpan="4">
-                      {loadingLeaveRequests
-                        ? "Loading leave requests..."
-                        : "No leave requests submitted yet."}
-                    </td>
-                  </tr>
-                ) : (
-                  leaveRequests.map((leaveRequest) => (
-                    <tr key={leaveRequest.id} className="odd:bg-white even:bg-slate-50">
-                      <td className="border-b border-slate-100 px-6 py-4">
-                        {formatDate(leaveRequest.start_date)} to {formatDate(leaveRequest.end_date)}
-                      </td>
-                      <td className="border-b border-slate-100 px-6 py-4">
-                        {leaveRequest.days_requested}
-                      </td>
-                      <td className="border-b border-slate-100 px-6 py-4">
-                        <StatusPill status={leaveRequest.status} />
-                      </td>
-                      <td className="border-b border-slate-100 px-6 py-4">
-                        <p className="max-w-xs whitespace-pre-wrap text-slate-700">
-                          {leaveRequest.reason}
-                        </p>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+            <TableBody>
+              {leaveRequests.length === 0 ? (
+                <TableRow>
+                  <TableCell className="px-6 py-8 text-slate-500" colSpan="4">
+                    {loadingLeaveRequests
+                      ? "Loading leave requests..."
+                      : "No leave requests submitted yet."}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                leaveRequests.map((leaveRequest) => (
+                  <TableRow key={leaveRequest.id}>
+                    <TableCell className="px-6">
+                      {formatDate(leaveRequest.start_date)} to {formatDate(leaveRequest.end_date)}
+                    </TableCell>
+                    <TableCell className="px-6">
+                      {leaveRequest.days_requested}
+                    </TableCell>
+                    <TableCell className="px-6">
+                      <StatusPill status={leaveRequest.status} />
+                    </TableCell>
+                    <TableCell className="px-6">
+                      <p className="max-w-xs whitespace-pre-wrap text-slate-700">
+                        {leaveRequest.reason}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </PageCard>
       </div>
     </StudentShell>

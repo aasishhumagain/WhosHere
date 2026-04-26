@@ -1,8 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  Camera,
+  ChevronDown,
+  Clock3,
+  KeyRound,
+  LayoutDashboard,
+  LogOut,
+  UserRound,
+  Waves,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 
 import {
   clearStudentSessionStorage,
@@ -13,10 +43,12 @@ const PRIMARY_LINKS = [
   {
     href: "/student",
     label: "Student Dashboard",
+    icon: LayoutDashboard,
   },
   {
     href: "/student/capture",
     label: "Attendance Capture",
+    icon: Camera,
   },
 ];
 
@@ -24,41 +56,37 @@ const MENU_LINKS = [
   {
     href: "/student/history",
     label: "Attendance History",
-    badge: "AH",
+    icon: Clock3,
+    description: "Review marked attendance",
   },
   {
     href: "/student/leave",
     label: "Leave Requests",
-    badge: "LV",
+    icon: Waves,
+    description: "Submit and track leave",
   },
   {
     href: "/student/profile",
     label: "Profile",
-    badge: "PR",
+    icon: UserRound,
+    description: "See account details",
+  },
+  {
+    href: "/student/profile#change-password-section",
+    label: "Change Password",
+    icon: null,
+    description: "Update your own password",
   },
 ];
 
 function isLinkActive(pathname, href) {
-  if (href === "/student") {
-    return pathname === href;
+  const normalizedHref = href.split("#")[0];
+
+  if (normalizedHref === "/student") {
+    return pathname === normalizedHref;
   }
 
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function NavLink({ href, label, active }) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
-        active
-          ? "bg-slate-950 text-white shadow-[0_12px_30px_rgba(15,23,42,0.16)]"
-          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-      }`}
-    >
-      {label}
-    </Link>
-  );
+  return pathname === normalizedHref || pathname.startsWith(`${normalizedHref}/`);
 }
 
 function getStudentInitials(studentName) {
@@ -77,31 +105,37 @@ function getStudentInitials(studentName) {
     .join("");
 }
 
-function MenuLinkRow({ href, label, badge, active, onClick }) {
+function MenuLinkRow({ href, label, icon: Icon, description, active }) {
   return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={`flex items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm transition ${
-        active
-          ? "bg-slate-100 text-slate-950 ring-1 ring-slate-200"
-          : "text-slate-700 hover:bg-slate-50"
-      }`}
+    <DropdownMenuItem
+      asChild
+      className={cn(
+        "rounded-2xl px-3 py-3 focus:bg-accent/70",
+        active && "bg-primary/8 text-foreground",
+      )}
     >
-      <div className="flex items-center gap-3">
-        {badge ? (
+      <Link href={href} className="flex w-full items-center gap-3">
+        {Icon ? (
           <span
-            className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-[0.68rem] font-semibold ${
-              active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-            }`}
+            className={cn(
+              "flex size-9 items-center justify-center rounded-xl border border-border/80 bg-white text-muted-foreground",
+              active && "border-primary/20 bg-primary/10 text-primary",
+            )}
           >
-            {badge}
+            <Icon className="size-4" />
           </span>
-        ) : null}
-        <span>{label}</span>
-      </div>
-      <span className={`text-xs ${active ? "text-slate-500" : "text-slate-400"}`}>{">"}</span>
-    </Link>
+        ) : (
+          <span className="w-2" />
+        )}
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">{label}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {description}
+          </span>
+        </span>
+      </Link>
+    </DropdownMenuItem>
   );
 }
 
@@ -114,34 +148,10 @@ export default function StudentShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const menuRef = useRef(null);
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const studentInitials = getStudentInitials(studentSession.studentName);
-  const hasActiveMenuPage = MENU_LINKS.some((link) => {
-    if (link.href.startsWith("/student/profile#")) {
-      return pathname === "/student/profile";
-    }
-
-    return isLinkActive(pathname, link.href);
-  });
-
-  useEffect(() => {
-    if (!menuOpen) {
-      return undefined;
-    }
-
-    function handlePointerDown(event) {
-      if (!menuRef.current?.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown);
-
-    return () => window.removeEventListener("pointerdown", handlePointerDown);
-  }, [menuOpen]);
+  const hasActiveMenuPage = MENU_LINKS.some((link) => isLinkActive(pathname, link.href));
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -157,139 +167,160 @@ export default function StudentShell({
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(140deg,#f8fafc_0%,#e0f2fe_52%,#fef3c7_100%)] px-4 py-6 text-slate-900 md:px-6">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-10rem] top-[-8rem] size-80 rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute bottom-[-10rem] right-[-4rem] size-96 rounded-full bg-sky-300/25 blur-3xl" />
+      </div>
+
       <div className="relative mx-auto max-w-7xl space-y-6">
-        <header className="relative z-30 rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
-                {pageLabel}
-              </p>
-              <h1 className="mt-3 text-4xl font-semibold text-slate-950">{title}</h1>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{subtitle}</p>
-            </div>
+        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+          <CardHeader className="gap-6 p-6">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="max-w-3xl">
+                <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary">
+                  {pageLabel}
+                </Badge>
+                <CardTitle className="mt-4 text-4xl tracking-tight text-slate-950">
+                  {title}
+                </CardTitle>
+                <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                  {subtitle}
+                </CardDescription>
+              </div>
 
-            <div className="relative z-40 flex flex-col gap-4 xl:items-end">
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                {PRIMARY_LINKS.map((link) => (
-                  <NavLink
-                    key={link.href}
-                    href={link.href}
-                    label={link.label}
-                    active={isLinkActive(pathname, link.href)}
-                  />
-                ))}
+              <div className="flex flex-col gap-4 xl:items-end">
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {PRIMARY_LINKS.map((link) => {
+                    const active = isLinkActive(pathname, link.href);
+                    const Icon = link.icon;
 
-                <div className="relative" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen((current) => !current)}
-                    className={`flex min-h-[4.25rem] items-center gap-3 rounded-full border px-3 py-2 text-left transition ${
-                      hasActiveMenuPage || menuOpen
-                        ? "border-slate-900 bg-slate-950 text-white shadow-[0_14px_32px_rgba(15,23,42,0.18)]"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="relative">
-                      <div
-                        className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold ${
-                          hasActiveMenuPage || menuOpen
-                            ? "bg-white/12 text-white"
-                            : "bg-slate-100 text-slate-700"
-                        }`}
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className={cn(
+                          buttonVariants({
+                            variant: active ? "default" : "outline",
+                            size: "lg",
+                          }),
+                          "rounded-full",
+                        )}
                       >
-                        {studentInitials}
-                      </div>
-                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-                    </div>
+                        <Icon className="size-4" />
+                        {link.label}
+                      </Link>
+                    );
+                  })}
 
-                    <div className="min-w-[9rem]">
-                      <p
-                        className={`text-sm font-semibold ${
-                          hasActiveMenuPage || menuOpen ? "text-white" : "text-slate-900"
-                        }`}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant={hasActiveMenuPage ? "secondary" : "outline"}
+                        size="lg"
+                        className={cn(
+                          "h-auto min-w-[15rem] justify-between rounded-full px-3 py-2.5 shadow-sm",
+                          hasActiveMenuPage && "border-primary/15 bg-primary/7 text-foreground",
+                        )}
                       >
-                        {studentSession.studentName}
-                      </p>
-                      <p
-                        className={`mt-0.5 text-xs ${
-                          hasActiveMenuPage || menuOpen ? "text-slate-300" : "text-slate-500"
-                        }`}
-                      >
-                        Account Menu
-                      </p>
-                    </div>
+                        <span className="flex items-center gap-3">
+                          <Avatar className="size-11 border border-white shadow-sm">
+                            <AvatarFallback className="bg-slate-950 text-sm text-white">
+                              {studentInitials}
+                            </AvatarFallback>
+                          </Avatar>
 
-                    <span
-                      className={`pr-1 text-xs transition ${menuOpen ? "rotate-180" : ""} ${
-                        hasActiveMenuPage || menuOpen ? "text-slate-300" : "text-slate-400"
-                      }`}
-                    >
-                      v
-                    </span>
-                  </button>
-
-                  {menuOpen ? (
-                    <div className="absolute right-0 top-[calc(100%+0.85rem)] z-[100] w-72 max-w-[calc(100vw-1.5rem)] rounded-[1.25rem] border border-slate-200 bg-white p-2.5 shadow-[0_35px_120px_rgba(15,23,42,0.22)]">
-                      <div className="flex items-center gap-3 rounded-[1rem] px-2.5 py-2">
-                        <div className="relative">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
-                            {studentInitials}
-                          </div>
-                          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-50 bg-emerald-500" />
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">
-                            {studentSession.studentName}
-                          </p>
-                          <p className="mt-1 truncate text-xs text-slate-500">
-                            Student ID: {studentSession.studentId}
-                          </p>
-                          <p className="mt-0.5 truncate text-xs text-slate-500">
-                            {studentSession.studentEmail || "No email added yet"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-1 space-y-1 border-t border-slate-100 pt-2">
-                        {MENU_LINKS.map((link) => (
-                          <MenuLinkRow
-                            key={link.href}
-                            href={link.href}
-                            label={link.label}
-                            badge={link.badge}
-                            active={
-                              link.href.startsWith("/student/profile#")
-                                ? pathname === "/student/profile"
-                                : isLinkActive(pathname, link.href)
-                            }
-                            onClick={() => setMenuOpen(false)}
-                          />
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        disabled={loggingOut}
-                        className="mt-2 flex w-full items-center justify-between rounded-[1rem] px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-rose-300"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-[0.68rem] font-semibold text-rose-600">
-                            LO
+                          <span className="min-w-0 text-left">
+                            <span className="block truncate text-sm font-semibold text-slate-950">
+                              {studentSession.studentName}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              Account Menu
+                            </span>
                           </span>
-                          <span>{loggingOut ? "Logging Out..." : "Logout"}</span>
+                        </span>
+
+                        <ChevronDown className="size-4 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="end" className="w-80 p-2">
+                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-12 border border-border bg-white shadow-sm">
+                            <AvatarFallback className="bg-slate-950 text-sm text-white">
+                              {studentInitials}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-950">
+                              {studentSession.studentName}
+                            </p>
+                            <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
+                              Student ID: {studentSession.studentId}
+                            </p>
+                            <p className="truncate text-xs font-normal text-muted-foreground">
+                              {studentSession.studentEmail || "No email added yet"}
+                            </p>
+                          </div>
                         </div>
-                        <span className="text-xs text-rose-400">{">"}</span>
-                      </button>
-                    </div>
-                  ) : null}
+                      </DropdownMenuLabel>
+
+                      <DropdownMenuSeparator />
+
+                      {MENU_LINKS.map((link) => (
+                        <MenuLinkRow
+                          key={link.href}
+                          href={link.href}
+                          label={link.label}
+                          icon={link.icon}
+                          description={link.description}
+                          active={isLinkActive(pathname, link.href)}
+                        />
+                      ))}
+
+                      <DropdownMenuSeparator />
+
+                      <DropdownMenuItem
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handleLogout();
+                        }}
+                        disabled={loggingOut}
+                        className="rounded-2xl px-3 py-3 text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+                      >
+                        <span className="flex size-9 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                          <LogOut className="size-4" />
+                        </span>
+                        <span className="flex-1 text-sm font-medium">
+                          {loggingOut ? "Logging Out..." : "Logout"}
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex w-full max-w-[24rem] items-center gap-3 rounded-full border border-border/70 bg-white/90 px-4 py-3 text-sm shadow-sm">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <KeyRound className="size-4" />
+                  </div>
+                  <span className="text-muted-foreground">
+                    Password settings are available from the account menu.
+                  </span>
                 </div>
               </div>
             </div>
-          </div>
-        </header>
+
+            <Separator />
+
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="font-medium text-slate-700">Student workspace</span>
+              <span>Dashboard and attendance stay upfront.</span>
+              <span>History, leave, and profile stay in the dropdown.</span>
+            </div>
+          </CardHeader>
+        </Card>
 
         {children}
       </div>

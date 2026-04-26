@@ -1,10 +1,97 @@
 "use client";
 
+import { ArrowRight, Camera, ShieldCheck, Users } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import PasswordField from "@/app/_components/PasswordField";
 import { buildApiUrl, parseApiResponse } from "@/app/lib/api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+
+const PLATFORM_FEATURES = [
+  {
+    icon: Camera,
+    label: "Face Recognition",
+    detail: "Capture from live camera and match against stored student records.",
+  },
+  {
+    icon: ShieldCheck,
+    label: "Admin Oversight",
+    detail: "Manage attendance, leave requests, and student accounts in one place.",
+  },
+  {
+    icon: Users,
+    label: "Student Self-Service",
+    detail: "Students can review history, request leave, and change passwords themselves.",
+  },
+];
+
+function LoginCard({
+  accent,
+  badgeLabel,
+  title,
+  description,
+  fields,
+  submitLabel,
+  loadingLabel,
+  loading,
+  message,
+  onSubmit,
+}) {
+  return (
+    <Card className="border-white/80 bg-white/92 shadow-[0_20px_90px_rgba(15,23,42,0.1)] backdrop-blur-sm">
+      <CardHeader className="gap-4">
+        <Badge
+          variant="outline"
+          className={`w-fit rounded-full px-3 py-1 ${accent.badge}`}
+        >
+          {badgeLabel}
+        </Badge>
+        <div>
+          <CardTitle className="text-3xl tracking-tight">{title}</CardTitle>
+          <CardDescription className="mt-2 text-sm leading-6">
+            {description}
+          </CardDescription>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+          className="space-y-4"
+        >
+          {fields}
+
+          <Button type="submit" className={`w-full rounded-2xl ${accent.button}`} disabled={loading}>
+            {loading ? loadingLabel : submitLabel}
+            {!loading ? <ArrowRight className="size-4" /> : null}
+          </Button>
+        </form>
+
+        {message ? (
+          <Alert variant="destructive" className="mt-5">
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -87,151 +174,146 @@ export default function WelcomePage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#f7efe5_0%,#f6f9fc_52%,#dbeafe_100%)] px-6 py-10 text-slate-900">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.8),transparent_22%),radial-gradient(circle_at_88%_16%,rgba(254,240,138,0.55),transparent_18%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_55%,#ffffff_100%)] px-6 py-10 text-slate-900">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-8rem] top-[-5rem] h-72 w-72 rounded-full bg-amber-300/20 blur-3xl" />
-        <div className="absolute right-[-6rem] top-24 h-80 w-80 rounded-full bg-sky-400/20 blur-3xl" />
-        <div className="absolute bottom-[-8rem] left-1/3 h-96 w-96 rounded-full bg-emerald-300/20 blur-3xl" />
+        <div className="absolute left-[-10rem] top-[-8rem] size-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-[-10rem] right-[-5rem] size-[26rem] rounded-full bg-sky-300/20 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center">
-        <div className="grid w-full gap-6 xl:grid-cols-[0.95fr,1.05fr]">
-          <section className="rounded-[2rem] border border-white/60 bg-slate-950 px-8 py-10 text-white shadow-[0_30px_120px_rgba(15,23,42,0.25)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-amber-300">
-              WhosHere
-            </p>
-            <h1 className="mt-5 max-w-lg text-5xl font-semibold leading-tight">
-              Smart attendance with face recognition, admin control, and live student tracking.
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
-              Sign in as a student to mark attendance or use the admin workspace to manage
-              students, attendance records, and leave requests from one dashboard.
-            </p>
+      <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-7xl items-center">
+        <div className="grid w-full gap-6 xl:grid-cols-[1.02fr,0.98fr]">
+          <Card className="overflow-hidden border-white/70 bg-slate-950 text-white shadow-[0_30px_120px_rgba(15,23,42,0.28)]">
+            <CardHeader className="relative gap-5 p-8 pb-0">
+              <Badge className="w-fit rounded-full border-0 bg-white/10 px-3 py-1 text-[0.72rem] uppercase tracking-[0.28em] text-blue-100">
+                WhosHere Platform
+              </Badge>
+              <CardTitle className="max-w-2xl text-5xl leading-tight tracking-tight text-white">
+                Attendance tracking rebuilt around a cleaner, smarter campus workflow.
+              </CardTitle>
+              <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
+                Sign in as a student to mark attendance, check history, request leave, and manage
+                your password. Administrators can supervise the full attendance pipeline from the
+                dashboard.
+              </CardDescription>
+            </CardHeader>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-slate-300">Face recognition</p>
-                <p className="mt-2 text-lg font-semibold">Upload or live camera</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-slate-300">Admin tools</p>
-                <p className="mt-2 text-lg font-semibold">Students, attendance, leave</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-slate-300">Data quality</p>
-                <p className="mt-2 text-lg font-semibold">Duplicate attendance blocked</p>
-              </div>
-            </div>
-          </section>
+            <CardContent className="p-8 pt-8">
+              <div className="grid gap-4 md:grid-cols-3">
+                {PLATFORM_FEATURES.map((feature) => {
+                  const Icon = feature.icon;
 
-          <section className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-[2rem] border border-slate-200/70 bg-white/90 p-8 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-700">
-                Student Access
-              </p>
-              <h2 className="mt-4 text-3xl font-semibold">Student Login</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Use your student ID and current password. You can update your password later from
-                your student profile.
-              </p>
+                  return (
+                    <div
+                      key={feature.label}
+                      className="rounded-[1.75rem] border border-white/10 bg-white/6 p-4"
+                    >
+                      <div className="flex size-11 items-center justify-center rounded-2xl bg-white/10">
+                        <Icon className="size-5 text-blue-100" />
+                      </div>
+                      <p className="mt-4 text-base font-semibold">{feature.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-300">
+                        {feature.detail}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
 
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  studentLogin();
-                }}
-                className="mt-8 space-y-4"
-              >
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Student ID
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Enter student ID (for example 02600001)"
-                    value={studentId}
-                    onChange={(event) => setStudentId(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+              <Separator className="my-8 bg-white/10" />
+
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
+                  Duplicate attendance blocked
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
+                  Student self-service password changes
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
+                  Leave request tracking
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <section className="grid gap-6 lg:grid-cols-2">
+            <LoginCard
+              accent={{
+                badge: "border-blue-200 bg-blue-50 text-blue-700",
+                button: "bg-blue-600 hover:bg-blue-700",
+              }}
+              badgeLabel="Student Access"
+              title="Student Login"
+              description="Use your student ID and password. You can update your password later from your own profile page."
+              loading={loadingStudent}
+              loadingLabel="Signing In..."
+              submitLabel="Login as Student"
+              message={studentMessage}
+              onSubmit={studentLogin}
+              fields={
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="student-id">Student ID</Label>
+                    <Input
+                      id="student-id"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Enter student ID"
+                      value={studentId}
+                      onChange={(event) => setStudentId(event.target.value)}
+                      className="h-12 rounded-2xl border-slate-200 bg-slate-50"
+                    />
+                  </div>
+
+                  <PasswordField
+                    id="student-password"
+                    label="Password"
+                    placeholder="Enter password"
+                    value={studentPassword}
+                    onChange={(event) => setStudentPassword(event.target.value)}
+                    inputClassName="h-12 rounded-2xl border-slate-200 bg-slate-50"
                   />
-                </div>
+                </>
+              }
+            />
 
-                <PasswordField
-                  label="Password"
-                  placeholder="Enter password"
-                  value={studentPassword}
-                  onChange={(event) => setStudentPassword(event.target.value)}
-                  inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-                />
+            <LoginCard
+              accent={{
+                badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+                button: "bg-emerald-600 hover:bg-emerald-700",
+              }}
+              badgeLabel="Admin Access"
+              title="Administrator Login"
+              description="Admin authentication is verified by the backend and opens the full management dashboard."
+              loading={loadingAdmin}
+              loadingLabel="Signing In..."
+              submitLabel="Login as Administrator"
+              message={adminMessage}
+              onSubmit={adminLogin}
+              fields={
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-username">Username</Label>
+                    <Input
+                      id="admin-username"
+                      type="text"
+                      placeholder="Enter admin username"
+                      value={adminUsername}
+                      onChange={(event) => setAdminUsername(event.target.value)}
+                      className="h-12 rounded-2xl border-slate-200 bg-slate-50"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={loadingStudent}
-                  className="w-full rounded-2xl bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                >
-                  {loadingStudent ? "Signing In..." : "Login as Student"}
-                </button>
-              </form>
-
-              {studentMessage ? (
-                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {studentMessage}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="rounded-[2rem] border border-slate-200/70 bg-white/90 p-8 shadow-[0_25px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
-                Admin Access
-              </p>
-              <h2 className="mt-4 text-3xl font-semibold">Administrator Login</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Admin login is now verified by the backend instead of a frontend-only password.
-              </p>
-
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  adminLogin();
-                }}
-                className="mt-8 space-y-4"
-              >
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter admin username"
-                    value={adminUsername}
-                    onChange={(event) => setAdminUsername(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
+                  <PasswordField
+                    id="admin-password"
+                    label="Password"
+                    placeholder="Enter admin password"
+                    value={adminPassword}
+                    onChange={(event) => setAdminPassword(event.target.value)}
+                    inputClassName="h-12 rounded-2xl border-slate-200 bg-slate-50"
                   />
-                </div>
-
-                <PasswordField
-                  label="Password"
-                  placeholder="Enter admin password"
-                  value={adminPassword}
-                  onChange={(event) => setAdminPassword(event.target.value)}
-                  inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-500 focus:bg-white"
-                />
-
-                <button
-                  type="submit"
-                  disabled={loadingAdmin}
-                  className="w-full rounded-2xl bg-emerald-600 px-4 py-3 font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                >
-                  {loadingAdmin ? "Signing In..." : "Login as Administrator"}
-                </button>
-              </form>
-
-              {adminMessage ? (
-                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {adminMessage}
-                </div>
-              ) : null}
-            </div>
+                </>
+              }
+            />
           </section>
         </div>
       </div>

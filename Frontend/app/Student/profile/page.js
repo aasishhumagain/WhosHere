@@ -1,16 +1,21 @@
 "use client";
 
+import { RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import PasswordField from "@/app/_components/PasswordField";
 import { buildAssetUrl } from "@/app/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 import StudentShell from "../_components/StudentShell";
 import {
   MessageBanner,
   PageCard,
   PhotoPreviewCard,
+  SectionIntro,
   StatCard,
   StudentLoadingScreen,
 } from "../_components/StudentUI";
@@ -207,26 +212,22 @@ export default function StudentProfilePage() {
 
         <PageCard>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-700">
-                Account Details
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold text-slate-950">
-                Review your profile information
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                Your personal account details, attendance summary, and leave summary are shown
-                below.
-              </p>
-            </div>
+            <SectionIntro
+              eyebrow="Account Details"
+              title="Review your profile information"
+              description="Your personal account details, attendance summary, and leave summary are shown below."
+            />
 
-            <button
+            <Button
               type="button"
               onClick={refreshProfilePage}
-              className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+              variant="outline"
+              size="lg"
+              className="rounded-full"
             >
+              <RefreshCcw className={`size-4 ${loadingProfile ? "animate-spin" : ""}`} />
               {loadingProfile ? "Refreshing..." : "Refresh Profile"}
-            </button>
+            </Button>
           </div>
 
           {profileError ? (
@@ -236,41 +237,36 @@ export default function StudentProfilePage() {
           ) : null}
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Student Name
-              </p>
-              <p className="mt-3 text-lg font-semibold text-slate-900">
-                {profile?.full_name || studentSession.studentName}
-              </p>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Student ID
-              </p>
-              <p className="mt-3 text-lg font-semibold text-slate-900">
-                {studentSession.studentId}
-              </p>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Email
-              </p>
-              <p className="mt-3 text-lg font-semibold text-slate-900">
-                {profile?.email || studentSession.studentEmail || "Not provided"}
-              </p>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Registered
-              </p>
-              <p className="mt-3 text-lg font-semibold text-slate-900">
-                {formatDateTime(profile?.created_at)}
-              </p>
-            </div>
+            {[
+              {
+                label: "Student Name",
+                value: profile?.full_name || studentSession.studentName,
+              },
+              {
+                label: "Student ID",
+                value: studentSession.studentId,
+              },
+              {
+                label: "Email",
+                value: profile?.email || studentSession.studentEmail || "Not provided",
+              },
+              {
+                label: "Registered",
+                value: formatDateTime(profile?.created_at),
+              },
+            ].map((item) => (
+              <Card
+                key={item.label}
+                className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none"
+              >
+                <CardContent className="p-4">
+                  <Badge variant="outline" className="rounded-full px-3 py-1">
+                    {item.label}
+                  </Badge>
+                  <p className="mt-4 text-lg font-semibold text-slate-900">{item.value}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -281,12 +277,12 @@ export default function StudentProfilePage() {
             <StatCard
               label="Unique present days"
               value={loadingProfile && attendance.length === 0 ? "..." : uniquePresentDays}
-              accentClass="border-emerald-200 bg-emerald-50 text-slate-900"
+              accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900"
             />
             <StatCard
               label="Approved leave days"
               value={loadingProfile && leaveRequests.length === 0 ? "..." : approvedLeaveDays}
-              accentClass="border-sky-200 bg-sky-50 text-slate-900"
+              accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900"
             />
           </div>
         </PageCard>
@@ -295,86 +291,82 @@ export default function StudentProfilePage() {
       <div className="grid gap-6 xl:grid-cols-[1.02fr,0.98fr]">
         <div id="change-password-section" className="scroll-mt-28">
           <PageCard>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">
-            Password Settings
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold text-slate-950">Change your password</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            Enter your current password, set a new one, and save it here. You no longer need an
-            admin to update your student password.
-          </p>
-
-          {passwordMessage ? (
-            <MessageBanner type={passwordMessage.type} className="mt-5">
-              {passwordMessage.message}
-            </MessageBanner>
-          ) : null}
-
-          <form onSubmit={handleChangePassword} className="mt-6 space-y-4">
-            <PasswordField
-              label="Current Password"
-              value={passwordForm.current_password}
-              onChange={(event) =>
-                setPasswordForm((current) => ({
-                  ...current,
-                  current_password: event.target.value,
-                }))
-              }
-              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
+            <SectionIntro
+              eyebrow="Password Settings"
+              title="Change your password"
+              description="Enter your current password, set a new one, and save it here. You no longer need an admin to update your student password."
             />
 
-            <PasswordField
-              label="New Password"
-              value={passwordForm.new_password}
-              onChange={(event) =>
-                setPasswordForm((current) => ({
-                  ...current,
-                  new_password: event.target.value,
-                }))
-              }
-              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-            />
+            {passwordMessage ? (
+              <MessageBanner type={passwordMessage.type} className="mt-5">
+                {passwordMessage.message}
+              </MessageBanner>
+            ) : null}
 
-            <PasswordField
-              label="Confirm New Password"
-              value={passwordForm.confirm_password}
-              onChange={(event) =>
-                setPasswordForm((current) => ({
-                  ...current,
-                  confirm_password: event.target.value,
-                }))
-              }
-              inputClassName="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white"
-            />
+            <form onSubmit={handleChangePassword} className="mt-6 space-y-4">
+              <PasswordField
+                label="Current Password"
+                value={passwordForm.current_password}
+                onChange={(event) =>
+                  setPasswordForm((current) => ({
+                    ...current,
+                    current_password: event.target.value,
+                  }))
+                }
+                inputClassName="h-12 rounded-2xl border-slate-200 bg-slate-50"
+              />
 
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={changingPassword}
-                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {changingPassword ? "Updating..." : "Change Password"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPasswordForm(createPasswordForm());
-                  setPasswordMessage(null);
-                }}
-                className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-              >
-                Clear Form
-              </button>
-            </div>
-          </form>
+              <PasswordField
+                label="New Password"
+                value={passwordForm.new_password}
+                onChange={(event) =>
+                  setPasswordForm((current) => ({
+                    ...current,
+                    new_password: event.target.value,
+                  }))
+                }
+                inputClassName="h-12 rounded-2xl border-slate-200 bg-slate-50"
+              />
+
+              <PasswordField
+                label="Confirm New Password"
+                value={passwordForm.confirm_password}
+                onChange={(event) =>
+                  setPasswordForm((current) => ({
+                    ...current,
+                    confirm_password: event.target.value,
+                  }))
+                }
+                inputClassName="h-12 rounded-2xl border-slate-200 bg-slate-50"
+              />
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button type="submit" disabled={changingPassword} size="lg" className="rounded-full">
+                  {changingPassword ? "Updating..." : "Change Password"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full"
+                  onClick={() => {
+                    setPasswordForm(createPasswordForm());
+                    setPasswordMessage(null);
+                  }}
+                >
+                  Clear Form
+                </Button>
+              </div>
+            </form>
           </PageCard>
         </div>
 
         <PageCard>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">
-            Security Tips
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold text-slate-950">Keep your account safe</h2>
+          <SectionIntro
+            eyebrow="Security Tips"
+            title="Keep your account safe"
+            description="A few simple habits go a long way toward keeping your attendance account secure."
+          />
           <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
             <li>Use a password that is different from the one used on other sites.</li>
             <li>Do not share your student password with friends or classmates.</li>

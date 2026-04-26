@@ -1,12 +1,24 @@
 "use client";
 
+import { RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 import StudentShell from "../_components/StudentShell";
 import {
   MessageBanner,
   PageCard,
+  SectionIntro,
   StatCard,
   StudentLoadingScreen,
   StatusPill,
@@ -112,30 +124,26 @@ export default function StudentAttendanceHistoryPage() {
       studentSession={studentSession}
       pageLabel="Attendance History"
       title="Attendance Timeline"
-      subtitle="Review every attendance entry recorded for your account. This page is separated from capture so you can audit the history without affecting the daily attendance flow."
+      subtitle="Review every attendance entry recorded for your account. This page stays separate from capture so you can audit your history without affecting the daily attendance flow."
     >
       <PageCard>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-700">
-              Attendance Overview
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold text-slate-950">
-              Review your attendance records
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Each row shows the status and timestamp returned by the backend for your student
-              account.
-            </p>
-          </div>
+          <SectionIntro
+            eyebrow="Attendance Overview"
+            title="Review your attendance records"
+            description="Each row shows the status and timestamp returned by the backend for your student account."
+          />
 
-          <button
+          <Button
             type="button"
             onClick={refreshAttendanceHistory}
-            className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            variant="outline"
+            size="lg"
+            className="rounded-full"
           >
+            <RefreshCcw className={`size-4 ${loadingAttendance ? "animate-spin" : ""}`} />
             {loadingAttendance ? "Refreshing..." : "Refresh Attendance"}
-          </button>
+          </Button>
         </div>
 
         {attendanceError ? (
@@ -163,47 +171,45 @@ export default function StudentAttendanceHistoryPage() {
       </PageCard>
 
       <PageCard className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[52rem] text-sm">
-            <thead className="bg-slate-100 text-left">
-              <tr>
-                <th className="border-b border-slate-200 px-6 py-4">Status</th>
-                <th className="border-b border-slate-200 px-6 py-4">Date</th>
-                <th className="border-b border-slate-200 px-6 py-4">Time</th>
-                <th className="border-b border-slate-200 px-6 py-4">Full Timestamp</th>
-              </tr>
-            </thead>
+        <Table className="min-w-[52rem]">
+          <TableHeader className="bg-slate-50">
+            <TableRow>
+              <TableHead className="px-6">Status</TableHead>
+              <TableHead className="px-6">Date</TableHead>
+              <TableHead className="px-6">Time</TableHead>
+              <TableHead className="px-6">Full Timestamp</TableHead>
+            </TableRow>
+          </TableHeader>
 
-            <tbody>
-              {attendance.length === 0 ? (
-                <tr>
-                  <td className="px-6 py-8 text-slate-500" colSpan="4">
-                    {loadingAttendance
-                      ? "Loading attendance records..."
-                      : "No attendance records found yet."}
-                  </td>
-                </tr>
-              ) : (
-                attendance.map((record) => (
-                  <tr key={record.id} className="odd:bg-white even:bg-slate-50">
-                    <td className="border-b border-slate-100 px-6 py-4">
-                      <StatusPill status={record.status} />
-                    </td>
-                    <td className="border-b border-slate-100 px-6 py-4">
-                      {new Date(record.marked_at).toLocaleDateString()}
-                    </td>
-                    <td className="border-b border-slate-100 px-6 py-4">
-                      {new Date(record.marked_at).toLocaleTimeString()}
-                    </td>
-                    <td className="border-b border-slate-100 px-6 py-4">
-                      {formatDateTime(record.marked_at)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+          <TableBody>
+            {attendance.length === 0 ? (
+              <TableRow>
+                <TableCell className="px-6 py-8 text-slate-500" colSpan="4">
+                  {loadingAttendance
+                    ? "Loading attendance records..."
+                    : "No attendance records found yet."}
+                </TableCell>
+              </TableRow>
+            ) : (
+              attendance.map((record) => (
+                <TableRow key={record.id}>
+                  <TableCell className="px-6">
+                    <StatusPill status={record.status} />
+                  </TableCell>
+                  <TableCell className="px-6">
+                    {new Date(record.marked_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="px-6">
+                    {new Date(record.marked_at).toLocaleTimeString()}
+                  </TableCell>
+                  <TableCell className="px-6">
+                    {formatDateTime(record.marked_at)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </PageCard>
     </StudentShell>
   );
