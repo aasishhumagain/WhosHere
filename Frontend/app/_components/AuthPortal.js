@@ -25,18 +25,18 @@ import { setStudentSessionStorage } from "@/app/student/_lib/student-portal";
 const PLATFORM_FEATURES = [
   {
     icon: Camera,
-    label: "Face Recognition",
-    detail: "Capture from live camera and match against stored student records.",
+    label: "Live Face Check",
+    detail: "Attendance is marked from a live camera photo matched with the saved student photos.",
   },
   {
     icon: ShieldCheck,
-    label: "Admin Oversight",
-    detail: "Manage attendance, leave requests, audit logs, and student accounts in one place.",
+    label: "Admin Tools",
+    detail: "Admins can manage students, attendance, leave requests, reports, and logs.",
   },
   {
     icon: Users,
-    label: "Student Self-Service",
-    detail: "Students can review history, request leave, and change passwords without admin help.",
+    label: "Student Tools",
+    detail: "Students can check attendance history, send leave requests, and change passwords.",
   },
 ];
 
@@ -193,12 +193,11 @@ export default function AuthPortal() {
             WhosHere Platform
           </Badge>
           <CardTitle className="max-w-2xl text-5xl leading-tight tracking-tight text-white">
-            A clearer sign-in experience for students and administrators.
+            Choose the right login for your role.
           </CardTitle>
           <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
-            Students can mark attendance, review history, request leave, and manage passwords.
-            Administrators can enroll students, review records, export reports, and monitor the
-            system from the admin workspace.
+            Students use this system for daily attendance and leave requests. Admins use it to
+            register students, manage records, and review reports.
           </CardDescription>
         </CardHeader>
 
@@ -231,10 +230,10 @@ export default function AuthPortal() {
               Duplicate attendance blocked
             </span>
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
-              Multi-angle face enrollment
+              Three face photos per student
             </span>
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
-              Audit log tracking
+              Leave request history
             </span>
           </div>
         </CardContent>
@@ -248,7 +247,7 @@ export default function AuthPortal() {
           }}
           badgeLabel="Student Access"
           title="Student Login"
-          description="Use your student ID and password. If the admin did not set a custom password, your first password is your student ID. You can update it later from your own profile page."
+          description="Use your student ID and password. If no password was set during registration, your first password is your student ID."
           loading={loadingStudent}
           loadingLabel="Signing In..."
           submitLabel="Login as Student"
@@ -288,7 +287,7 @@ export default function AuthPortal() {
           }}
           badgeLabel="Admin Access"
           title="Administrator Login"
-          description="Admin authentication is verified by the backend and opens the full management dashboard."
+          description="Use your admin username and password to open the admin dashboard."
           loading={loadingAdmin}
           loadingLabel="Signing In..."
           submitLabel="Login as Administrator"

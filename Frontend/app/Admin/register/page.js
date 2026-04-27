@@ -261,14 +261,14 @@ export default function AdminRegisterStudentPage() {
       adminSession={adminSession}
       pageLabel="Student Enrollment"
       title="Register Student"
-      subtitle="Create a student account, capture left, center, and right face photos, and save the full enrollment set from this dedicated admin page."
+      subtitle="Add a student, capture the required face photos, and save the account details from one page."
     >
       <div className="grid gap-6 lg:grid-cols-[1.04fr,0.96fr]">
         <PageCard>
           <SectionIntro
             eyebrow="Enrollment Form"
             title="Create a new student account"
-            description="Capture a three-photo enrollment set, enter the student details, and submit everything together so the account is ready for stronger recognition-based attendance."
+            description="Enter the student details, take the left, center, and right photos, and then save the record."
           />
 
           {studentMessage ? (
@@ -366,7 +366,7 @@ export default function AdminRegisterStudentPage() {
                   <div>
                     <CardTitle className="text-lg">Three-Pose Face Capture</CardTitle>
                     <CardDescription className="mt-2 text-sm leading-6">
-                      Use one live camera session to capture left, center, and right face photos for the same student.
+                      Use the camera to save three photos for the same student: left, center, and right.
                     </CardDescription>
                   </div>
 
@@ -518,7 +518,7 @@ export default function AdminRegisterStudentPage() {
             <SectionIntro
               eyebrow="Enrollment Preview"
               title="Left, center, and right photo set"
-              description="Each captured pose appears here before you register the student."
+              description="Check each photo here before saving the student."
             />
 
             <div className="mt-6 grid gap-4">
@@ -570,8 +570,8 @@ export default function AdminRegisterStudentPage() {
           <PageCard>
             <SectionIntro
               eyebrow="Enrollment Tips"
-              title="Prepare a clean student record"
-              description="A better three-pose enrollment set and accurate account information make attendance matching much more reliable."
+              title="Tips before saving"
+              description="Clear photos and correct student details help the system match faces more reliably."
             />
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
               <li>Capture all three poses in the same lighting so the model sees a consistent face set.</li>

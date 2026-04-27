@@ -15,17 +15,17 @@ const STEPS = [
   {
     step: "01",
     title: "Set up the portal",
-    detail: "An administrator signs in, registers students, and uploads each student's reference photo.",
+    detail: "The admin signs in, registers students, and saves their face photos.",
   },
   {
     step: "02",
     title: "Students log in",
-    detail: "Students sign in, open attendance capture, review their history, and manage their own account details.",
+    detail: "Students sign in, mark attendance, and check their own record.",
   },
   {
     step: "03",
     title: "Review the records",
-    detail: "Admins monitor attendance, correct statuses when needed, and respond to leave requests from separate admin pages.",
+    detail: "Admins review attendance, fix mistakes, and respond to leave requests.",
   },
 ];
 
@@ -43,10 +43,10 @@ export default function HowItWorksPage() {
             </Badge>
             <div>
               <CardTitle className="text-4xl tracking-tight text-slate-950">
-                A quick three-step view of the workflow
+                How the system works
               </CardTitle>
               <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                Follow the attendance flow from setup through review in a clear three-step path.
+                The full flow is simple: set up students, mark attendance, then review the records.
               </CardDescription>
             </div>
           </CardHeader>
@@ -74,7 +74,7 @@ export default function HowItWorksPage() {
             <div>
               <p className="text-lg font-semibold text-slate-950">Ready to try the flow?</p>
               <p className="mt-2 text-sm text-slate-600">
-                Move into the sign-in page and continue through the student or administrator portal.
+                Open the login page and continue as a student or admin.
               </p>
             </div>
 

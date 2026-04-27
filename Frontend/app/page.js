@@ -16,34 +16,34 @@ const WELCOME_CARDS = [
   {
     icon: Camera,
     label: "Student Attendance",
-    detail: "Students can sign in, capture attendance, review history, submit leave, and update passwords from their own portal.",
+    detail: "Students can sign in, mark attendance, check their record, and send leave requests.",
   },
   {
     icon: LayoutDashboard,
-    label: "Focused Dashboards",
-    detail: "Student and admin workspaces stay organized with dedicated pages for each part of the flow.",
+    label: "Student and Admin Side",
+    detail: "Students and admins each get their own pages, so the system is easier to use.",
   },
   {
     icon: ClipboardCheck,
     label: "Reliable Records",
-    detail: "Attendance, leave requests, audit logs, and reports stay connected in one consistent system.",
+    detail: "Attendance, leave requests, reports, and logs stay together in one system.",
   },
 ];
 
 const QUICK_LINKS = [
   {
     label: "Home",
-    detail: "Start with a welcome screen and entry point into the app.",
+    detail: "Start from the main page and move to the login screen.",
     href: "/",
   },
   {
     label: "Features",
-    detail: "Keep a simple public page for the product highlights.",
+    detail: "See the main parts of the project at a glance.",
     href: "/features",
   },
   {
     label: "How It Works",
-    detail: "See the full flow from enrollment through attendance review.",
+    detail: "See the basic flow from student registration to attendance review.",
     href: "/how-it-works",
   },
 ];
@@ -58,11 +58,11 @@ export default function WelcomePage() {
               Welcome
             </Badge>
             <CardTitle className="max-w-3xl text-5xl leading-tight tracking-tight text-white">
-              Face-recognition attendance built for a calmer campus workflow.
+              Attendance made easier for students and staff.
             </CardTitle>
             <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
-              WhosHere gives students and administrators a clear path from sign-in to attendance
-              tracking, student management, leave handling, and audit-ready reporting.
+              WhosHere is a face-recognition attendance system where students can mark attendance
+              and admins can manage records, leave requests, and reports.
             </CardDescription>
           </CardHeader>
 
@@ -91,11 +91,10 @@ export default function WelcomePage() {
                 Platform Snapshot
               </Badge>
               <CardTitle className="text-2xl tracking-tight text-slate-950">
-                Everything important is one step away
+                A quick look at the project
               </CardTitle>
               <CardDescription className="text-sm leading-6 text-slate-600">
-                Use the public pages to understand the product quickly, then jump into the right
-                portal from the login screen when you are ready to work.
+                Use these pages to understand the system first, then log in as a student or admin.
               </CardDescription>
             </CardHeader>
           </Card>

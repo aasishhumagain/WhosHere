@@ -123,15 +123,15 @@ export default function StudentAttendanceHistoryPage() {
     <StudentShell
       studentSession={studentSession}
       pageLabel="Attendance History"
-      title="Attendance Timeline"
-      subtitle="Review every attendance entry recorded for your account. This page stays separate from capture so you can audit your history without affecting the daily attendance flow."
+      title="Attendance History"
+      subtitle="See the attendance records saved for your account."
     >
       <PageCard>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionIntro
-            eyebrow="Attendance Overview"
+            eyebrow="History"
             title="Review your attendance records"
-            description="Each row shows the status and timestamp returned by the backend for your student account."
+            description="Each row shows the status, date, and time saved in the system."
           />
 
           <Button

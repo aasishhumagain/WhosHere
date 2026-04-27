@@ -550,14 +550,14 @@ export default function AdminDirectoryPage() {
         adminSession={adminSession}
         pageLabel="Student Directory"
         title="Student Directory"
-        subtitle="Review registered students, sort the directory, edit account details, and remove records from this dedicated admin page."
+        subtitle="Review student records, sort the list, edit details, and remove old accounts."
       >
         <PageCard>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <SectionIntro
               eyebrow="Directory"
               title="View, sort, edit, and delete students"
-              description="Sort the directory in ascending or descending order and open the edit dialog to review each student photo and detail set."
+              description="Search the list, change the sort order, or open a student record to edit it."
             />
 
             <div className="grid gap-3 sm:grid-cols-4">

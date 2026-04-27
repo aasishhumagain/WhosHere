@@ -254,14 +254,14 @@ export default function AdminLogsPage() {
       adminSession={adminSession}
       pageLabel="Audit Logs"
       title="Audit Logs"
-      subtitle="Review the system-wide activity trail for admins and students, including logins, logouts, account changes, attendance actions, and leave workflows."
+      subtitle="See who signed in and what changes were made in the system."
     >
       <PageCard>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <SectionIntro
             eyebrow="Log Filters"
-            title="Trace activity across the whole system"
-            description="Filter by actor type, specific action, date range, or free-text search to inspect the full audit trail without leaving the admin workspace."
+            title="Check recent activity"
+            description="Filter by person, action, or date to find the log entries you need."
           />
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -415,8 +415,8 @@ export default function AdminLogsPage() {
       <PageCard>
         <SectionIntro
           eyebrow="Audit Summary"
-          title="Quick read on recent system behavior"
-          description="These live counts follow the current filters so you can narrow the audit trail and still keep a useful high-level summary."
+          title="Summary for the current view"
+          description="These counts follow your filters, so you can narrow the list and still keep the main picture."
         />
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">

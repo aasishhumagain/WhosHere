@@ -180,13 +180,13 @@ export default function StudentLeaveRequestsPage() {
       studentSession={studentSession}
       pageLabel="Leave Requests"
       title="Leave Management"
-      subtitle="Submit a new leave request and review the status of your previous requests in one dedicated page."
+      subtitle="Send a leave request and check your old requests here."
     >
       <PageCard>
         <SectionIntro
           eyebrow="Leave Summary"
           title="Keep track of your leave requests"
-          description="Add the leave dates and a reason, then monitor the request status from the table below."
+          description="Use this page to send a request and check whether it was approved or rejected."
         />
 
         {pageError ? (
@@ -219,7 +219,7 @@ export default function StudentLeaveRequestsPage() {
           <SectionIntro
             eyebrow="New Request"
             title="Submit leave details"
-            description="Choose your date range, add a reason, and send the request to the administrator for review."
+            description="Choose the dates, write the reason, and send the request to the admin."
           />
 
           {leaveMessage ? (
@@ -309,7 +309,7 @@ export default function StudentLeaveRequestsPage() {
               <SectionIntro
                 eyebrow="Leave History"
                 title="Previous requests"
-                description="Every request you have submitted appears below with dates, status, and your original reason."
+                description="All of your past requests are listed here with the dates, status, and reason."
               />
 
               <Button

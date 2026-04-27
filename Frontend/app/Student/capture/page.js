@@ -182,7 +182,7 @@ export default function StudentAttendanceCapturePage() {
       studentSession={studentSession}
       pageLabel="Attendance Capture"
       title="Mark Attendance"
-      subtitle="Use the live camera to capture a clear front-facing photo and submit it for recognition. This page stays separate so the daily attendance flow remains simple and focused."
+      subtitle="Open the camera, take a photo, and submit it to mark your attendance."
     >
       <canvas ref={canvasRef} className="hidden" />
 
@@ -190,8 +190,8 @@ export default function StudentAttendanceCapturePage() {
         <PageCard>
           <SectionIntro
             eyebrow="Live Camera"
-            title="Capture and submit today's attendance"
-            description="Open the camera, take a clear photo, and then submit it. WhosHere will compare the captured image against your enrolled left, center, and right face set."
+            title="Take your attendance photo"
+            description="Use a clear front photo. The system will compare it with the face photos saved on your student account."
           />
 
           <div className="mt-6 flex flex-wrap gap-3">

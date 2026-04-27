@@ -16,17 +16,17 @@ const FEATURE_CARDS = [
   {
     icon: Camera,
     label: "Attendance Capture",
-    detail: "Students can move from login into a dedicated attendance capture page with their own portal flow.",
+    detail: "Students can open the camera, take a photo, and mark attendance.",
   },
   {
     icon: Users,
     label: "Student Self-Service",
-    detail: "History, leave requests, profile details, and password changes are now handled inside the student space.",
+    detail: "Students can check attendance history, request leave, and change passwords.",
   },
   {
     icon: ShieldCheck,
     label: "Admin Control",
-    detail: "Administrators can handle enrollment, attendance review, leave approvals, logs, and reports from one desktop workspace.",
+    detail: "Admins can register students, fix attendance, review logs, and manage leave requests.",
   },
 ];
 
@@ -44,11 +44,10 @@ export default function FeaturesPage() {
             </Badge>
             <div>
               <CardTitle className="text-4xl tracking-tight text-slate-950">
-                A simple overview of what WhosHere can do
+                What WhosHere includes
               </CardTitle>
               <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                Explore the core product strengths before moving into the student or administrator
-                portal.
+                These are the main parts of the system before you log in.
               </CardDescription>
             </div>
           </CardHeader>
@@ -78,10 +77,9 @@ export default function FeaturesPage() {
         <Card className="border-dashed border-primary/20 bg-white/72 shadow-none">
           <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-lg font-semibold text-slate-950">Built for the daily attendance flow</p>
+              <p className="text-lg font-semibold text-slate-950">Built for everyday use</p>
               <p className="mt-2 text-sm text-slate-600">
-                The essentials are already in place: recognition-based attendance, self-service
-                student tools, and a stronger admin review flow.
+                The project already covers registration, attendance, leave handling, reports, and logs.
               </p>
             </div>
 

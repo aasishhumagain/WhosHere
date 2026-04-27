@@ -219,15 +219,15 @@ export default function StudentProfilePage() {
     <StudentShell
       studentSession={studentSession}
       pageLabel="Profile"
-      title="Your Student Profile"
-      subtitle="Review your registered account details, inspect your enrolled left/center/right face set, and change your password without waiting for an administrator."
+      title="Profile"
+      subtitle="See your saved details, check your face photos, and change your password here."
     >
       <div className="grid gap-6 xl:grid-cols-[0.94fr,1.06fr]">
         <PageCard>
           <SectionIntro
             eyebrow="Enrollment Set"
             title="Registered face photos"
-            description="These left, center, and right photos are the enrollment set currently linked to your recognition attendance profile."
+            description="These are the photos saved for face matching."
           />
 
           <div className="mt-6 grid gap-4">
@@ -269,7 +269,7 @@ export default function StudentProfilePage() {
             <SectionIntro
               eyebrow="Account Details"
               title="Review your profile information"
-              description="Your personal account details, attendance summary, and leave summary are shown below."
+              description="Your saved account details and summary numbers are shown below."
             />
 
             <Button
@@ -356,7 +356,7 @@ export default function StudentProfilePage() {
             <SectionIntro
               eyebrow="Password Settings"
               title="Change your password"
-              description="Enter your current password, set a new one, and save it here. You no longer need an admin to update your student password."
+              description="Enter your current password and set a new one."
             />
 
             {passwordMessage ? (
@@ -426,8 +426,8 @@ export default function StudentProfilePage() {
         <PageCard>
           <SectionIntro
             eyebrow="Security Tips"
-            title="Keep your account safe"
-            description="A few simple habits go a long way toward keeping your attendance account secure."
+            title="Keep your password safe"
+            description="A few simple steps can help protect your account."
           />
           <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
             <li>Use a password that is different from the one used on other sites.</li>

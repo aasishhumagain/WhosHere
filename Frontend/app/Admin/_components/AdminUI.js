@@ -230,7 +230,7 @@ export function PhotoThumb({ imageUrl, alt }) {
 }
 
 export function AdminLoadingScreen({
-  title = "Loading admin workspace...",
+  title = "Loading admin page...",
   description = "Preparing student records, attendance history, and leave requests.",
 }) {
   return (

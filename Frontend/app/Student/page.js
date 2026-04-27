@@ -134,15 +134,15 @@ export default function StudentDashboardPage() {
       studentSession={studentSession}
       pageLabel="Student Portal"
       title="Student Dashboard"
-      subtitle="Your student home now stays focused on overview and attendance capture. Use the main navigation for the core flow, then open the account menu for history, leave, and profile details."
+      subtitle="Check your attendance summary here, then go straight to attendance, leave requests, or your profile."
     >
       <div className="grid gap-6 xl:grid-cols-[1.08fr,0.92fr]">
         <PageCard>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <SectionIntro
-              eyebrow="Overview"
+          <SectionIntro
+              eyebrow="Summary"
               title={`Welcome back, ${studentSession.studentName}`}
-              description="Check your attendance summary, recent updates, and then jump straight into attendance capture when you are ready to mark today's presence."
+              description="See your recent activity and use the button here when you need to mark attendance."
             />
 
             <div className="flex flex-wrap gap-3">
@@ -197,7 +197,7 @@ export default function StudentDashboardPage() {
         <PageCard>
           <PhotoPreviewCard
             title="Profile Photo"
-            subtitle="This primary center image is part of your registered left/center/right face set for attendance matching."
+            subtitle="This is the main photo saved on your student record."
             imageUrl={profilePhotoUrl}
             fallbackLabel="Your registered profile image will appear here once the admin adds one."
             imageLoading="eager"
@@ -210,7 +210,7 @@ export default function StudentDashboardPage() {
           <SectionIntro
             eyebrow="Recent Activity"
             title="Latest updates"
-            description="Your latest attendance and leave activity appears here so you can confirm what the system last recorded."
+            description="Check the most recent attendance and leave entries saved on your account."
           />
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -262,9 +262,9 @@ export default function StudentDashboardPage() {
 
         <PageCard>
           <SectionIntro
-            eyebrow="Student Snapshot"
-            title="Your account at a glance"
-            description="The essentials below help you confirm which profile details and records are currently available in your student account."
+            eyebrow="Your Details"
+            title="Account information"
+            description="These are the details currently saved for your student account."
           />
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">

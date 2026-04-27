@@ -216,14 +216,14 @@ export default function AdminLeaveRequestsPage() {
       adminSession={adminSession}
       pageLabel="Leave Requests"
       title="Leave Requests"
-      subtitle="Review, approve, reject, and clean up student leave submissions from a dedicated admin page."
+      subtitle="Review student leave requests, update their status, and remove old entries if needed."
     >
       <PageCard>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <SectionIntro
             eyebrow="Leave Review"
             title="Review and decide student leave requests"
-            description="Pending requests can be approved or rejected here, and old requests can be removed without carrying the full admin dashboard around."
+            description="Approve or reject pending requests here, and remove old ones when they are no longer needed."
           />
 
           <div className="grid gap-3 sm:grid-cols-3">

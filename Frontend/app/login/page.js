@@ -25,8 +25,8 @@ export default function LoginPage() {
                 Sign in to continue
               </CardTitle>
               <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                Choose the right portal below. Students can mark attendance and manage their own
-                password, while administrators handle enrollment, records, and leave approvals.
+                Use the student login for attendance and leave requests. Use the admin login for
+                registration, records, reports, and system management.
               </CardDescription>
             </div>
           </CardHeader>

@@ -399,14 +399,14 @@ export default function AdminAttendancePage() {
       adminSession={adminSession}
       pageLabel="Attendance Control"
       title="Attendance Control"
-      subtitle="Filter, correct, export, and remove attendance from a dedicated admin page instead of carrying the full dashboard everywhere."
+      subtitle="Search attendance records, fix mistakes, and export the list from this page."
     >
       <PageCard>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <SectionIntro
             eyebrow="Attendance Filters"
             title="Search, sort, and correct attendance"
-            description="Use the filters below to focus the dataset, then review the live report summary and make edits directly from the attendance table."
+            description="Use these filters to find the records you need, then edit or export them."
           />
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -573,8 +573,8 @@ export default function AdminAttendancePage() {
       <PageCard>
         <SectionIntro
           eyebrow="Attendance Report"
-          title="Live summary for the current filters"
-          description="Review the filtered attendance breakdown below, then export the same dataset as CSV for reporting or cleanup."
+          title="Summary for the current filters"
+          description="These totals change with your filters, so you can quickly review the records before exporting them."
         />
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">

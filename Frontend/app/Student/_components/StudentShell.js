@@ -256,7 +256,7 @@ export default function StudentShell({
                               {studentSession.studentName}
                             </p>
                             <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-                              Student workspace
+                              Student account
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
                               ID {studentSession.studentId || "Not assigned"}
@@ -326,7 +326,7 @@ export default function StudentShell({
                     </span>
                   ) : (
                     <span className="text-slate-600">
-                      Open history, leave, and profile from the account menu.
+                      Open attendance history, leave requests, and your profile from the menu.
                     </span>
                   )}
                 </div>
@@ -336,9 +336,9 @@ export default function StudentShell({
             <Separator />
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="font-medium text-slate-700">Student workspace</span>
-              <span>Attendance capture stays one click away.</span>
-              <span>History, leave, and profile tools stay organized in the account menu.</span>
+              <span className="font-medium text-slate-700">Student area</span>
+              <span>Attendance capture is always at the top.</span>
+              <span>History, leave requests, and profile stay in the account menu.</span>
             </div>
           </CardHeader>
         </Card>

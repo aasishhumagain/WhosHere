@@ -165,14 +165,14 @@ export default function AdminDashboardPage() {
       adminSession={adminSession}
       pageLabel="Admin Workspace"
       title="Admin Dashboard"
-      subtitle="Your admin landing page now stays focused on summary and quick navigation, while admin accounts, student records, attendance, logs, and leave tools live on their own dedicated pages."
+      subtitle="This page shows the main totals. Use the links below to open student records, attendance, leave requests, logs, and admin settings."
     >
       <PageCard>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionIntro
-            eyebrow="Overview"
-            title="One view of the whole attendance system"
-            description="Use this page for the high-level snapshot, then jump into the exact admin page you need for registration, admin account security, student directory cleanup, attendance corrections, or leave review."
+            eyebrow="Summary"
+            title="Main numbers at a glance"
+            description="Check the current totals here, then open the page you need for the next task."
           />
 
           <Button
@@ -219,8 +219,8 @@ export default function AdminDashboardPage() {
         <PageCard>
           <SectionIntro
             eyebrow="Quick Actions"
-            title="Open the right admin page fast"
-            description="Each management area is now split into its own page, so you can work on admin accounts, student records, attendance, logs, or leave without carrying the full dashboard everywhere."
+            title="Open the page you need"
+            description="Use these shortcuts to move straight to registration, records, attendance, logs, or leave requests."
           />
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -250,44 +250,44 @@ export default function AdminDashboardPage() {
 
         <PageCard>
           <SectionIntro
-            eyebrow="Workflow"
-            title="Suggested admin flow"
-            description="A lighter page structure works best when each page has a clear purpose. This is the flow the new admin section is designed around."
+            eyebrow="Daily Use"
+            title="A simple admin routine"
+            description="This is a practical order for using the system during normal work."
           />
 
           <div className="mt-6 space-y-4">
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">1. Secure Admin Access</p>
+                <p className="text-sm font-semibold text-slate-950">1. Check Admin Access</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep admin credentials current and create separate admin accounts when another trusted user needs access.
+                  Keep admin accounts up to date and create another one if someone else needs access.
                 </p>
               </CardContent>
             </Card>
 
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">2. Register Student</p>
+                <p className="text-sm font-semibold text-slate-950">2. Register Students</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Create the account and capture a face photo before the student starts using the system.
+                  Add the student details and save the face photos before the student starts using the system.
                 </p>
               </CardContent>
             </Card>
 
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">3. Review Student Directory</p>
+                <p className="text-sm font-semibold text-slate-950">3. Keep Records Updated</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep student names, emails, passwords, grades, phone numbers, and face images clean and current.
+                  Check names, emails, grades, phone numbers, passwords, and face photos when something changes.
                 </p>
               </CardContent>
             </Card>
 
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">4. Correct Attendance and Leave</p>
+                <p className="text-sm font-semibold text-slate-950">4. Review Attendance and Leave</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Use the attendance, logs, and leave pages to resolve mistakes, trace actions, export reports, and approve requests.
+                  Fix attendance mistakes, check logs when needed, export reports, and approve or reject leave requests.
                 </p>
               </CardContent>
             </Card>

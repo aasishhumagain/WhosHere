@@ -351,7 +351,7 @@ export default function AdminDirectoryPage() {
     }
 
     const confirmed = window.confirm(
-      `Delete the admin account "${adminUser.username}"? This admin will lose access to the admin workspace.`,
+      `Delete the admin account "${adminUser.username}"? This user will lose admin access.`,
     );
 
     if (!confirmed) {
@@ -487,14 +487,14 @@ export default function AdminDirectoryPage() {
       adminSession={adminSession}
       pageLabel="Admin Directory"
       title="Admin Directory"
-      subtitle="Manage admin accounts from a separate page, create additional admins, update the current admin password, and keep admin deletion restricted to the main admin account."
+      subtitle="Manage admin accounts, change passwords, and control who can access the admin side."
     >
       <PageCard>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionIntro
             eyebrow="Admin Accounts"
             title="Directory and security for admin users"
-            description="This page is dedicated to admin account management. Use it to review who can access the admin workspace, create another admin account, update your own password, and let only the main admin remove other admins."
+            description="Use this page to see which admin accounts exist, add another admin, or update account passwords."
           />
 
           <Button
@@ -626,7 +626,7 @@ export default function AdminDirectoryPage() {
           <SectionIntro
             eyebrow="Create Admin"
             title="Add another admin account"
-            description="Create a new admin login so another trusted user can access the admin workspace with their own credentials."
+            description="Create a separate login if another trusted person needs admin access."
           />
 
           <form onSubmit={handleCreateAdmin} className="mt-6 space-y-4">
@@ -696,7 +696,7 @@ export default function AdminDirectoryPage() {
           <SectionIntro
             eyebrow="Password Settings"
             title="Change your own admin password"
-            description="Update the password for the currently signed-in admin account directly from this page."
+            description="Update the password for the admin account you are using now."
           />
 
           <form onSubmit={handleChangePassword} className="mt-6 space-y-4">
