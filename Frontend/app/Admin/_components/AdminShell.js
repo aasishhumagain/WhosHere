@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   RefreshCcw,
+  ScrollText,
   ShieldCheck,
   UserPlus,
   Users,
@@ -72,6 +73,12 @@ const MENU_LINKS = [
     label: "Attendance Control",
     icon: ClipboardCheck,
     description: "Review and correct attendance",
+  },
+  {
+    href: "/admin/logs",
+    label: "Audit Logs",
+    icon: ScrollText,
+    description: "Track logins, logouts, and system actions",
   },
   {
     href: "/admin/leave",
@@ -241,7 +248,7 @@ export default function AdminShell({
                               Administrator Panel
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
-                              Separate pages for dashboard, admin accounts, students, attendance, and leave.
+                              Separate pages for dashboard, admin accounts, students, attendance, logs, and leave.
                             </p>
                           </div>
                         </div>
@@ -286,7 +293,7 @@ export default function AdminShell({
                     <RefreshCcw className="size-4" />
                   </div>
                   <span className="text-muted-foreground">
-                    Use the admin menu to open admin accounts, student records, attendance, and leave pages.
+                    Use the admin menu to open admin accounts, student records, attendance, logs, and leave pages.
                   </span>
                 </div>
               </div>
@@ -297,7 +304,7 @@ export default function AdminShell({
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="font-medium text-slate-700">Admin workspace</span>
               <span>Dashboard and registration stay upfront.</span>
-              <span>Admin directory, student directory, attendance, and leave live on separate pages.</span>
+              <span>Admin directory, student directory, attendance, logs, and leave live on separate pages.</span>
             </div>
           </CardHeader>
         </Card>

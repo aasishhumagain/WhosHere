@@ -5,6 +5,7 @@ import {
   ArrowRight,
   ClipboardCheck,
   RefreshCcw,
+  ScrollText,
   ShieldCheck,
   UserPlus,
   Users,
@@ -55,6 +56,12 @@ const QUICK_LINKS = [
     label: "Attendance Control",
     description: "Filter, correct, export, and delete attendance records.",
     icon: ClipboardCheck,
+  },
+  {
+    href: "/admin/logs",
+    label: "Audit Logs",
+    description: "Review login history and track all major admin and student actions.",
+    icon: ScrollText,
   },
   {
     href: "/admin/leave",
@@ -158,7 +165,7 @@ export default function AdminDashboardPage() {
       adminSession={adminSession}
       pageLabel="Admin Workspace"
       title="Admin Dashboard"
-      subtitle="Your admin landing page now stays focused on summary and quick navigation, while admin accounts, student records, attendance, and leave tools live on their own dedicated pages."
+      subtitle="Your admin landing page now stays focused on summary and quick navigation, while admin accounts, student records, attendance, logs, and leave tools live on their own dedicated pages."
     >
       <PageCard>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -213,7 +220,7 @@ export default function AdminDashboardPage() {
           <SectionIntro
             eyebrow="Quick Actions"
             title="Open the right admin page fast"
-            description="Each management area is now split into its own page, so you can work on admin accounts, student records, attendance, or leave without carrying the full dashboard everywhere."
+            description="Each management area is now split into its own page, so you can work on admin accounts, student records, attendance, logs, or leave without carrying the full dashboard everywhere."
           />
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -280,7 +287,7 @@ export default function AdminDashboardPage() {
               <CardContent className="p-5">
                 <p className="text-sm font-semibold text-slate-950">4. Correct Attendance and Leave</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Use the attendance and leave pages to resolve mistakes, export reports, and approve requests.
+                  Use the attendance, logs, and leave pages to resolve mistakes, trace actions, export reports, and approve requests.
                 </p>
               </CardContent>
             </Card>

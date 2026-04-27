@@ -122,6 +122,18 @@ export function createLeaveFilterState() {
   };
 }
 
+export function createAuditLogFilterState() {
+  return {
+    search: "",
+    actorType: "all",
+    action: "all",
+    dateFrom: "",
+    dateTo: "",
+    preset: "all",
+    sortOrder: "created_at:desc",
+  };
+}
+
 export function formatDateTime(value) {
   if (!value) {
     return "-";
@@ -401,6 +413,10 @@ export function fetchStudents(adminToken) {
 
 export function fetchAdminUsers(adminToken) {
   return fetchAdminApi("/admin-users", adminToken, "Could not load admin users.");
+}
+
+export function fetchAuditLogs(adminToken) {
+  return fetchAdminApi("/audit-logs", adminToken, "Could not load audit logs.");
 }
 
 export function fetchAttendance(adminToken) {

@@ -15,6 +15,21 @@ class AdminUser(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_type = Column(String, index=True, nullable=False)
+    actor_id = Column(Integer, nullable=True)
+    actor_label = Column(String, nullable=False)
+    action = Column(String, index=True, nullable=False)
+    target_type = Column(String, nullable=True)
+    target_id = Column(String, nullable=True)
+    target_label = Column(String, nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class Student(Base):
     __tablename__ = "students"
 

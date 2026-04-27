@@ -25,7 +25,7 @@ from app.face_utils import (
     generate_face_encoding,
     is_current_face_encoding,
 )
-from app.models import AdminUser, AttendanceRecord, LeaveRequest, Student, StudentFaceProfile
+from app.models import AdminUser, AttendanceRecord, AuditLog, LeaveRequest, Student, StudentFaceProfile
 
 Base.metadata.create_all(bind=engine)
 
@@ -49,6 +49,10 @@ OPENAPI_TAGS = [
     {
         "name": "Leave Requests",
         "description": "Student leave submission and admin leave management.",
+    },
+    {
+        "name": "Audit Logs",
+        "description": "Admin-only audit trail for logins, logouts, and system actions.",
     },
 ]
 
@@ -912,6 +916,133 @@ ensure_bootstrap_admin_user()
 backfill_student_face_profiles()
 
 
+def get_admin_actor_label(admin_user: AdminUser | None):
+    if not admin_user:
+        return "Unknown admin"
+
+    return admin_user.username
+
+
+def get_student_actor_label(student: Student | None):
+    if not student:
+        return "Unknown student"
+
+    public_student_id = get_public_student_id(student)
+
+    if public_student_id:
+        return f"{student.full_name} ({public_student_id})"
+
+    return student.full_name
+
+
+def get_session_actor_context(authenticated_session: dict, db: Session):
+    role = authenticated_session.get("role")
+    subject = authenticated_session.get("sub")
+
+    if role == "admin":
+        admin_user = authenticated_session.get("admin")
+
+        if not admin_user and str(subject or "").isdigit():
+            admin_user = db.query(AdminUser).filter(AdminUser.id == int(subject)).first()
+
+        return {
+            "actor_type": "admin",
+            "actor_id": admin_user.id if admin_user else int(subject) if str(subject or "").isdigit() else None,
+            "actor_label": (
+                get_admin_actor_label(admin_user)
+                if admin_user
+                else authenticated_session.get("username") or "Unknown admin"
+            ),
+        }
+
+    if role == "student":
+        student = authenticated_session.get("student")
+
+        if not student and str(subject or "").isdigit():
+            student = db.query(Student).filter(Student.id == int(subject)).first()
+
+        return {
+            "actor_type": "student",
+            "actor_id": student.id if student else int(subject) if str(subject or "").isdigit() else None,
+            "actor_label": (
+                get_student_actor_label(student)
+                if student
+                else authenticated_session.get("full_name")
+                or authenticated_session.get("student_id")
+                or "Unknown student"
+            ),
+        }
+
+    return {
+        "actor_type": "system",
+        "actor_id": None,
+        "actor_label": "System",
+    }
+
+
+def add_audit_log(
+    db: Session,
+    actor_type: str,
+    actor_label: str,
+    action: str,
+    actor_id: int | None = None,
+    target_type: str | None = None,
+    target_id: str | None = None,
+    target_label: str | None = None,
+    details: str | None = None,
+):
+    audit_log = AuditLog(
+        actor_type=(actor_type or "system").strip().lower(),
+        actor_id=actor_id,
+        actor_label=(actor_label or "Unknown actor").strip() or "Unknown actor",
+        action=(action or "unknown_action").strip().lower(),
+        target_type=normalize_optional_text(target_type),
+        target_id=str(target_id).strip() if target_id is not None else None,
+        target_label=normalize_optional_text(target_label),
+        details=normalize_optional_text(details),
+    )
+    db.add(audit_log)
+    return audit_log
+
+
+def add_session_audit_log(
+    db: Session,
+    authenticated_session: dict,
+    action: str,
+    target_type: str | None = None,
+    target_id: str | None = None,
+    target_label: str | None = None,
+    details: str | None = None,
+):
+    actor_context = get_session_actor_context(authenticated_session, db)
+    return add_audit_log(
+        db=db,
+        actor_type=actor_context["actor_type"],
+        actor_id=actor_context["actor_id"],
+        actor_label=actor_context["actor_label"],
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        target_label=target_label,
+        details=details,
+    )
+
+
+def serialize_audit_log(audit_log: AuditLog):
+    return {
+        "id": audit_log.id,
+        "actor_type": audit_log.actor_type,
+        "actor_id": audit_log.actor_id,
+        "actor_label": audit_log.actor_label,
+        "action": audit_log.action,
+        "target_type": audit_log.target_type,
+        "target_id": audit_log.target_id,
+        "target_label": audit_log.target_label,
+        "details": audit_log.details,
+        "created_at": serialize_local_datetime(audit_log.created_at),
+    }
+
+
 def serialize_student(student: Student):
     face_profiles = get_student_face_profiles_payload(student)
     primary_face_profile = next(
@@ -1105,6 +1236,64 @@ def build_attendance_export_filename(
     return f"{'_'.join(name_parts)}.csv"
 
 
+@app.get("/audit-logs", tags=["Audit Logs"], summary="List audit logs")
+def get_audit_logs(
+    search: str | None = Query(default=None),
+    actor_type: str | None = Query(default=None),
+    action: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    _admin_session: dict = Depends(require_admin),
+):
+    query = db.query(AuditLog)
+
+    normalized_actor_type = normalize_optional_text(actor_type)
+    normalized_action = normalize_optional_text(action)
+
+    if normalized_actor_type and normalized_actor_type.lower() != "all":
+        query = query.filter(AuditLog.actor_type == normalized_actor_type.lower())
+
+    if normalized_action and normalized_action.lower() != "all":
+        query = query.filter(AuditLog.action == normalized_action.lower())
+
+    if date_from:
+        parsed_date_from = parse_iso_date(date_from, "start date")
+        day_start, _ = get_day_bounds(parsed_date_from)
+        query = query.filter(AuditLog.created_at >= day_start)
+
+    if date_to:
+        parsed_date_to = parse_iso_date(date_to, "end date")
+        _, next_day_start = get_day_bounds(parsed_date_to)
+        query = query.filter(AuditLog.created_at < next_day_start)
+
+    logs = query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).all()
+    normalized_search = (search or "").strip().lower()
+
+    if normalized_search:
+        filtered_logs = []
+
+        for audit_log in logs:
+            haystack = " ".join(
+                [
+                    audit_log.actor_type or "",
+                    audit_log.actor_label or "",
+                    audit_log.action or "",
+                    audit_log.target_type or "",
+                    audit_log.target_id or "",
+                    audit_log.target_label or "",
+                    audit_log.details or "",
+                ]
+            ).lower()
+
+            if normalized_search in haystack:
+                filtered_logs.append(audit_log)
+
+        logs = filtered_logs
+
+    return [serialize_audit_log(audit_log) for audit_log in logs]
+
+
 @app.get("/", include_in_schema=False)
 def home():
     return {"message": "WhosHere backend is running"}
@@ -1119,6 +1308,16 @@ def admin_login(
     admin_user = get_admin_user_by_username(username, db)
 
     if not admin_user or not verify_password(password, admin_user.password):
+        add_audit_log(
+            db=db,
+            actor_type="admin",
+            actor_label=validate_admin_username(username) if username and username.strip() else "Unknown admin",
+            action="admin_login_failed",
+            target_type="session",
+            target_label="Admin login",
+            details="Invalid admin credentials.",
+        )
+        db.commit()
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
 
     token = create_session_token(
@@ -1127,6 +1326,18 @@ def admin_login(
         ttl_seconds=ADMIN_SESSION_TTL_SECONDS,
         extra_payload={"username": admin_user.username},
     )
+
+    add_audit_log(
+        db=db,
+        actor_type="admin",
+        actor_id=admin_user.id,
+        actor_label=get_admin_actor_label(admin_user),
+        action="admin_login",
+        target_type="session",
+        target_label="Admin login",
+        details="Admin login successful.",
+    )
+    db.commit()
 
     return {
         "message": "Admin login successful",
@@ -1137,8 +1348,20 @@ def admin_login(
 
 
 @app.post("/logout/admin", tags=["Authentication"], summary="Admin logout")
-def admin_logout(admin_session: dict = Depends(require_admin)):
+def admin_logout(
+    db: Session = Depends(get_db),
+    admin_session: dict = Depends(require_admin),
+):
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="admin_logout",
+        target_type="session",
+        target_label="Admin logout",
+        details="Admin logged out successfully.",
+    )
     REVOKED_SESSION_TOKENS.add(admin_session["token"])
+    db.commit()
     return {"message": "Admin logged out successfully"}
 
 
@@ -1160,7 +1383,7 @@ def create_admin_user(
     username: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db),
-    _admin_session: dict = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     admin_user = AdminUser(
         username=validate_admin_username(username),
@@ -1174,6 +1397,17 @@ def create_admin_user(
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Admin username already exists.")
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="admin_user_created",
+        target_type="admin_user",
+        target_id=str(admin_user.id),
+        target_label=admin_user.username,
+        details="Created a new admin account.",
+    )
+    db.commit()
 
     return {
         "message": "Admin account created successfully.",
@@ -1206,6 +1440,17 @@ def change_admin_password(
         )
 
     admin_user.password = hash_password(validated_new_password)
+    db.commit()
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="admin_password_changed",
+        target_type="admin_user",
+        target_id=str(admin_user.id),
+        target_label=admin_user.username,
+        details="Changed the current admin password.",
+    )
     db.commit()
 
     return {"message": "Admin password changed successfully."}
@@ -1255,6 +1500,21 @@ def update_admin_user(
         db.rollback()
         raise HTTPException(status_code=400, detail="Admin username already exists.")
 
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="admin_user_updated",
+        target_type="admin_user",
+        target_id=str(admin_user.id),
+        target_label=admin_user.username,
+        details=(
+            "Updated admin username and password."
+            if normalized_password
+            else "Updated admin username."
+        ),
+    )
+    db.commit()
+
     return {
         "message": "Admin account updated successfully.",
         "admin": serialize_admin_user(admin_user),
@@ -1291,7 +1551,19 @@ def delete_admin_user(
         )
 
     deleted_admin = serialize_admin_user(admin_user)
+    deleted_admin_username = admin_user.username
     db.delete(admin_user)
+    db.commit()
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="admin_user_deleted",
+        target_type="admin_user",
+        target_id=str(deleted_admin["id"]),
+        target_label=deleted_admin_username,
+        details="Deleted an admin account.",
+    )
     db.commit()
 
     return {
@@ -1312,7 +1584,7 @@ def register_student(
     face_image_right: UploadFile | None = File(None),
     face_image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     uploaded_face_images = get_uploaded_face_images(
         face_image_left=face_image_left,
@@ -1357,6 +1629,17 @@ def register_student(
             detail="Student with this email already exists.",
         )
 
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="student_registered",
+        target_type="student",
+        target_id=get_public_student_id(student),
+        target_label=get_student_actor_label(student),
+        details="Registered a new student account with face enrollment.",
+    )
+    db.commit()
+
     return {
         "message": "Student registered successfully",
         "uses_student_id_password": not bool(custom_password),
@@ -1367,7 +1650,7 @@ def register_student(
 @app.get("/students", tags=["Students"], summary="List students")
 def get_students(
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     students = (
         db.query(Student)
@@ -1417,6 +1700,17 @@ def change_student_password(
     student.password = hash_password(validated_new_password)
     db.commit()
 
+    add_session_audit_log(
+        db=db,
+        authenticated_session=student_session,
+        action="student_password_changed",
+        target_type="student",
+        target_id=get_public_student_id(student),
+        target_label=get_student_actor_label(student),
+        details="Changed the student password.",
+    )
+    db.commit()
+
     return {"message": "Password changed successfully."}
 
 
@@ -1433,7 +1727,7 @@ def update_student(
     face_image_right: UploadFile | None = File(None),
     face_image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     student = get_student_with_profiles_or_404(student_id, db)
     uploaded_face_images = get_uploaded_face_images(
@@ -1474,6 +1768,21 @@ def update_student(
     for replaced_face_path in sorted(set(replaced_face_paths)):
         remove_file(replaced_face_path)
 
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="student_updated",
+        target_type="student",
+        target_id=get_public_student_id(student),
+        target_label=get_student_actor_label(student),
+        details=(
+            "Updated student details and face enrollment."
+            if saved_face_images
+            else "Updated student details."
+        ),
+    )
+    db.commit()
+
     return {
         "message": "Student updated successfully",
         "student": serialize_student(student),
@@ -1484,10 +1793,12 @@ def update_student(
 def delete_student(
     student_id: str,
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     student = get_student_with_profiles_or_404(student_id, db)
     face_image_paths = collect_student_face_image_paths(student)
+    deleted_student_id = get_public_student_id(student)
+    deleted_student_label = get_student_actor_label(student)
 
     deleted_attendance_records = (
         db.query(AttendanceRecord)
@@ -1506,6 +1817,20 @@ def delete_student(
     for face_image_path in face_image_paths:
         remove_file(face_image_path)
 
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="student_deleted",
+        target_type="student",
+        target_id=deleted_student_id,
+        target_label=deleted_student_label,
+        details=(
+            f"Deleted student account along with {deleted_attendance_records} attendance "
+            f"records and {deleted_leave_requests} leave requests."
+        ),
+    )
+    db.commit()
+
     return {
         "message": "Student deleted successfully",
         "attendance_records_deleted": deleted_attendance_records,
@@ -1522,6 +1847,16 @@ def student_login(
     student = get_student_by_identifier(student_id, db)
 
     if not student or not verify_password(password, student.password):
+        add_audit_log(
+            db=db,
+            actor_type="student",
+            actor_label=(student_id or "").strip() or "Unknown student",
+            action="student_login_failed",
+            target_type="session",
+            target_label="Student login",
+            details="Invalid student credentials.",
+        )
+        db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_session_token(
@@ -1533,6 +1868,18 @@ def student_login(
             "full_name": student.full_name,
         },
     )
+
+    add_audit_log(
+        db=db,
+        actor_type="student",
+        actor_id=student.id,
+        actor_label=get_student_actor_label(student),
+        action="student_login",
+        target_type="session",
+        target_label="Student login",
+        details="Student login successful.",
+    )
+    db.commit()
 
     return {
         "message": "Login successful",
@@ -1549,8 +1896,20 @@ def student_login(
 
 
 @app.post("/logout/student", tags=["Authentication"], summary="Student logout")
-def student_logout(student_session: dict = Depends(require_student_session)):
+def student_logout(
+    db: Session = Depends(get_db),
+    student_session: dict = Depends(require_student_session),
+):
+    add_session_audit_log(
+        db=db,
+        authenticated_session=student_session,
+        action="student_logout",
+        target_type="session",
+        target_label="Student logout",
+        details="Student logged out successfully.",
+    )
     REVOKED_SESSION_TOKENS.add(student_session["token"])
+    db.commit()
     return {"message": "Student logged out successfully"}
 
 
@@ -1566,6 +1925,15 @@ def mark_attendance(
         new_encoding = generate_face_encoding(temp_file_path)
     except ValueError as exc:
         remove_file(relative_temp_path)
+        add_session_audit_log(
+            db=db,
+            authenticated_session=student_session,
+            action="attendance_capture_failed",
+            target_type="attendance_record",
+            target_label="Attendance capture",
+            details=str(exc),
+        )
+        db.commit()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     students = db.query(Student).options(joinedload(Student.face_profiles)).all()
@@ -1606,6 +1974,19 @@ def mark_attendance(
         authenticated_student = student_session["student"]
 
         if best_match.id != authenticated_student.id:
+            add_session_audit_log(
+                db=db,
+                authenticated_session=student_session,
+                action="attendance_face_mismatch",
+                target_type="student",
+                target_id=get_public_student_id(best_match),
+                target_label=get_student_actor_label(best_match),
+                details=(
+                    f"Matched another student with pose {best_match_pose or 'unknown'} "
+                    f"at confidence {best_match_score:.3f}."
+                ),
+            )
+            db.commit()
             raise HTTPException(
                 status_code=403,
                 detail="The captured face does not match the authenticated student account.",
@@ -1626,6 +2007,16 @@ def mark_attendance(
         )
 
         if existing_attendance:
+            add_session_audit_log(
+                db=db,
+                authenticated_session=student_session,
+                action="attendance_duplicate",
+                target_type="attendance_record",
+                target_id=str(existing_attendance.id),
+                target_label=get_student_actor_label(best_match),
+                details="Attendance was already marked present for the current local day.",
+            )
+            db.commit()
             return {
                 "status": "duplicate",
                 "message": f"{best_match.full_name} has already been marked present today.",
@@ -1640,6 +2031,20 @@ def mark_attendance(
         db.commit()
         db.refresh(attendance)
 
+        add_session_audit_log(
+            db=db,
+            authenticated_session=student_session,
+            action="attendance_marked",
+            target_type="attendance_record",
+            target_id=str(attendance.id),
+            target_label=get_student_actor_label(best_match),
+            details=(
+                f"Marked attendance using the {best_match_pose or 'unknown'} pose "
+                f"at confidence {best_match_score:.3f}."
+            ),
+        )
+        db.commit()
+
         return {
             "status": "present",
             "student": best_match.full_name,
@@ -1648,6 +2053,20 @@ def mark_attendance(
             "confidence": float(best_match_score),
             "marked_at": serialize_local_datetime(attendance.marked_at),
         }
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=student_session,
+        action="attendance_unknown",
+        target_type="attendance_record",
+        target_label="Attendance capture",
+        details=(
+            "No matching student found."
+            if best_match_score == float("-inf")
+            else f"No matching student found. Best confidence was {best_match_score:.3f}."
+        ),
+    )
+    db.commit()
 
     return {
         "status": "unknown",
@@ -1659,7 +2078,7 @@ def mark_attendance(
 @app.get("/attendance", tags=["Attendance"], summary="List attendance records")
 def get_attendance(
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     records = db.query(AttendanceRecord).order_by(AttendanceRecord.marked_at.desc()).all()
     return [serialize_attendance(record) for record in records]
@@ -1676,7 +2095,7 @@ def export_attendance(
     sort_by: str | None = Query(default=None),
     sort_direction: str | None = Query(default=None),
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     records = get_filtered_attendance_records(
         db=db,
@@ -1727,6 +2146,19 @@ def export_attendance(
     csv_content = "\ufeff" + csv_buffer.getvalue()
     file_name = build_attendance_export_filename(status, student_id, date, date_from, date_to)
 
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="attendance_exported",
+        target_type="report",
+        target_label=file_name,
+        details=(
+            f"Exported {len(records)} attendance records"
+            f"{f' with status {status}' if status else ''}."
+        ),
+    )
+    db.commit()
+
     return StreamingResponse(
         iter([csv_content]),
         media_type="text/csv; charset=utf-8",
@@ -1739,13 +2171,25 @@ def update_attendance(
     attendance_id: int,
     status: str = Form(...),
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     attendance = get_attendance_or_404(attendance_id, db)
+    previous_status = attendance.status
     attendance.status = validate_attendance_status(status)
 
     db.commit()
     db.refresh(attendance)
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="attendance_updated",
+        target_type="attendance_record",
+        target_id=str(attendance.id),
+        target_label=attendance.student.full_name if attendance.student else "Unknown Student",
+        details=f"Changed attendance status from {previous_status} to {attendance.status}.",
+    )
+    db.commit()
 
     return {
         "message": "Attendance updated successfully",
@@ -1757,11 +2201,23 @@ def update_attendance(
 def delete_attendance(
     attendance_id: int,
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     attendance = get_attendance_or_404(attendance_id, db)
+    attendance_target_label = attendance.student.full_name if attendance.student else "Unknown Student"
 
     db.delete(attendance)
+    db.commit()
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="attendance_deleted",
+        target_type="attendance_record",
+        target_id=str(attendance_id),
+        target_label=attendance_target_label,
+        details="Deleted an attendance record.",
+    )
     db.commit()
 
     return {"message": "Attendance deleted successfully"}
@@ -1820,6 +2276,20 @@ def create_leave_request(
     db.commit()
     db.refresh(leave_request)
 
+    add_session_audit_log(
+        db=db,
+        authenticated_session=student_session,
+        action="leave_request_created",
+        target_type="leave_request",
+        target_id=str(leave_request.id),
+        target_label=get_student_actor_label(student),
+        details=(
+            f"Submitted leave request from {leave_request.start_date.isoformat()} "
+            f"to {leave_request.end_date.isoformat()}."
+        ),
+    )
+    db.commit()
+
     return {
         "message": "Leave request submitted successfully",
         "leave_request": serialize_leave_request(leave_request),
@@ -1829,7 +2299,7 @@ def create_leave_request(
 @app.get("/leave-requests", tags=["Leave Requests"], summary="List leave requests")
 def get_leave_requests(
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     leave_requests = db.query(LeaveRequest).order_by(LeaveRequest.created_at.desc()).all()
     return [serialize_leave_request(leave_request) for leave_request in leave_requests]
@@ -1865,13 +2335,25 @@ def update_leave_request_status(
     leave_request_id: int,
     status: str = Form(...),
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     leave_request = get_leave_request_or_404(leave_request_id, db)
+    previous_status = leave_request.status
     leave_request.status = validate_leave_status(status)
 
     db.commit()
     db.refresh(leave_request)
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="leave_request_updated",
+        target_type="leave_request",
+        target_id=str(leave_request.id),
+        target_label=leave_request.student.full_name if leave_request.student else "Unknown Student",
+        details=f"Changed leave request status from {previous_status} to {leave_request.status}.",
+    )
+    db.commit()
 
     return {
         "message": "Leave request updated successfully",
@@ -1887,11 +2369,23 @@ def update_leave_request_status(
 def delete_leave_request(
     leave_request_id: int,
     db: Session = Depends(get_db),
-    _admin_token: str = Depends(require_admin),
+    admin_session: dict = Depends(require_admin),
 ):
     leave_request = get_leave_request_or_404(leave_request_id, db)
+    leave_target_label = leave_request.student.full_name if leave_request.student else "Unknown Student"
 
     db.delete(leave_request)
+    db.commit()
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="leave_request_deleted",
+        target_type="leave_request",
+        target_id=str(leave_request_id),
+        target_label=leave_target_label,
+        details="Deleted a leave request.",
+    )
     db.commit()
 
     return {"message": "Leave request deleted successfully"}
