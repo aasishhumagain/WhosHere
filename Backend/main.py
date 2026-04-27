@@ -25,7 +25,7 @@ from app.face_utils import (
     generate_face_encoding,
     is_current_face_encoding,
 )
-from app.models import AttendanceRecord, LeaveRequest, Student
+from app.models import AdminUser, AttendanceRecord, LeaveRequest, Student
 
 Base.metadata.create_all(bind=engine)
 
@@ -65,8 +65,8 @@ app.add_middleware(
 
 ATTENDANCE_STATUSES = {"present", "absent", "late", "excused"}
 LEAVE_REQUEST_STATUSES = {"pending", "approved", "rejected"}
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_BOOTSTRAP_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_BOOTSTRAP_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
@@ -74,7 +74,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 SESSION_SECRET = os.getenv("SESSION_SECRET") or hashlib.sha256(
-    f"{ADMIN_USERNAME}:{ADMIN_PASSWORD}:{BACKEND_DIR}".encode("utf-8")
+    f"whoshere:{BACKEND_DIR}".encode("utf-8")
 ).hexdigest()
 ADMIN_SESSION_TTL_SECONDS = int(os.getenv("ADMIN_SESSION_TTL_SECONDS", "43200"))
 STUDENT_SESSION_TTL_SECONDS = int(os.getenv("STUDENT_SESSION_TTL_SECONDS", "43200"))
@@ -333,10 +333,24 @@ def get_authenticated_session(authorization: str | None = Header(default=None)):
     return payload
 
 
-def require_admin(authenticated_session: dict = Depends(get_authenticated_session)):
+def require_admin(
+    authenticated_session: dict = Depends(get_authenticated_session),
+    db: Session = Depends(get_db),
+):
     if authenticated_session.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin authentication required.")
 
+    admin_internal_id = authenticated_session.get("sub")
+
+    if not str(admin_internal_id or "").isdigit():
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.")
+
+    admin_user = db.query(AdminUser).filter(AdminUser.id == int(admin_internal_id)).first()
+
+    if not admin_user:
+        raise HTTPException(status_code=401, detail="Session is invalid or expired.")
+
+    authenticated_session["admin"] = admin_user
     return authenticated_session
 
 
@@ -568,8 +582,41 @@ def verify_password(plain_password: str, stored_password: str):
     return hmac.compare_digest(password_hash, stored_hash)
 
 
-def verify_admin_password(plain_password: str):
-    return verify_password(plain_password, ADMIN_PASSWORD)
+def get_bootstrap_admin_password():
+    if ADMIN_BOOTSTRAP_PASSWORD.startswith("pbkdf2_sha256$"):
+        return ADMIN_BOOTSTRAP_PASSWORD
+
+    return hash_password(validate_required_password(ADMIN_BOOTSTRAP_PASSWORD))
+
+
+def get_admin_user_by_username(username: str, db: Session):
+    normalized_username = (username or "").strip()
+
+    if not normalized_username:
+        return None
+
+    return db.query(AdminUser).filter(AdminUser.username == normalized_username).first()
+
+
+def ensure_bootstrap_admin_user():
+    db = SessionLocal()
+
+    try:
+        if db.query(AdminUser).count() > 0:
+            return
+
+        bootstrap_username = (ADMIN_BOOTSTRAP_USERNAME or "").strip() or "admin"
+        bootstrap_admin = AdminUser(
+            username=bootstrap_username,
+            password=get_bootstrap_admin_password(),
+        )
+        db.add(bootstrap_admin)
+        db.commit()
+    finally:
+        db.close()
+
+
+ensure_bootstrap_admin_user()
 
 
 def serialize_student(student: Student):
@@ -780,20 +827,23 @@ def home():
 def admin_login(
     username: str = Form(...),
     password: str = Form(...),
+    db: Session = Depends(get_db),
 ):
-    if username.strip() != ADMIN_USERNAME or not verify_admin_password(password):
+    admin_user = get_admin_user_by_username(username, db)
+
+    if not admin_user or not verify_password(password, admin_user.password):
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
 
     token = create_session_token(
         role="admin",
-        subject=ADMIN_USERNAME,
+        subject=str(admin_user.id),
         ttl_seconds=ADMIN_SESSION_TTL_SECONDS,
-        extra_payload={"username": ADMIN_USERNAME},
+        extra_payload={"username": admin_user.username},
     )
 
     return {
         "message": "Admin login successful",
-        "username": ADMIN_USERNAME,
+        "username": admin_user.username,
         "token": token,
         "expires_in": ADMIN_SESSION_TTL_SECONDS,
     }

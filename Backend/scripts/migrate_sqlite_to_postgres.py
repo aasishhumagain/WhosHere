@@ -11,7 +11,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from app.database import Base, build_engine, get_default_database_url, normalize_database_url
-from app.models import AttendanceRecord, LeaveRequest, Student
+from app.models import AdminUser, AttendanceRecord, LeaveRequest, Student
 
 
 def ensure_student_columns(engine):
@@ -75,6 +75,22 @@ def copy_students(source_session, target_session):
     return len(students)
 
 
+def copy_admin_users(source_session, target_session):
+    admin_users = source_session.query(AdminUser).order_by(AdminUser.id.asc()).all()
+
+    for admin_user in admin_users:
+        target_session.merge(
+            AdminUser(
+                id=admin_user.id,
+                username=admin_user.username,
+                password=admin_user.password,
+                created_at=admin_user.created_at,
+            )
+        )
+
+    return len(admin_users)
+
+
 def copy_attendance_records(source_session, target_session):
     attendance_records = (
         source_session.query(AttendanceRecord).order_by(AttendanceRecord.id.asc()).all()
@@ -113,7 +129,7 @@ def copy_leave_requests(source_session, target_session):
 
 
 def reset_postgres_sequences(target_session):
-    table_names = ["students", "attendance_records", "leave_requests"]
+    table_names = ["admin_users", "students", "attendance_records", "leave_requests"]
 
     for table_name in table_names:
         target_session.execute(
@@ -139,6 +155,7 @@ def main():
     SourceSession = sessionmaker(bind=source_engine, autoflush=False, autocommit=False)
     TargetSession = sessionmaker(bind=target_engine, autoflush=False, autocommit=False)
 
+    Base.metadata.create_all(bind=source_engine)
     Base.metadata.create_all(bind=target_engine)
     ensure_student_columns(source_engine)
     ensure_student_columns(target_engine)
@@ -147,6 +164,8 @@ def main():
     target_session = TargetSession()
 
     try:
+        admin_users_copied = copy_admin_users(source_session, target_session)
+        target_session.flush()
         students_copied = copy_students(source_session, target_session)
         target_session.flush()
         attendance_copied = copy_attendance_records(source_session, target_session)
@@ -163,6 +182,7 @@ def main():
         target_session.close()
 
     print("SQLite to PostgreSQL migration completed successfully.")
+    print(f"Admin users copied: {admin_users_copied}")
     print(f"Students copied: {students_copied}")
     print(f"Attendance records copied: {attendance_copied}")
     print(f"Leave requests copied: {leave_requests_copied}")

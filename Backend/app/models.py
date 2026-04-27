@@ -6,6 +6,15 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Student(Base):
     __tablename__ = "students"
 
