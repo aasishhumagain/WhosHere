@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -39,6 +39,27 @@ class Student(Base):
         back_populates="student",
         cascade="all, delete-orphan",
     )
+    face_profiles = relationship(
+        "StudentFaceProfile",
+        back_populates="student",
+        cascade="all, delete-orphan",
+    )
+
+
+class StudentFaceProfile(Base):
+    __tablename__ = "student_face_profiles"
+    __table_args__ = (
+        UniqueConstraint("student_id", "pose", name="uq_student_face_profiles_student_pose"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    pose = Column(String, nullable=False)
+    image_path = Column(String, nullable=False)
+    face_encoding = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    student = relationship("Student", back_populates="face_profiles")
 
 
 class AttendanceRecord(Base):

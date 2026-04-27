@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { PencilLine, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import PasswordField from "@/app/_components/PasswordField";
 import { buildAssetUrl } from "@/app/lib/api";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,7 +29,6 @@ import {
   MessageBanner,
   NativeSelect,
   PageCard,
-  PhotoPreviewCard,
   PhotoThumb,
   SectionIntro,
 } from "../_components/AdminUI";
@@ -39,35 +40,69 @@ import {
   formatDateTime,
   isAdminAuthError,
   redirectAdminToLogin,
+  STUDENT_FACE_POSES,
   updateStudent,
   useAdminSessionGuard,
 } from "../_lib/admin-portal";
 
+const FACE_CAPTURE_OPTIONS = [
+  { pose: "left", title: "Left Pose" },
+  { pose: "center", title: "Center Pose" },
+  { pose: "right", title: "Right Pose" },
+];
+
+function createPreviewMap() {
+  return {
+    left: "",
+    center: "",
+    right: "",
+  };
+}
+
+function buildStudentFaceImageMap(student) {
+  const faceImageMap = createPreviewMap();
+
+  (student?.face_images || []).forEach((faceImage) => {
+    if (faceImage?.pose && faceImage?.image_url) {
+      faceImageMap[faceImage.pose] = buildAssetUrl(faceImage.image_url);
+    }
+  });
+
+  if (!faceImageMap.center && student?.face_image_url) {
+    faceImageMap.center = buildAssetUrl(student.face_image_url);
+  }
+
+  return faceImageMap;
+}
+
 function EditStudentModal({
   student,
   form,
-  previewUrl,
+  previewUrls,
   isSaving,
   onClose,
   onFieldChange,
-  onImageChange,
+  onPoseImageChange,
   onSubmit,
 }) {
   if (!student) {
     return null;
   }
 
-  const currentPhotoUrl = buildAssetUrl(student.face_image_url);
-  const visiblePhotoUrl = previewUrl || currentPhotoUrl;
+  const currentFaceImages = buildStudentFaceImageMap(student);
+  const visibleFaceImages = STUDENT_FACE_POSES.reduce((result, pose) => {
+    result[pose] = previewUrls?.[pose] || currentFaceImages[pose] || "";
+    return result;
+  }, {});
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
-      <Card className="max-h-full w-full max-w-4xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
+      <Card className="max-h-full w-full max-w-6xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
         <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 p-6">
           <div>
             <CardTitle className="text-2xl">{student.full_name}</CardTitle>
             <CardDescription className="mt-1 text-sm">
-              Student ID #{student.student_id}. Update details and preview the face image before saving.
+              Student ID #{student.student_id}. Update details and review the left, center, and right face set before saving.
             </CardDescription>
           </div>
 
@@ -76,13 +111,51 @@ function EditStudentModal({
           </Button>
         </CardHeader>
 
-        <CardContent className="grid gap-6 p-6 lg:grid-cols-[0.88fr,1.12fr]">
-          <PhotoPreviewCard
-            title="Face Preview"
-            subtitle="Current student photo or the new uploaded replacement."
-            imageUrl={visiblePhotoUrl}
-            fallbackLabel="No face image is stored for this student yet."
-          />
+        <CardContent className="grid gap-6 p-6 lg:grid-cols-[0.95fr,1.05fr]">
+          <div className="grid gap-4">
+            {FACE_CAPTURE_OPTIONS.map((captureOption) => (
+              <Card
+                key={captureOption.pose}
+                className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none"
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {captureOption.title}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {captureOption.pose === "center"
+                          ? "Primary profile preview"
+                          : "Additional enrollment pose"}
+                      </p>
+                    </div>
+                    <Badge variant="outline">
+                      {visibleFaceImages[captureOption.pose] ? "Available" : "Missing"}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white">
+                    {visibleFaceImages[captureOption.pose] ? (
+                      <div className="relative h-40 w-full">
+                        <Image
+                          src={visibleFaceImages[captureOption.pose]}
+                          alt={`${captureOption.title} preview`}
+                          fill
+                          unoptimized
+                          className="object-cover object-center"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-40 items-center justify-center px-6 text-center text-sm text-slate-500">
+                        No {captureOption.pose} pose image is stored for this student yet.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
           <form onSubmit={onSubmit} className="space-y-4">
             <FieldBlock label="Full Name" htmlFor="edit-student-name">
@@ -136,17 +209,30 @@ function EditStudentModal({
               inputClassName={ADMIN_FIELD_CLASSNAME}
             />
 
-            <FieldBlock
-              label="Replace Face Image"
-              htmlFor="edit-student-face-image"
-              hint="Upload a new image only if you want to update the stored face profile."
-            >
-              <FileInput
-                id="edit-student-face-image"
-                accept="image/*"
-                onChange={onImageChange}
-              />
-            </FieldBlock>
+            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Replace Enrollment Photos</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Upload only the pose images you want to replace. Leave a pose blank to keep the current stored image.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {FACE_CAPTURE_OPTIONS.map((captureOption) => (
+                  <FieldBlock
+                    key={captureOption.pose}
+                    label={captureOption.title}
+                    htmlFor={`edit-student-face-image-${captureOption.pose}`}
+                  >
+                    <FileInput
+                      id={`edit-student-face-image-${captureOption.pose}`}
+                      accept="image/*"
+                      onChange={(event) => onPoseImageChange(captureOption.pose, event)}
+                    />
+                  </FieldBlock>
+                ))}
+              </div>
+            </div>
 
             <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2">
               <div>
@@ -206,7 +292,7 @@ export default function AdminDirectoryPage() {
   const [studentSortDirection, setStudentSortDirection] = useState("asc");
   const [editModalStudent, setEditModalStudent] = useState(null);
   const [editStudentForm, setEditStudentForm] = useState(createStudentForm());
-  const [editStudentPreviewUrl, setEditStudentPreviewUrl] = useState("");
+  const [editStudentPreviewUrls, setEditStudentPreviewUrls] = useState(createPreviewMap());
   const [isSavingEditStudent, setIsSavingEditStudent] = useState(false);
   const [deletingStudentId, setDeletingStudentId] = useState(null);
 
@@ -283,30 +369,41 @@ export default function AdminDirectoryPage() {
   function openEditModal(student) {
     setEditModalStudent(student);
     setEditStudentForm(createStudentForm(student));
-    setEditStudentPreviewUrl("");
+    setEditStudentPreviewUrls(createPreviewMap());
   }
 
   function closeEditModal() {
     setEditModalStudent(null);
     setEditStudentForm(createStudentForm());
-    setEditStudentPreviewUrl("");
+    setEditStudentPreviewUrls(createPreviewMap());
   }
 
-  async function handleEditImageChange(event) {
+  async function handleEditPoseImageChange(pose, event) {
     const selectedFile = event.target.files?.[0] || null;
 
     setEditStudentForm((current) => ({
       ...current,
-      face_image: selectedFile,
+      face_images: {
+        ...current.face_images,
+        [pose]: selectedFile,
+      },
     }));
 
     if (!selectedFile) {
-      setEditStudentPreviewUrl("");
+      setEditStudentPreviewUrls((current) => ({
+        ...current,
+        [pose]: "",
+      }));
       return;
     }
 
     try {
-      setEditStudentPreviewUrl(await fileToDataUrl(selectedFile));
+      const previewUrl = await fileToDataUrl(selectedFile);
+
+      setEditStudentPreviewUrls((current) => ({
+        ...current,
+        [pose]: previewUrl,
+      }));
     } catch (error) {
       setDirectoryMessage({
         type: "error",
@@ -598,7 +695,7 @@ export default function AdminDirectoryPage() {
       <EditStudentModal
         student={editModalStudent}
         form={editStudentForm}
-        previewUrl={editStudentPreviewUrl}
+        previewUrls={editStudentPreviewUrls}
         isSaving={isSavingEditStudent}
         onClose={closeEditModal}
         onFieldChange={(field, value) =>
@@ -607,7 +704,7 @@ export default function AdminDirectoryPage() {
             [field]: value,
           }))
         }
-        onImageChange={handleEditImageChange}
+        onPoseImageChange={handleEditPoseImageChange}
         onSubmit={handleEditStudent}
       />
     </>

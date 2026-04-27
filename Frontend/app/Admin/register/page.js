@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { Camera, CameraOff, CheckCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import PasswordField from "@/app/_components/PasswordField";
@@ -16,7 +18,6 @@ import {
   FieldBlock,
   MessageBanner,
   PageCard,
-  PhotoPreviewCard,
   SectionIntro,
 } from "../_components/AdminUI";
 import {
@@ -25,15 +26,42 @@ import {
   isAdminAuthError,
   redirectAdminToLogin,
   registerStudent,
+  STUDENT_FACE_POSES,
   useAdminSessionGuard,
 } from "../_lib/admin-portal";
+
+const FACE_CAPTURE_OPTIONS = [
+  {
+    pose: "left",
+    title: "Left Pose",
+    description: "Ask the student to turn slightly left while keeping the whole face visible.",
+  },
+  {
+    pose: "center",
+    title: "Center Pose",
+    description: "Capture one straight-on photo with even lighting and a neutral expression.",
+  },
+  {
+    pose: "right",
+    title: "Right Pose",
+    description: "Ask the student to turn slightly right while keeping both eyes visible.",
+  },
+];
+
+function createPreviewMap() {
+  return {
+    left: "",
+    center: "",
+    right: "",
+  };
+}
 
 export default function AdminRegisterStudentPage() {
   const router = useRouter();
   const { sessionReady, adminSession } = useAdminSessionGuard(router);
 
   const [studentForm, setStudentForm] = useState(createStudentForm());
-  const [studentPreviewUrl, setStudentPreviewUrl] = useState("");
+  const [studentPreviewUrls, setStudentPreviewUrls] = useState(createPreviewMap());
   const [studentMessage, setStudentMessage] = useState(null);
   const [studentCameraOpen, setStudentCameraOpen] = useState(false);
   const [studentCameraError, setStudentCameraError] = useState("");
@@ -94,7 +122,7 @@ export default function AdminRegisterStudentPage() {
     }
   }
 
-  async function captureStudentFromCamera() {
+  async function captureStudentPoseFromCamera(pose) {
     if (!studentVideoRef.current || !studentCanvasRef.current) {
       setStudentCameraError("Camera preview is not ready yet.");
       return;
@@ -124,19 +152,26 @@ export default function AdminRegisterStudentPage() {
 
     const cameraFile = new File(
       [blob],
-      `student_registration_${Date.now()}.jpg`,
+      `student_registration_${pose}.jpg`,
       { type: "image/jpeg" },
     );
 
     try {
+      const previewUrl = await fileToDataUrl(cameraFile);
+
       setStudentForm((current) => ({
         ...current,
-        face_image: cameraFile,
+        face_images: {
+          ...current.face_images,
+          [pose]: cameraFile,
+        },
       }));
-      setStudentPreviewUrl(await fileToDataUrl(cameraFile));
+      setStudentPreviewUrls((current) => ({
+        ...current,
+        [pose]: previewUrl,
+      }));
       setStudentCameraError("");
       setStudentMessage(null);
-      stopStudentCamera();
     } catch (error) {
       setStudentMessage({
         type: "error",
@@ -145,23 +180,32 @@ export default function AdminRegisterStudentPage() {
     }
   }
 
-  function clearStudentCapture() {
+  function clearStudentCapture(pose) {
     setStudentForm((current) => ({
       ...current,
-      face_image: null,
+      face_images: {
+        ...current.face_images,
+        [pose]: null,
+      },
     }));
-    setStudentPreviewUrl("");
+    setStudentPreviewUrls((current) => ({
+      ...current,
+      [pose]: "",
+    }));
     setStudentCameraError("");
-    stopStudentCamera();
   }
 
   function resetStudentForm() {
     setStudentForm(createStudentForm());
-    setStudentPreviewUrl("");
+    setStudentPreviewUrls(createPreviewMap());
     setStudentCameraError("");
     setStudentMessage(null);
     stopStudentCamera();
   }
+
+  const missingFacePoses = STUDENT_FACE_POSES.filter(
+    (pose) => !studentForm.face_images?.[pose],
+  );
 
   async function handleRegisterStudent(event) {
     event.preventDefault();
@@ -171,10 +215,10 @@ export default function AdminRegisterStudentPage() {
       return;
     }
 
-    if (!studentForm.face_image) {
+    if (missingFacePoses.length > 0) {
       setStudentMessage({
         type: "error",
-        message: "Please capture a face image before registering the student.",
+        message: `Please capture the ${missingFacePoses.join(", ")} pose photo${missingFacePoses.length > 1 ? "s" : ""} before registering the student.`,
       });
       return;
     }
@@ -217,14 +261,14 @@ export default function AdminRegisterStudentPage() {
       adminSession={adminSession}
       pageLabel="Student Enrollment"
       title="Register Student"
-      subtitle="Create a student account, capture a live face photo, and save the enrollment details from this dedicated admin page."
+      subtitle="Create a student account, capture left, center, and right face photos, and save the full enrollment set from this dedicated admin page."
     >
       <div className="grid gap-6 lg:grid-cols-[1.04fr,0.96fr]">
         <PageCard>
           <SectionIntro
             eyebrow="Enrollment Form"
             title="Create a new student account"
-            description="Capture a clear face image, enter the student details, and submit everything together so the account is ready for recognition-based attendance."
+            description="Capture a three-photo enrollment set, enter the student details, and submit everything together so the account is ready for stronger recognition-based attendance."
           />
 
           {studentMessage ? (
@@ -320,9 +364,9 @@ export default function AdminRegisterStudentPage() {
               <CardContent className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <CardTitle className="text-lg">Live Face Capture</CardTitle>
+                    <CardTitle className="text-lg">Three-Pose Face Capture</CardTitle>
                     <CardDescription className="mt-2 text-sm leading-6">
-                      Use the live camera to capture a clear front-facing face photo for enrollment.
+                      Use one live camera session to capture left, center, and right face photos for the same student.
                     </CardDescription>
                   </div>
 
@@ -333,7 +377,7 @@ export default function AdminRegisterStudentPage() {
                       onClick={startStudentCamera}
                     >
                       <Camera className="size-4" />
-                      {studentForm.face_image ? "Retake Capture" : "Open Live Camera"}
+                      {studentCameraOpen ? "Restart Camera" : "Open Live Camera"}
                     </Button>
 
                     {studentCameraOpen ? (
@@ -348,17 +392,72 @@ export default function AdminRegisterStudentPage() {
                       </Button>
                     ) : null}
 
-                    {studentForm.face_image ? (
+                    {STUDENT_FACE_POSES.some((pose) => studentForm.face_images?.[pose]) ? (
                       <Button
                         type="button"
                         variant="outline"
                         className="rounded-full"
-                        onClick={clearStudentCapture}
+                        onClick={resetStudentForm}
                       >
-                        Clear Capture
+                        Clear All Captures
                       </Button>
                     ) : null}
                   </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {FACE_CAPTURE_OPTIONS.map((captureOption) => {
+                    const isCaptured = Boolean(studentForm.face_images?.[captureOption.pose]);
+
+                    return (
+                      <div
+                        key={captureOption.pose}
+                        className="rounded-[1.25rem] border border-slate-200 bg-white p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">
+                              {captureOption.title}
+                            </p>
+                            <p className="mt-2 text-xs leading-5 text-slate-500">
+                              {captureOption.description}
+                            </p>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={isCaptured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : ""}
+                          >
+                            {isCaptured ? "Captured" : "Missing"}
+                          </Badge>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                            disabled={!studentCameraOpen}
+                            onClick={() => captureStudentPoseFromCamera(captureOption.pose)}
+                          >
+                            <CheckCheck className="size-4" />
+                            {isCaptured ? `Retake ${captureOption.title}` : `Capture ${captureOption.title}`}
+                          </Button>
+
+                          {isCaptured ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => clearStudentCapture(captureOption.pose)}
+                            >
+                              Clear
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {studentCameraError ? (
@@ -378,14 +477,6 @@ export default function AdminRegisterStudentPage() {
                     />
 
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <Button
-                        type="button"
-                        className="rounded-full bg-emerald-600 hover:bg-emerald-700"
-                        onClick={captureStudentFromCamera}
-                      >
-                        <CheckCheck className="size-4" />
-                        Capture Face Photo
-                      </Button>
                       <Button
                         type="button"
                         variant="outline"
@@ -424,22 +515,67 @@ export default function AdminRegisterStudentPage() {
           <canvas ref={studentCanvasRef} className="hidden" />
 
           <PageCard>
-            <PhotoPreviewCard
-              title="Capture Preview"
-              subtitle="The captured face image appears here before you register the student."
-              imageUrl={studentPreviewUrl}
-              fallbackLabel="Capture a student face image to preview it here."
+            <SectionIntro
+              eyebrow="Enrollment Preview"
+              title="Left, center, and right photo set"
+              description="Each captured pose appears here before you register the student."
             />
+
+            <div className="mt-6 grid gap-4">
+              {FACE_CAPTURE_OPTIONS.map((captureOption) => (
+                <Card
+                  key={captureOption.pose}
+                  className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">
+                          {captureOption.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {captureOption.pose === "center"
+                            ? "Primary profile photo"
+                            : `${captureOption.title} for wider recognition coverage`}
+                        </p>
+                      </div>
+                      <Badge variant="outline">
+                        {studentForm.face_images?.[captureOption.pose] ? "Ready" : "Waiting"}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white">
+                      {studentPreviewUrls[captureOption.pose] ? (
+                        <div className="relative h-44 w-full">
+                          <Image
+                            src={studentPreviewUrls[captureOption.pose]}
+                            alt={`${captureOption.title} preview`}
+                            fill
+                            unoptimized
+                            className="object-cover object-center"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-44 items-center justify-center px-6 text-center text-sm text-slate-500">
+                          Capture the {captureOption.pose} pose to preview it here.
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </PageCard>
 
           <PageCard>
             <SectionIntro
               eyebrow="Enrollment Tips"
               title="Prepare a clean student record"
-              description="A better enrollment photo and accurate account information make attendance matching and future maintenance much smoother."
+              description="A better three-pose enrollment set and accurate account information make attendance matching much more reliable."
             />
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
-              <li>Ask the student to look straight at the camera in even lighting.</li>
+              <li>Capture all three poses in the same lighting so the model sees a consistent face set.</li>
+              <li>Ask the student to rotate slightly left and right instead of turning fully sideways.</li>
               <li>Leave the password blank if you want the student&apos;s initial password to be their student ID.</li>
               <li>Passwords are hashed on the backend before storage.</li>
               <li>Duplicate student emails are blocked automatically.</li>

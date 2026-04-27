@@ -11,7 +11,7 @@ FACE_DETECTOR_MODEL_PATH = MODEL_DIR / "face_detection_yunet_2023mar.onnx"
 FACE_RECOGNIZER_MODEL_PATH = MODEL_DIR / "face_recognition_sface_2021dec.onnx"
 FACE_ENCODING_VERSION = "sface_v1"
 FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.363"))
-FACE_DETECTION_SCORE_THRESHOLD = float(os.getenv("FACE_DETECTION_SCORE_THRESHOLD", "0.9"))
+FACE_DETECTION_SCORE_THRESHOLD = float(os.getenv("FACE_DETECTION_SCORE_THRESHOLD", "0.82"))
 
 
 def get_missing_model_paths():
@@ -30,13 +30,13 @@ def ensure_face_models_exist():
         )
 
 
-def create_face_detector(input_size: tuple[int, int]):
+def create_face_detector(input_size: tuple[int, int], score_threshold: float | None = None):
     ensure_face_models_exist()
     return cv2.FaceDetectorYN_create(
         str(FACE_DETECTOR_MODEL_PATH),
         "",
         input_size,
-        FACE_DETECTION_SCORE_THRESHOLD,
+        score_threshold if score_threshold is not None else FACE_DETECTION_SCORE_THRESHOLD,
         0.3,
         5000,
     )
@@ -59,14 +59,30 @@ def read_image(image_path):
 
 def detect_primary_face(image: np.ndarray):
     image_height, image_width = image.shape[:2]
-    detector = create_face_detector((image_width, image_height))
-    _, faces = detector.detect(image)
+    attempted_thresholds = []
 
-    if faces is None or len(faces) == 0:
-        raise ValueError("No face detected in image.")
+    for threshold in (
+        FACE_DETECTION_SCORE_THRESHOLD,
+        0.75,
+        0.6,
+        0.45,
+    ):
+        rounded_threshold = round(float(threshold), 2)
 
-    best_face = max(faces, key=lambda face: float(face[-1]))
-    return np.asarray(best_face[:14], dtype=np.float32)
+        if rounded_threshold in attempted_thresholds:
+            continue
+
+        attempted_thresholds.append(rounded_threshold)
+        detector = create_face_detector((image_width, image_height), rounded_threshold)
+        _, faces = detector.detect(image)
+
+        if faces is not None and len(faces) > 0:
+            best_face = max(faces, key=lambda face: float(face[-1]))
+            return np.asarray(best_face[:14], dtype=np.float32)
+
+    raise ValueError(
+        "No face detected in image. Keep the whole face visible, move a little closer, and turn only slightly for left or right photos."
+    )
 
 
 def build_face_encoding_payload(embedding: np.ndarray):

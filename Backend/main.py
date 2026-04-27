@@ -25,7 +25,7 @@ from app.face_utils import (
     generate_face_encoding,
     is_current_face_encoding,
 )
-from app.models import AdminUser, AttendanceRecord, LeaveRequest, Student
+from app.models import AdminUser, AttendanceRecord, LeaveRequest, Student, StudentFaceProfile
 
 Base.metadata.create_all(bind=engine)
 
@@ -87,6 +87,8 @@ REVOKED_SESSION_TOKENS = set()
 STUDENT_CODE_SEQUENCE_WIDTH = 5
 STUDENT_CODE_YEAR_PREFIX_WIDTH = 3
 LEGACY_STUDENT_CODE_YEAR_PREFIX_WIDTH = 2
+FACE_POSES = ("left", "center", "right")
+PRIMARY_FACE_POSE = "center"
 
 
 def get_local_now():
@@ -554,6 +556,271 @@ def save_temp_face_image(face_image: UploadFile):
     return relative_path, absolute_path
 
 
+def normalize_face_pose(pose: str):
+    cleaned_pose = pose.strip().lower()
+
+    if cleaned_pose not in FACE_POSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Face pose must be one of: {', '.join(FACE_POSES)}.",
+        )
+
+    return cleaned_pose
+
+
+def get_face_pose_sort_key(pose: str):
+    normalized_pose = (pose or "").strip().lower()
+
+    if normalized_pose in FACE_POSES:
+        return FACE_POSES.index(normalized_pose)
+
+    return len(FACE_POSES)
+
+
+def get_sorted_face_profiles(student: Student):
+    return sorted(
+        list(student.face_profiles or []),
+        key=lambda profile: (get_face_pose_sort_key(profile.pose), profile.id or 0),
+    )
+
+
+def get_face_profile_by_pose(student: Student, pose: str):
+    normalized_pose = pose.strip().lower()
+
+    for profile in student.face_profiles or []:
+        if profile.pose == normalized_pose:
+            return profile
+
+    return None
+
+
+def get_primary_face_profile(student: Student):
+    center_profile = get_face_profile_by_pose(student, PRIMARY_FACE_POSE)
+
+    if center_profile:
+        return center_profile
+
+    profiles = get_sorted_face_profiles(student)
+    return profiles[0] if profiles else None
+
+
+def sync_student_primary_face(student: Student):
+    primary_face_profile = get_primary_face_profile(student)
+
+    if primary_face_profile:
+        student.face_image_path = primary_face_profile.image_path
+        student.face_encoding = primary_face_profile.face_encoding
+    elif not student.face_profiles:
+        student.face_image_path = None
+        student.face_encoding = None
+
+
+def serialize_face_profile(profile: StudentFaceProfile):
+    return {
+        "id": profile.id,
+        "pose": profile.pose,
+        "image_path": profile.image_path,
+        "image_url": build_upload_url(profile.image_path),
+        "created_at": profile.created_at,
+    }
+
+
+def get_student_face_profiles_payload(student: Student):
+    profiles = get_sorted_face_profiles(student)
+
+    if profiles:
+        return [serialize_face_profile(profile) for profile in profiles]
+
+    if student.face_image_path:
+        return [
+            {
+                "id": None,
+                "pose": PRIMARY_FACE_POSE,
+                "image_path": student.face_image_path,
+                "image_url": build_upload_url(student.face_image_path),
+                "created_at": student.created_at,
+            }
+        ]
+
+    return []
+
+
+def ensure_student_face_profiles(student: Student, refresh_encodings: bool = True):
+    has_changes = False
+
+    if not student.face_profiles and student.face_image_path:
+        student.face_profiles.append(
+            StudentFaceProfile(
+                pose=PRIMARY_FACE_POSE,
+                image_path=student.face_image_path,
+                face_encoding=student.face_encoding or "",
+                created_at=student.created_at or datetime.utcnow(),
+            )
+        )
+        has_changes = True
+
+    if refresh_encodings:
+        for profile in list(student.face_profiles or []):
+            if is_current_face_encoding(profile.face_encoding):
+                continue
+
+            image_path = resolve_storage_path(profile.image_path)
+
+            if not image_path or not os.path.exists(image_path):
+                continue
+
+            profile.face_encoding = generate_face_encoding(image_path)
+            has_changes = True
+
+    sync_student_primary_face(student)
+    return has_changes
+
+
+def backfill_student_face_profiles():
+    db = SessionLocal()
+
+    try:
+        students = db.query(Student).options(joinedload(Student.face_profiles)).all()
+        has_changes = False
+
+        for student in students:
+            if ensure_student_face_profiles(student, refresh_encodings=False):
+                has_changes = True
+
+        if has_changes:
+            db.commit()
+    finally:
+        db.close()
+
+
+def get_student_with_profiles_or_404(student_id: str | int, db: Session):
+    student = get_student_or_404(student_id, db)
+
+    return (
+        db.query(Student)
+        .options(joinedload(Student.face_profiles))
+        .filter(Student.id == student.id)
+        .first()
+    )
+
+
+def get_uploaded_face_images(
+    face_image_left: UploadFile | None = None,
+    face_image_center: UploadFile | None = None,
+    face_image_right: UploadFile | None = None,
+    face_image: UploadFile | None = None,
+):
+    uploaded_face_images = {}
+
+    for pose, upload in (
+        ("left", face_image_left),
+        ("center", face_image_center),
+        ("right", face_image_right),
+    ):
+        if upload and upload.filename:
+            uploaded_face_images[pose] = upload
+
+    if face_image and face_image.filename and PRIMARY_FACE_POSE not in uploaded_face_images:
+        uploaded_face_images[PRIMARY_FACE_POSE] = face_image
+
+    return uploaded_face_images
+
+
+def validate_required_face_images(face_images_by_pose: dict[str, UploadFile]):
+    missing_poses = [pose for pose in FACE_POSES if pose not in face_images_by_pose]
+
+    if missing_poses:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Please capture all required face photos: "
+                + ", ".join(pose.title() for pose in missing_poses)
+                + "."
+            ),
+        )
+
+
+def save_face_images_by_pose(face_images_by_pose: dict[str, UploadFile], prefix_base: str):
+    saved_face_images = []
+
+    try:
+        for pose in FACE_POSES:
+            if pose not in face_images_by_pose:
+                continue
+
+            image_path, face_encoding = save_face_image(
+                face_images_by_pose[pose],
+                prefix=f"{prefix_base}_{pose}",
+            )
+            saved_face_images.append(
+                {
+                    "pose": pose,
+                    "image_path": image_path,
+                    "face_encoding": face_encoding,
+                }
+            )
+    except HTTPException as exc:
+        for saved_face_image in saved_face_images:
+            remove_file(saved_face_image["image_path"])
+
+        detail = str(exc.detail or "").strip()
+        current_pose = pose.title()
+
+        if detail:
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail=f"{current_pose} photo: {detail}",
+            ) from exc
+
+        raise
+
+    return saved_face_images
+
+
+def remove_saved_face_images(saved_face_images: list[dict]):
+    for saved_face_image in saved_face_images:
+        remove_file(saved_face_image.get("image_path"))
+
+
+def apply_saved_face_images_to_student(student: Student, saved_face_images: list[dict]):
+    replaced_face_paths = []
+
+    for saved_face_image in saved_face_images:
+        pose = normalize_face_pose(saved_face_image["pose"])
+        existing_profile = get_face_profile_by_pose(student, pose)
+
+        if existing_profile:
+            if existing_profile.image_path != saved_face_image["image_path"]:
+                replaced_face_paths.append(existing_profile.image_path)
+
+            existing_profile.image_path = saved_face_image["image_path"]
+            existing_profile.face_encoding = saved_face_image["face_encoding"]
+        else:
+            student.face_profiles.append(
+                StudentFaceProfile(
+                    pose=pose,
+                    image_path=saved_face_image["image_path"],
+                    face_encoding=saved_face_image["face_encoding"],
+                )
+            )
+
+    sync_student_primary_face(student)
+    return replaced_face_paths
+
+
+def collect_student_face_image_paths(student: Student):
+    image_paths = {
+        profile.image_path
+        for profile in student.face_profiles or []
+        if profile.image_path
+    }
+
+    if student.face_image_path:
+        image_paths.add(student.face_image_path)
+
+    return sorted(image_paths)
+
+
 def hash_password(password: str):
     iterations = 100_000
     salt = secrets.token_hex(16)
@@ -642,9 +909,16 @@ def ensure_bootstrap_admin_user():
 
 
 ensure_bootstrap_admin_user()
+backfill_student_face_profiles()
 
 
 def serialize_student(student: Student):
+    face_profiles = get_student_face_profiles_payload(student)
+    primary_face_profile = next(
+        (profile for profile in face_profiles if profile["pose"] == PRIMARY_FACE_POSE),
+        face_profiles[0] if face_profiles else None,
+    )
+
     return {
         "student_id": get_public_student_id(student),
         "full_name": student.full_name,
@@ -652,7 +926,8 @@ def serialize_student(student: Student):
         "phone_number": student.phone_number,
         "grade": student.grade,
         "face_image_path": student.face_image_path,
-        "face_image_url": build_upload_url(student.face_image_path),
+        "face_image_url": primary_face_profile["image_url"] if primary_face_profile else build_upload_url(student.face_image_path),
+        "face_images": face_profiles,
         "created_at": student.created_at,
     }
 
@@ -706,19 +981,6 @@ def get_leave_request_or_404(leave_request_id: int, db: Session):
         raise HTTPException(status_code=404, detail="Leave request not found.")
 
     return leave_request
-
-
-def refresh_student_face_encoding(student: Student):
-    if is_current_face_encoding(student.face_encoding):
-        return False
-
-    face_image_path = resolve_storage_path(student.face_image_path)
-
-    if not face_image_path or not os.path.exists(face_image_path):
-        return False
-
-    student.face_encoding = generate_face_encoding(face_image_path)
-    return True
 
 
 def get_filtered_attendance_records(
@@ -1045,11 +1307,26 @@ def register_student(
     email: str = Form(None),
     phone_number: str = Form(None),
     grade: str = Form(None),
-    face_image: UploadFile = File(...),
+    face_image_left: UploadFile | None = File(None),
+    face_image_center: UploadFile | None = File(None),
+    face_image_right: UploadFile | None = File(None),
+    face_image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
 ):
-    file_path, face_encoding = save_face_image(face_image)
+    uploaded_face_images = get_uploaded_face_images(
+        face_image_left=face_image_left,
+        face_image_center=face_image_center,
+        face_image_right=face_image_right,
+        face_image=face_image,
+    )
+    validate_required_face_images(uploaded_face_images)
+    saved_face_images = save_face_images_by_pose(uploaded_face_images, prefix_base="student")
+    primary_saved_face = next(
+        saved_face_image
+        for saved_face_image in saved_face_images
+        if saved_face_image["pose"] == PRIMARY_FACE_POSE
+    )
     custom_password = normalize_optional_text(password)
 
     student = Student(
@@ -1059,9 +1336,10 @@ def register_student(
         email=normalize_optional_text(email),
         phone_number=normalize_optional_text(phone_number),
         grade=normalize_optional_text(grade),
-        face_image_path=file_path,
-        face_encoding=face_encoding,
+        face_image_path=primary_saved_face["image_path"],
+        face_encoding=primary_saved_face["face_encoding"],
     )
+    apply_saved_face_images_to_student(student, saved_face_images)
     assign_student_code(student, db)
     student.password = hash_password(
         validate_required_password(custom_password or get_public_student_id(student))
@@ -1073,7 +1351,7 @@ def register_student(
         db.refresh(student)
     except IntegrityError:
         db.rollback()
-        remove_file(file_path)
+        remove_saved_face_images(saved_face_images)
         raise HTTPException(
             status_code=400,
             detail="Student with this email already exists.",
@@ -1091,7 +1369,12 @@ def get_students(
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
 ):
-    students = db.query(Student).order_by(Student.created_at.desc()).all()
+    students = (
+        db.query(Student)
+        .options(joinedload(Student.face_profiles))
+        .order_by(Student.created_at.desc())
+        .all()
+    )
     return [serialize_student(student) for student in students]
 
 
@@ -1101,7 +1384,8 @@ def get_student(
     db: Session = Depends(get_db),
     authenticated_session: dict = Depends(get_authenticated_session),
 ):
-    student = authorize_student_access(student_id, authenticated_session, db)
+    authorized_student = authorize_student_access(student_id, authenticated_session, db)
+    student = get_student_with_profiles_or_404(authorized_student.id, db)
     return serialize_student(student)
 
 
@@ -1144,13 +1428,26 @@ def update_student(
     phone_number: str = Form(None),
     grade: str = Form(None),
     password: str = Form(None),
+    face_image_left: UploadFile | None = File(None),
+    face_image_center: UploadFile | None = File(None),
+    face_image_right: UploadFile | None = File(None),
     face_image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
 ):
-    student = get_student_or_404(student_id, db)
-    previous_face_image_path = student.face_image_path
-    new_face_image_path = None
+    student = get_student_with_profiles_or_404(student_id, db)
+    uploaded_face_images = get_uploaded_face_images(
+        face_image_left=face_image_left,
+        face_image_center=face_image_center,
+        face_image_right=face_image_right,
+        face_image=face_image,
+    )
+    saved_face_images = (
+        save_face_images_by_pose(uploaded_face_images, prefix_base=f"student_{student.id}")
+        if uploaded_face_images
+        else []
+    )
+    replaced_face_paths = []
 
     student.full_name = validate_full_name(full_name)
     student.email = normalize_optional_text(email)
@@ -1160,24 +1457,22 @@ def update_student(
     if password and password.strip():
         student.password = hash_password(password.strip())
 
-    if face_image and face_image.filename:
-        new_face_image_path, new_face_encoding = save_face_image(face_image)
-        student.face_image_path = new_face_image_path
-        student.face_encoding = new_face_encoding
+    if saved_face_images:
+        replaced_face_paths = apply_saved_face_images_to_student(student, saved_face_images)
 
     try:
         db.commit()
         db.refresh(student)
     except IntegrityError:
         db.rollback()
-        remove_file(new_face_image_path)
+        remove_saved_face_images(saved_face_images)
         raise HTTPException(
             status_code=400,
             detail="Student with this email already exists.",
         )
 
-    if new_face_image_path and previous_face_image_path != new_face_image_path:
-        remove_file(previous_face_image_path)
+    for replaced_face_path in sorted(set(replaced_face_paths)):
+        remove_file(replaced_face_path)
 
     return {
         "message": "Student updated successfully",
@@ -1191,8 +1486,8 @@ def delete_student(
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
 ):
-    student = get_student_or_404(student_id, db)
-    face_image_path = student.face_image_path
+    student = get_student_with_profiles_or_404(student_id, db)
+    face_image_paths = collect_student_face_image_paths(student)
 
     deleted_attendance_records = (
         db.query(AttendanceRecord)
@@ -1207,7 +1502,9 @@ def delete_student(
 
     db.delete(student)
     db.commit()
-    remove_file(face_image_path)
+
+    for face_image_path in face_image_paths:
+        remove_file(face_image_path)
 
     return {
         "message": "Student deleted successfully",
@@ -1271,32 +1568,38 @@ def mark_attendance(
         remove_file(relative_temp_path)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    students = db.query(Student).all()
+    students = db.query(Student).options(joinedload(Student.face_profiles)).all()
 
     best_match = None
     best_match_score = float("-inf")
-    refreshed_student_encodings = False
+    best_match_pose = None
+    refreshed_student_face_profiles = False
 
     for student in students:
-        if not student.face_encoding or not is_current_face_encoding(student.face_encoding):
-            try:
-                refreshed_student_encodings = refresh_student_face_encoding(student) or refreshed_student_encodings
-            except ValueError:
+        try:
+            refreshed_student_face_profiles = (
+                ensure_student_face_profiles(student) or refreshed_student_face_profiles
+            )
+        except ValueError:
+            continue
+
+        for face_profile in get_sorted_face_profiles(student):
+            if not is_current_face_encoding(face_profile.face_encoding):
                 continue
 
-        if student.face_encoding and is_current_face_encoding(student.face_encoding):
             try:
-                similarity_score = compare_faces(student.face_encoding, new_encoding)
+                similarity_score = compare_faces(face_profile.face_encoding, new_encoding)
             except ValueError:
                 continue
 
             if similarity_score > best_match_score:
                 best_match_score = similarity_score
                 best_match = student
+                best_match_pose = face_profile.pose
 
     remove_file(relative_temp_path)
 
-    if refreshed_student_encodings:
+    if refreshed_student_face_profiles:
         db.commit()
 
     if best_match and best_match_score >= FACE_MATCH_THRESHOLD:
@@ -1341,6 +1644,7 @@ def mark_attendance(
             "status": "present",
             "student": best_match.full_name,
             "student_id": get_public_student_id(best_match),
+            "matched_pose": best_match_pose,
             "confidence": float(best_match_score),
             "marked_at": serialize_local_datetime(attendance.marked_at),
         }

@@ -197,7 +197,7 @@ export default function StudentDashboardPage() {
         <PageCard>
           <PhotoPreviewCard
             title="Profile Photo"
-            subtitle="This image is currently registered to your student account for face-based attendance matching."
+            subtitle="This primary center image is part of your registered left/center/right face set for attendance matching."
             imageUrl={profilePhotoUrl}
             fallbackLabel="Your registered profile image will appear here once the admin adds one."
             imageLoading="eager"

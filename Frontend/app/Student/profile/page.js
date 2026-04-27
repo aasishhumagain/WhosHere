@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,7 +15,6 @@ import StudentShell from "../_components/StudentShell";
 import {
   MessageBanner,
   PageCard,
-  PhotoPreviewCard,
   SectionIntro,
   StatCard,
   StudentLoadingScreen,
@@ -36,6 +36,28 @@ function createPasswordForm() {
     new_password: "",
     confirm_password: "",
   };
+}
+
+const FACE_CAPTURE_OPTIONS = [
+  { pose: "left", title: "Left Pose" },
+  { pose: "center", title: "Center Pose" },
+  { pose: "right", title: "Right Pose" },
+];
+
+function buildFaceImageMap(profile, fallbackImageUrl) {
+  const faceImageMap = {
+    left: "",
+    center: fallbackImageUrl || "",
+    right: "",
+  };
+
+  (profile?.face_images || []).forEach((faceImage) => {
+    if (faceImage?.pose && faceImage?.image_url) {
+      faceImageMap[faceImage.pose] = buildAssetUrl(faceImage.image_url);
+    }
+  });
+
+  return faceImageMap;
 }
 
 export default function StudentProfilePage() {
@@ -189,6 +211,7 @@ export default function StudentProfilePage() {
   const profilePhotoUrl = buildAssetUrl(
     profile?.face_image_url || studentSession.faceImageUrl,
   );
+  const faceImageMap = buildFaceImageMap(profile, profilePhotoUrl);
   const uniquePresentDays = calculateUniquePresentDays(attendance);
   const approvedLeaveDays = calculateApprovedLeaveDays(leaveRequests);
 
@@ -197,17 +220,48 @@ export default function StudentProfilePage() {
       studentSession={studentSession}
       pageLabel="Profile"
       title="Your Student Profile"
-      subtitle="Review your registered account details and change your password without waiting for an administrator."
+      subtitle="Review your registered account details, inspect your enrolled left/center/right face set, and change your password without waiting for an administrator."
     >
       <div className="grid gap-6 xl:grid-cols-[0.94fr,1.06fr]">
         <PageCard>
-          <PhotoPreviewCard
-            title="Profile Photo"
-            subtitle="This is the face image currently linked to your account for recognition attendance."
-            imageUrl={profilePhotoUrl}
-            fallbackLabel="Your profile photo will appear here once one is registered by the admin."
-            imageLoading="eager"
+          <SectionIntro
+            eyebrow="Enrollment Set"
+            title="Registered face photos"
+            description="These left, center, and right photos are the enrollment set currently linked to your recognition attendance profile."
           />
+
+          <div className="mt-6 grid gap-4">
+            {FACE_CAPTURE_OPTIONS.map((captureOption) => (
+              <Card
+                key={captureOption.pose}
+                className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none"
+              >
+                <CardContent className="p-4">
+                  <Badge variant="outline" className="rounded-full px-3 py-1">
+                    {captureOption.title}
+                  </Badge>
+
+                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white">
+                    {faceImageMap[captureOption.pose] ? (
+                      <div className="relative h-44 w-full">
+                        <Image
+                          src={faceImageMap[captureOption.pose]}
+                          alt={`${captureOption.title} profile preview`}
+                          fill
+                          unoptimized
+                          className="object-cover object-center"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-44 items-center justify-center px-6 text-center text-sm text-slate-500">
+                        No {captureOption.pose} pose photo has been enrolled yet.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </PageCard>
 
         <PageCard>

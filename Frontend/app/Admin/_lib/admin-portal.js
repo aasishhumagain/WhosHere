@@ -13,6 +13,7 @@ export const DEFAULT_ADMIN_SESSION = {
   token: "",
   username: "admin",
 };
+export const STUDENT_FACE_POSES = ["left", "center", "right"];
 
 const ADMIN_SESSION_EVENT = "whoshere-admin-session-change";
 let cachedAdminSession = DEFAULT_ADMIN_SESSION;
@@ -70,7 +71,11 @@ export function createStudentForm(student = {}) {
     phone_number: student.phone_number || "",
     grade: student.grade || "",
     password: "",
-    face_image: null,
+    face_images: {
+      left: null,
+      center: null,
+      right: null,
+    },
   };
 }
 
@@ -493,7 +498,12 @@ export function registerStudent(adminToken, studentForm) {
   formData.append("phone_number", studentForm.phone_number.trim());
   formData.append("grade", studentForm.grade.trim());
   formData.append("password", studentForm.password.trim());
-  formData.append("face_image", studentForm.face_image);
+
+  STUDENT_FACE_POSES.forEach((pose) => {
+    if (studentForm.face_images?.[pose]) {
+      formData.append(`face_image_${pose}`, studentForm.face_images[pose]);
+    }
+  });
 
   return fetchAdminApi(
     "/students/register",
@@ -517,9 +527,11 @@ export function updateStudent(adminToken, studentId, studentForm) {
     formData.append("password", studentForm.password.trim());
   }
 
-  if (studentForm.face_image) {
-    formData.append("face_image", studentForm.face_image);
-  }
+  STUDENT_FACE_POSES.forEach((pose) => {
+    if (studentForm.face_images?.[pose]) {
+      formData.append(`face_image_${pose}`, studentForm.face_images[pose]);
+    }
+  });
 
   return fetchAdminApi(
     `/students/${studentId}`,
