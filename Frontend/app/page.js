@@ -72,7 +72,10 @@ export default function WelcomePage() {
               <ArrowRight className="size-4" />
             </Link>
 
-            <Link href="/how-it-works" className={buttonVariants({ variant: "outline", size: "lg" })}>
+            <Link
+              href="/how-it-works"
+              className={`${buttonVariants({ variant: "outline", size: "lg" })} border-white/40 bg-white text-slate-950 hover:bg-sky-50 hover:text-slate-950`}
+            >
               See How It Works
             </Link>
           </CardContent>
