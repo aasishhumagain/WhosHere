@@ -1,27 +1,28 @@
 # WhosHere
 
-WhosHere is a face-recognition attendance system built with FastAPI, PostgreSQL or SQLite, and Next.js. It includes a public welcome flow, separate admin and student portals, live attendance capture, leave requests, student profile management, and admin tools for student records, attendance review, and leave approvals.
+WhosHere is a face-recognition attendance system built with FastAPI, PostgreSQL, and Next.js. It includes a public welcome flow, separate admin and student portals, live attendance capture, leave requests, student profile management, and admin tools for admin accounts, student records, attendance review, and leave approvals.
 
 ## Features
 
 - Public-facing `Home`, `Features`, and `How It Works` pages with a separate `/login` route.
 - Backend-backed admin login and student login.
 - Split student portal with dedicated pages for dashboard, attendance capture, attendance history, leave requests, and profile.
-- Split admin workspace with dedicated pages for dashboard, student registration, directory, attendance control, and leave requests.
-- Student registration with live face capture, uploaded image preview, and editable student records.
+- Split admin workspace with dedicated pages for dashboard, admin directory, student registration, student directory, attendance control, and leave requests.
+- Student registration with live face capture and editable student records.
 - Initial student password can default to the generated student ID when the admin leaves the password blank.
 - Student self-service password changes from the profile page.
 - Attendance marking by live camera capture and duplicate-attendance prevention.
 - Attendance management APIs and admin tools for updating, filtering, exporting, and deleting attendance records.
 - Leave request creation for students and leave request review for admins.
-- Database configuration that supports SQLite by default and a PostgreSQL migration path through environment variables and a copy script.
+- Database configuration is PostgreSQL-only through `DATABASE_URL`.
+- Admin accounts are stored in the `admin_users` table, and the protected `admin` account can manage other admin accounts.
 
 ## Tech Stack
 
 - Frontend: Next.js 16, React 19, Tailwind CSS 4
 - Backend: FastAPI, SQLAlchemy
-- Face recognition: OpenCV Haar cascade plus encoded grayscale comparison
-- Database: SQLite by default, PostgreSQL support through `DATABASE_URL` and a migration script
+- Face recognition: OpenCV YuNet face detection plus SFace embeddings
+- Database: PostgreSQL through `DATABASE_URL`
 
 ## Project Structure
 
@@ -39,6 +40,7 @@ WhosHere/
 |   |-- app/
 |   |   |-- _components/
 |   |   |-- admin/
+|   |   |   |-- admin-directory/
 |   |   |   |-- attendance/
 |   |   |   |-- directory/
 |   |   |   |-- leave/
@@ -83,6 +85,7 @@ WhosHere/
 ### Admin
 
 - `/admin` dashboard
+- `/admin/admin-directory`
 - `/admin/register`
 - `/admin/directory`
 - `/admin/attendance`
@@ -100,7 +103,9 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-The backend runs by default at `http://127.0.0.1:8000`.
+Before starting the backend, create a PostgreSQL database and set `DATABASE_URL` in `.env`.
+
+The backend runs at `http://127.0.0.1:8000`.
 
 ### 2. Frontend
 
@@ -117,21 +122,16 @@ The frontend runs by default at `http://127.0.0.1:3000`.
 You can place these in a root `.env` file or your shell environment. A ready-to-edit template is included in `.env.example`.
 
 ```env
-DATABASE_URL=sqlite:///C:/path/to/whoshere.db
+DATABASE_URL=postgresql://whoshere_user:whoshere_password@127.0.0.1:5432/whoshere
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-For PostgreSQL, use a connection string such as:
-
-```env
-DATABASE_URL=postgresql://username:password@localhost:5432/whoshere
-```
-
 ## Login and Password Rules
 
-- Admin login uses `ADMIN_USERNAME` and `ADMIN_PASSWORD` from the environment.
+- On first startup, the app bootstraps the first admin account from `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+- After that, admin login is database-backed through the `admin_users` table.
 - Student login uses the generated student ID and the student password stored in the database.
 - When the admin registers a student and leaves the password blank, the student's initial password becomes their student ID.
 - Students can later change their own password from the profile page.
@@ -165,35 +165,18 @@ DATABASE_URL=postgresql://whoshere_user:whoshere_password@127.0.0.1:5432/whosher
 2. Create or choose a PostgreSQL user that has access to it.
 3. Put the matching connection string into `.env` as `DATABASE_URL`.
 
-## Migrating Existing SQLite Data to PostgreSQL
-
-If you already have student, attendance, or leave data in `backend/whoshere.db`, copy it into PostgreSQL with:
-
-```bash
-cd backend
-venv\Scripts\python.exe scripts\migrate_sqlite_to_postgres.py --target-url postgresql://whoshere_user:whoshere_password@127.0.0.1:5432/whoshere
-```
-
-What this script does:
-
-- creates the PostgreSQL tables if they do not exist
-- copies students, attendance records, and leave requests
-- preserves existing record IDs
-- resets PostgreSQL sequences so new inserts continue from the right ID
-
-If you want to migrate from a different SQLite file, pass `--source-url` too.
-
 ## Demo Flow
 
 1. Start the backend and frontend.
 2. Open `http://127.0.0.1:3000` and move from the welcome page to `/login`.
 3. Login as admin with `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
-4. Register a student and capture or upload the face image.
-5. Open the student directory and edit student details if needed.
-6. Login as the student from `/login`.
-7. Mark attendance from the student capture page.
-8. Review attendance history or submit a leave request from the student portal.
-9. Return to the admin pages to review attendance and approve or reject leave.
+4. Open the admin directory to manage admin accounts if needed.
+5. Register a student and capture the face image.
+6. Open the student directory and edit student details if needed.
+7. Login as the student from `/login`.
+8. Mark attendance from the student capture page.
+9. Review attendance history or submit a leave request from the student portal.
+10. Return to the admin pages to review attendance and approve or reject leave.
 
 ## Main API Routes
 
@@ -203,6 +186,14 @@ If you want to migrate from a different SQLite file, pass `--source-url` too.
 - `POST /logout/admin`
 - `POST /login/student`
 - `POST /logout/student`
+
+### Admin Users
+
+- `GET /admin-users`
+- `POST /admin-users`
+- `POST /admin-users/change-password`
+- `PUT /admin-users/{admin_user_id}`
+- `DELETE /admin-users/{admin_user_id}`
 
 ### Students
 
@@ -236,7 +227,8 @@ Recommended screenshots for your report:
 - Welcome page
 - Login page
 - Admin dashboard overview
-- Student registration with image preview
+- Admin directory with admin account controls
+- Student registration with live capture
 - Student directory or attendance control page
 - Student dashboard
 - Student live camera attendance capture page
@@ -248,5 +240,5 @@ Recommended screenshots for your report:
 - Newly saved student passwords are hashed before storage.
 - Existing plain-text student passwords are still accepted so older demo data keeps working.
 - The login flow now starts from the public welcome pages and continues through `/login`.
-- The backend still falls back to SQLite if `DATABASE_URL` is not set.
-- PostgreSQL migration copies database records only, so your existing uploaded images should stay in `backend/uploads`.
+- The backend now requires PostgreSQL and will not start without a PostgreSQL `DATABASE_URL`.
+- Existing uploaded images stay in `backend/uploads`.

@@ -8,10 +8,6 @@ backend/venv/
 .venv/
 venv/
 
-# Local databases
-backend/whoshere.db
-*.db
-
 # Uploaded images and local artifacts
 backend/uploads/
 backend/models/*.onnx
