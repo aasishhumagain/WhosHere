@@ -7,8 +7,11 @@ import {
   Camera,
   ChevronDown,
   Clock3,
+  GraduationCap,
+  IdCard,
   LayoutDashboard,
   LogOut,
+  Mail,
   UserRound,
   Waves,
 } from "lucide-react";
@@ -27,6 +30,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -144,6 +148,8 @@ export default function StudentShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const studentInitials = getStudentInitials(studentSession.studentName);
   const hasActiveMenuPage = MENU_LINKS.some((link) => isLinkActive(pathname, link.href));
+  const studentGrade = String(studentSession.studentGrade || "").trim();
+  const studentEmail = String(studentSession.studentEmail || "").trim();
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -237,6 +243,31 @@ export default function StudentShell({
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end" className="w-80 p-2">
+                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-12 border border-border bg-white shadow-sm">
+                            <AvatarFallback className="bg-slate-950 text-sm text-white">
+                              {studentInitials}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-950">
+                              {studentSession.studentName}
+                            </p>
+                            <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
+                              Student workspace
+                            </p>
+                            <p className="truncate text-xs font-normal text-muted-foreground">
+                              ID {studentSession.studentId || "Not assigned"}
+                              {studentGrade ? ` • Grade ${studentGrade}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </DropdownMenuLabel>
+
+                      <DropdownMenuSeparator />
+
                       {MENU_LINKS.map((link) => (
                         <MenuLinkRow
                           key={link.href}
@@ -269,6 +300,36 @@ export default function StudentShell({
                   </DropdownMenu>
                 </div>
 
+                <div className="flex w-full max-w-[33rem] flex-wrap items-center gap-2 rounded-[1.5rem] border border-border/70 bg-white/90 px-3 py-3 text-xs shadow-sm">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700"
+                  >
+                    <IdCard className="mr-1 size-3.5" />
+                    ID {studentSession.studentId || "Not assigned"}
+                  </Badge>
+
+                  {studentGrade ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700"
+                    >
+                      <GraduationCap className="mr-1 size-3.5" />
+                      Grade {studentGrade}
+                    </Badge>
+                  ) : null}
+
+                  {studentEmail ? (
+                    <span className="inline-flex min-w-0 items-center gap-1 text-slate-600">
+                      <Mail className="size-3.5 shrink-0 text-slate-400" />
+                      <span className="truncate">{studentEmail}</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-600">
+                      Open history, leave, and profile from the account menu.
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -276,8 +337,8 @@ export default function StudentShell({
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="font-medium text-slate-700">Student workspace</span>
-              <span>Dashboard and attendance stay upfront.</span>
-              <span>History, leave, and profile stay in the dropdown.</span>
+              <span>Attendance capture stays one click away.</span>
+              <span>History, leave, and profile tools stay organized in the account menu.</span>
             </div>
           </CardHeader>
         </Card>

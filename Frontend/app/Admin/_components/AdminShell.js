@@ -248,7 +248,7 @@ export default function AdminShell({
                               Administrator Panel
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
-                              Separate pages for dashboard, admin accounts, students, attendance, logs, and leave.
+                              Security, records, attendance, logs, and leave tools in one workspace.
                             </p>
                           </div>
                         </div>
@@ -293,7 +293,7 @@ export default function AdminShell({
                     <RefreshCcw className="size-4" />
                   </div>
                   <span className="text-muted-foreground">
-                    Use the admin menu to open admin accounts, student records, attendance, logs, and leave pages.
+                    Signed in as {adminSession.username}. Open security, student records, attendance, audit review, and leave tools from one menu.
                   </span>
                 </div>
               </div>
@@ -304,7 +304,7 @@ export default function AdminShell({
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="font-medium text-slate-700">Admin workspace</span>
               <span>Dashboard and registration stay upfront.</span>
-              <span>Admin directory, student directory, attendance, logs, and leave live on separate pages.</span>
+              <span>Dedicated work areas keep security, student records, attendance, logs, and leave easy to scan.</span>
             </div>
           </CardHeader>
         </Card>

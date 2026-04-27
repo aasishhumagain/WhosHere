@@ -40,7 +40,7 @@ export default function MarketingShell({ activePage, children }) {
                 variant="outline"
                 className="rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary"
               >
-                Campus Attendance
+                Smart Attendance System
               </Badge>
               <Link href="/" className="block text-2xl font-semibold tracking-tight text-slate-950">
                 WhosHere
@@ -91,7 +91,7 @@ export default function MarketingShell({ activePage, children }) {
         {children}
 
         <p className="pb-6 text-center text-sm text-muted-foreground">
-          Basic public pages are in place now and ready for fuller content later.
+          Built for fast student check-ins, cleaner records, and stronger admin oversight.
         </p>
       </div>
     </main>

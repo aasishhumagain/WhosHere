@@ -26,7 +26,7 @@ const FEATURE_CARDS = [
   {
     icon: ShieldCheck,
     label: "Admin Control",
-    detail: "Administrators get separate pages for dashboard, registration, directory, attendance review, and leave management.",
+    detail: "Administrators can handle enrollment, attendance review, leave approvals, logs, and reports from one desktop workspace.",
   },
 ];
 
@@ -47,8 +47,8 @@ export default function FeaturesPage() {
                 A simple overview of what WhosHere can do
               </CardTitle>
               <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                This page is intentionally basic for now, but it already gives the app a proper
-                public-facing place to describe the core experience.
+                Explore the core product strengths before moving into the student or administrator
+                portal.
               </CardDescription>
             </div>
           </CardHeader>
@@ -61,7 +61,7 @@ export default function FeaturesPage() {
             return (
               <Card
                 key={feature.label}
-                className="border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+                className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
               >
                 <CardContent className="p-6">
                   <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -78,10 +78,10 @@ export default function FeaturesPage() {
         <Card className="border-dashed border-primary/20 bg-white/72 shadow-none">
           <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-lg font-semibold text-slate-950">More content can be added here later</p>
+              <p className="text-lg font-semibold text-slate-950">Built for the daily attendance flow</p>
               <p className="mt-2 text-sm text-slate-600">
-                This gives you the page structure now, without forcing all the final marketing copy
-                today.
+                The essentials are already in place: recognition-based attendance, self-service
+                student tools, and a stronger admin review flow.
               </p>
             </div>
 

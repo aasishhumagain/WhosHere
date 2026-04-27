@@ -31,12 +31,12 @@ const PLATFORM_FEATURES = [
   {
     icon: ShieldCheck,
     label: "Admin Oversight",
-    detail: "Manage attendance, leave requests, and student accounts in one place.",
+    detail: "Manage attendance, leave requests, audit logs, and student accounts in one place.",
   },
   {
     icon: Users,
     label: "Student Self-Service",
-    detail: "Students can review history, request leave, and change passwords themselves.",
+    detail: "Students can review history, request leave, and change passwords without admin help.",
   },
 ];
 
@@ -53,7 +53,7 @@ function LoginCard({
   onSubmit,
 }) {
   return (
-    <Card className="border-white/80 bg-white/92 shadow-[0_20px_90px_rgba(15,23,42,0.1)] backdrop-blur-sm">
+    <Card className="flex h-full flex-col border-white/80 bg-white/92 shadow-[0_20px_90px_rgba(15,23,42,0.1)] backdrop-blur-sm">
       <CardHeader className="gap-4">
         <Badge
           variant="outline"
@@ -69,19 +69,19 @@ function LoginCard({
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         <form
           onSubmit={(event) => {
             event.preventDefault();
             onSubmit();
           }}
-          className="space-y-4"
+          className="flex flex-1 flex-col space-y-4"
         >
           {fields}
 
           <Button
             type="submit"
-            className={`w-full rounded-2xl ${accent.button}`}
+            className={`mt-2 w-full rounded-2xl ${accent.button}`}
             disabled={loading}
           >
             {loading ? loadingLabel : submitLabel}
@@ -193,12 +193,12 @@ export default function AuthPortal() {
             WhosHere Platform
           </Badge>
           <CardTitle className="max-w-2xl text-5xl leading-tight tracking-tight text-white">
-            Attendance tracking rebuilt around a cleaner, smarter campus workflow.
+            A clearer sign-in experience for students and administrators.
           </CardTitle>
           <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
-            Sign in as a student to mark attendance, check history, request leave, and manage
-            your password. Administrators can supervise the full attendance pipeline from the
-            dashboard.
+            Students can mark attendance, review history, request leave, and manage passwords.
+            Administrators can enroll students, review records, export reports, and monitor the
+            system from the admin workspace.
           </CardDescription>
         </CardHeader>
 
@@ -231,10 +231,10 @@ export default function AuthPortal() {
               Duplicate attendance blocked
             </span>
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
-              Student self-service password changes
+              Multi-angle face enrollment
             </span>
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
-              Leave request tracking
+              Audit log tracking
             </span>
           </div>
         </CardContent>

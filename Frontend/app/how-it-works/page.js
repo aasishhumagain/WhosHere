@@ -20,7 +20,7 @@ const STEPS = [
   {
     step: "02",
     title: "Students log in",
-    detail: "Students use their own page to sign in, open attendance capture, and manage their basic account details.",
+    detail: "Students sign in, open attendance capture, review their history, and manage their own account details.",
   },
   {
     step: "03",
@@ -46,8 +46,7 @@ export default function HowItWorksPage() {
                 A quick three-step view of the workflow
               </CardTitle>
               <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                This page stays intentionally lightweight for now, but it gives the product a clean
-                explanation path outside the login screen.
+                Follow the attendance flow from setup through review in a clear three-step path.
               </CardDescription>
             </div>
           </CardHeader>
@@ -57,7 +56,7 @@ export default function HowItWorksPage() {
           {STEPS.map((item) => (
             <Card
               key={item.step}
-              className="border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+              className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
             >
               <CardContent className="p-6">
                 <span className="text-sm font-semibold uppercase tracking-[0.28em] text-primary/80">
@@ -75,7 +74,7 @@ export default function HowItWorksPage() {
             <div>
               <p className="text-lg font-semibold text-slate-950">Ready to try the flow?</p>
               <p className="mt-2 text-sm text-slate-600">
-                The welcome pages are live now, and the login route is separate just the way you asked.
+                Move into the sign-in page and continue through the student or administrator portal.
               </p>
             </div>
 

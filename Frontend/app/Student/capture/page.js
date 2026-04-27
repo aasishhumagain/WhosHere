@@ -191,7 +191,7 @@ export default function StudentAttendanceCapturePage() {
           <SectionIntro
             eyebrow="Live Camera"
             title="Capture and submit today's attendance"
-            description="Open the camera, take a clear photo, and then submit it. WhosHere will compare the captured image against the face image stored on your student account."
+            description="Open the camera, take a clear photo, and then submit it. WhosHere will compare the captured image against your enrolled left, center, and right face set."
           />
 
           <div className="mt-6 flex flex-wrap gap-3">

@@ -16,17 +16,17 @@ const WELCOME_CARDS = [
   {
     icon: Camera,
     label: "Student Attendance",
-    detail: "Students can sign in, capture attendance, review history, submit leave, and manage passwords.",
+    detail: "Students can sign in, capture attendance, review history, submit leave, and update passwords from their own portal.",
   },
   {
     icon: LayoutDashboard,
-    label: "Separate Dashboards",
-    detail: "Student and admin areas now live on their own pages instead of one crowded screen.",
+    label: "Focused Dashboards",
+    detail: "Student and admin workspaces stay organized with dedicated pages for each part of the flow.",
   },
   {
     icon: ClipboardCheck,
-    label: "Simple Flow",
-    detail: "Welcome page first, login page second, and the rest of the experience stays behind the right portal.",
+    label: "Reliable Records",
+    detail: "Attendance, leave requests, audit logs, and reports stay connected in one consistent system.",
   },
 ];
 
@@ -43,7 +43,7 @@ const QUICK_LINKS = [
   },
   {
     label: "How It Works",
-    detail: "Explain the core flow in a very lightweight way.",
+    detail: "See the full flow from enrollment through attendance review.",
     href: "/how-it-works",
   },
 ];
@@ -58,11 +58,11 @@ export default function WelcomePage() {
               Welcome
             </Badge>
             <CardTitle className="max-w-3xl text-5xl leading-tight tracking-tight text-white">
-              A cleaner first page for WhosHere starts here.
+              Face-recognition attendance built for a calmer campus workflow.
             </CardTitle>
             <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
-              The public side now begins with a proper welcome page. From here, users can explore
-              the basics and move into a separate login page when they are ready.
+              WhosHere gives students and administrators a clear path from sign-in to attendance
+              tracking, student management, leave handling, and audit-ready reporting.
             </CardDescription>
           </CardHeader>
 
@@ -79,20 +79,20 @@ export default function WelcomePage() {
         </Card>
 
         <div className="grid gap-6">
-          <Card className="border-white/80 bg-white/90 shadow-[0_20px_90px_rgba(15,23,42,0.08)]">
+          <Card className="h-full border-white/80 bg-white/90 shadow-[0_20px_90px_rgba(15,23,42,0.08)]">
             <CardHeader className="gap-3 p-6">
               <Badge
                 variant="outline"
                 className="w-fit rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary"
               >
-                What&apos;s Ready
+                Platform Snapshot
               </Badge>
               <CardTitle className="text-2xl tracking-tight text-slate-950">
-                The flow is now easier to understand
+                Everything important is one step away
               </CardTitle>
               <CardDescription className="text-sm leading-6 text-slate-600">
-                Visitors land on a welcome page first, then move into the actual login screen from
-                the `Get Started` button.
+                Use the public pages to understand the product quickly, then jump into the right
+                portal from the login screen when you are ready to work.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -104,7 +104,7 @@ export default function WelcomePage() {
               return (
                 <Card
                   key={card.label}
-                  className="border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+                  className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
                 >
                   <CardContent className="p-5">
                     <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -124,7 +124,7 @@ export default function WelcomePage() {
         {QUICK_LINKS.map((item) => (
           <Card
             key={item.href}
-            className="border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+            className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
           >
             <CardContent className="space-y-4 p-6">
               <div>
