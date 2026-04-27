@@ -619,6 +619,10 @@ def serialize_admin_user(admin_user: AdminUser):
     }
 
 
+def is_primary_admin(admin_user: AdminUser | None):
+    return bool(admin_user and admin_user.username == "admin")
+
+
 def ensure_bootstrap_admin_user():
     db = SessionLocal()
 
@@ -943,6 +947,45 @@ def change_admin_password(
     db.commit()
 
     return {"message": "Admin password changed successfully."}
+
+
+@app.delete(
+    "/admin-users/{admin_user_id}",
+    tags=["Admin Users"],
+    summary="Delete an admin user",
+)
+def delete_admin_user(
+    admin_user_id: int,
+    db: Session = Depends(get_db),
+    admin_session: dict = Depends(require_admin),
+):
+    current_admin = admin_session["admin"]
+
+    if not is_primary_admin(current_admin):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the admin account can delete other admin accounts.",
+        )
+
+    admin_user = db.query(AdminUser).filter(AdminUser.id == admin_user_id).first()
+
+    if not admin_user:
+        raise HTTPException(status_code=404, detail="Admin user not found.")
+
+    if is_primary_admin(admin_user):
+        raise HTTPException(
+            status_code=403,
+            detail="The admin account cannot be deleted.",
+        )
+
+    deleted_admin = serialize_admin_user(admin_user)
+    db.delete(admin_user)
+    db.commit()
+
+    return {
+        "message": "Admin account deleted successfully.",
+        "admin": deleted_admin,
+    }
 
 
 @app.post("/students/register", tags=["Students"], summary="Register a student")

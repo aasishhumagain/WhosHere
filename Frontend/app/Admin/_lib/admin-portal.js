@@ -448,6 +448,17 @@ export function changeAdminPassword(adminToken, currentPassword, newPassword) {
   );
 }
 
+export function deleteAdminUser(adminToken, adminUserId) {
+  return fetchAdminApi(
+    `/admin-users/${adminUserId}`,
+    adminToken,
+    "Could not delete the admin account.",
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export function registerStudent(adminToken, studentForm) {
   const formData = new FormData();
   formData.append("full_name", studentForm.full_name.trim());

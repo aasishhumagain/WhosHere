@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCcw, ShieldCheck } from "lucide-react";
+import { RefreshCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +32,7 @@ import {
   createAdminPasswordForm,
   createAdminUser,
   createAdminUserForm,
+  deleteAdminUser,
   fetchAdminUsers,
   formatDateTime,
   isAdminAuthError,
@@ -51,6 +52,7 @@ export default function AdminDirectoryPage() {
   const [adminPasswordForm, setAdminPasswordForm] = useState(createAdminPasswordForm());
   const [creatingAdmin, setCreatingAdmin] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [deletingAdminId, setDeletingAdminId] = useState(null);
 
   async function refreshAdminUsers() {
     if (!adminSession.token) {
@@ -229,25 +231,76 @@ export default function AdminDirectoryPage() {
     }
   }
 
+  async function handleDeleteAdmin(adminUser) {
+    if (adminSession.username !== "admin") {
+      setDirectoryMessage({
+        type: "error",
+        message: "Only the admin account can delete other admin accounts.",
+      });
+      return;
+    }
+
+    if (adminUser.username === "admin") {
+      setDirectoryMessage({
+        type: "error",
+        message: "The admin account cannot be deleted.",
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete the admin account "${adminUser.username}"? This admin will lose access to the admin workspace.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingAdminId(adminUser.id);
+    setDirectoryMessage(null);
+
+    try {
+      const response = await deleteAdminUser(adminSession.token, adminUser.id);
+      await refreshAdminUsers();
+      setDirectoryMessage({
+        type: "success",
+        message: response.message || "Admin account deleted successfully.",
+      });
+    } catch (error) {
+      if (isAdminAuthError(error)) {
+        redirectAdminToLogin(router);
+        return;
+      }
+
+      setDirectoryMessage({
+        type: "error",
+        message: error.message || "Could not delete the admin account.",
+      });
+    } finally {
+      setDeletingAdminId(null);
+    }
+  }
+
   if (!sessionReady || !adminSession.token) {
     return <AdminLoadingScreen title="Loading admin directory..." description="Preparing admin accounts and security settings." />;
   }
 
   const currentAdmin = adminUsers.find((adminUser) => adminUser.id === currentAdminId) || null;
+  const canDeleteAdmins = adminSession.username === "admin";
 
   return (
     <AdminShell
       adminSession={adminSession}
       pageLabel="Admin Directory"
       title="Admin Directory"
-      subtitle="Manage admin accounts from a separate page, create additional admins, and update the current admin password without mixing this into the student directory."
+      subtitle="Manage admin accounts from a separate page, create additional admins, update the current admin password, and keep admin deletion restricted to the main admin account."
     >
       <PageCard>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionIntro
             eyebrow="Admin Accounts"
             title="Directory and security for admin users"
-            description="This page is dedicated to admin account management. Use it to review who can access the admin workspace, create another admin account, and update your own password."
+            description="This page is dedicated to admin account management. Use it to review who can access the admin workspace, create another admin account, update your own password, and let only the main admin remove other admins."
           />
 
           <Button
@@ -267,6 +320,12 @@ export default function AdminDirectoryPage() {
             {directoryMessage.message}
           </MessageBanner>
         ) : null}
+
+        <MessageBanner type="info" className="mt-5">
+          Only the username <strong>admin</strong> can delete other admin accounts, and the
+          <strong> admin </strong>
+          account itself is protected from deletion.
+        </MessageBanner>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <StatCard
@@ -288,19 +347,20 @@ export default function AdminDirectoryPage() {
       </PageCard>
 
       <PageCard className="overflow-hidden p-0">
-        <Table className="min-w-[42rem]">
+        <Table className="min-w-[52rem]">
           <TableHeader className="bg-slate-50">
             <TableRow>
               <TableHead className="px-6">Username</TableHead>
               <TableHead className="px-6">Created</TableHead>
-              <TableHead className="px-6 text-right">Status</TableHead>
+              <TableHead className="px-6">Status</TableHead>
+              <TableHead className="px-6 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
             {adminUsers.length === 0 ? (
               <TableRow>
-                <TableCell className="px-6 py-8 text-slate-500" colSpan="3">
+                <TableCell className="px-6 py-8 text-slate-500" colSpan="4">
                   No admin accounts were found.
                 </TableCell>
               </TableRow>
@@ -309,15 +369,41 @@ export default function AdminDirectoryPage() {
                 <TableRow key={adminUser.id}>
                   <TableCell className="px-6 font-medium">{adminUser.username}</TableCell>
                   <TableCell className="px-6">{formatDateTime(adminUser.created_at)}</TableCell>
+                  <TableCell className="px-6">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {adminUser.id === currentAdminId ? (
+                        <Badge className="rounded-full border-0 bg-emerald-100 px-3 py-1 text-emerald-700">
+                          Current Session
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="rounded-full px-3 py-1">
+                          Active Admin
+                        </Badge>
+                      )}
+                      {adminUser.username === "admin" ? (
+                        <Badge className="rounded-full border-0 bg-slate-900 px-3 py-1 text-white">
+                          Protected
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell className="px-6 text-right">
-                    {adminUser.id === currentAdminId ? (
-                      <Badge className="rounded-full border-0 bg-emerald-100 px-3 py-1 text-emerald-700">
-                        Current Session
-                      </Badge>
+                    {canDeleteAdmins && adminUser.username !== "admin" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        disabled={deletingAdminId === adminUser.id}
+                        onClick={() => handleDeleteAdmin(adminUser)}
+                      >
+                        <Trash2 className="size-4" />
+                        {deletingAdminId === adminUser.id ? "Deleting..." : "Delete"}
+                      </Button>
+                    ) : adminUser.username === "admin" ? (
+                      <span className="text-sm text-slate-500">Primary admin is protected</span>
                     ) : (
-                      <Badge variant="outline" className="rounded-full px-3 py-1">
-                        Active Admin
-                      </Badge>
+                      <span className="text-sm text-slate-500">Only admin can delete</span>
                     )}
                   </TableCell>
                 </TableRow>
