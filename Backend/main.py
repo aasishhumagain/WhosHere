@@ -178,13 +178,17 @@ def assign_student_code(student: Student, db: Session):
     student.student_code = build_student_code_from_prefix(year_prefix, next_sequence)
 
 
-def ensure_student_code_schema():
+def ensure_student_schema():
     inspector = inspect(engine)
     student_columns = {column["name"] for column in inspector.get_columns("students")}
 
     with engine.begin() as connection:
         if "student_code" not in student_columns:
             connection.execute(text("ALTER TABLE students ADD COLUMN student_code VARCHAR"))
+        if "phone_number" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN phone_number VARCHAR"))
+        if "grade" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN grade VARCHAR"))
 
         connection.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS ix_students_student_code ON students (student_code)")
@@ -231,7 +235,7 @@ def backfill_student_codes():
         db.close()
 
 
-ensure_student_code_schema()
+ensure_student_schema()
 backfill_student_codes()
 
 
@@ -573,6 +577,8 @@ def serialize_student(student: Student):
         "student_id": get_public_student_id(student),
         "full_name": student.full_name,
         "email": student.email,
+        "phone_number": student.phone_number,
+        "grade": student.grade,
         "face_image_path": student.face_image_path,
         "face_image_url": build_upload_url(student.face_image_path),
         "created_at": student.created_at,
@@ -804,6 +810,8 @@ def register_student(
     full_name: str = Form(...),
     password: str = Form(None),
     email: str = Form(None),
+    phone_number: str = Form(None),
+    grade: str = Form(None),
     face_image: UploadFile = File(...),
     db: Session = Depends(get_db),
     _admin_token: str = Depends(require_admin),
@@ -816,6 +824,8 @@ def register_student(
         full_name=validate_full_name(full_name),
         password="",
         email=normalize_optional_text(email),
+        phone_number=normalize_optional_text(phone_number),
+        grade=normalize_optional_text(grade),
         face_image_path=file_path,
         face_encoding=face_encoding,
     )
@@ -898,6 +908,8 @@ def update_student(
     student_id: str,
     full_name: str = Form(...),
     email: str = Form(None),
+    phone_number: str = Form(None),
+    grade: str = Form(None),
     password: str = Form(None),
     face_image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
@@ -909,6 +921,8 @@ def update_student(
 
     student.full_name = validate_full_name(full_name)
     student.email = normalize_optional_text(email)
+    student.phone_number = normalize_optional_text(phone_number)
+    student.grade = normalize_optional_text(grade)
 
     if password and password.strip():
         student.password = hash_password(password.strip())
@@ -995,6 +1009,8 @@ def student_login(
         "student_id": get_public_student_id(student),
         "full_name": student.full_name,
         "email": student.email,
+        "phone_number": student.phone_number,
+        "grade": student.grade,
         "face_image_url": build_upload_url(student.face_image_path),
         "created_at": student.created_at,
         "token": token,

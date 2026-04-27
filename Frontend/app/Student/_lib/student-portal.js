@@ -13,6 +13,8 @@ export const DEFAULT_STUDENT_SESSION = {
   studentId: "",
   studentName: "Student",
   studentEmail: "",
+  studentPhoneNumber: "",
+  studentGrade: "",
   faceImageUrl: "",
 };
 
@@ -25,6 +27,8 @@ function buildStudentSessionSnapshot() {
     studentId: localStorage.getItem("student_id") || "",
     studentName: localStorage.getItem("student_name") || "Student",
     studentEmail: localStorage.getItem("student_email") || "",
+    studentPhoneNumber: localStorage.getItem("student_phone_number") || "",
+    studentGrade: localStorage.getItem("student_grade") || "",
     faceImageUrl: localStorage.getItem("student_face_image_url") || "",
   };
 }
@@ -35,6 +39,8 @@ function studentSessionsMatch(left, right) {
     left.studentId === right.studentId &&
     left.studentName === right.studentName &&
     left.studentEmail === right.studentEmail &&
+    left.studentPhoneNumber === right.studentPhoneNumber &&
+    left.studentGrade === right.studentGrade &&
     left.faceImageUrl === right.faceImageUrl
   );
 }
@@ -219,6 +225,8 @@ export function setStudentSessionStorage(studentSession) {
   localStorage.setItem("student_id", studentSession.studentId || "");
   localStorage.setItem("student_name", studentSession.studentName || "Student");
   localStorage.setItem("student_email", studentSession.studentEmail || "");
+  localStorage.setItem("student_phone_number", studentSession.studentPhoneNumber || "");
+  localStorage.setItem("student_grade", studentSession.studentGrade || "");
   localStorage.setItem("student_face_image_url", studentSession.faceImageUrl || "");
 
   const nextSnapshot = buildStudentSessionSnapshot();
@@ -240,6 +248,8 @@ export function clearStudentSessionStorage() {
   localStorage.removeItem("student_id");
   localStorage.removeItem("student_name");
   localStorage.removeItem("student_email");
+  localStorage.removeItem("student_phone_number");
+  localStorage.removeItem("student_grade");
   localStorage.removeItem("student_face_image_url");
 
   cachedStudentSession = buildStudentSessionSnapshot();

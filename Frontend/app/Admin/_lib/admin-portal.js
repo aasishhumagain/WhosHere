@@ -67,6 +67,8 @@ export function createStudentForm(student = {}) {
   return {
     full_name: student.full_name || "",
     email: student.email || "",
+    phone_number: student.phone_number || "",
+    grade: student.grade || "",
     password: "",
     face_image: null,
   };
@@ -398,6 +400,8 @@ export function registerStudent(adminToken, studentForm) {
   const formData = new FormData();
   formData.append("full_name", studentForm.full_name.trim());
   formData.append("email", studentForm.email.trim());
+  formData.append("phone_number", studentForm.phone_number.trim());
+  formData.append("grade", studentForm.grade.trim());
   formData.append("password", studentForm.password.trim());
   formData.append("face_image", studentForm.face_image);
 
@@ -416,6 +420,8 @@ export function updateStudent(adminToken, studentId, studentForm) {
   const formData = new FormData();
   formData.append("full_name", studentForm.full_name.trim());
   formData.append("email", studentForm.email.trim());
+  formData.append("phone_number", studentForm.phone_number.trim());
+  formData.append("grade", studentForm.grade.trim());
 
   if (studentForm.password.trim()) {
     formData.append("password", studentForm.password.trim());

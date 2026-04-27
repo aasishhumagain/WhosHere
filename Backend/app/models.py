@@ -14,6 +14,8 @@ class Student(Base):
     full_name = Column(String, nullable=False)
     password = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=True)
+    phone_number = Column(String, nullable=True)
+    grade = Column(String, nullable=True)
     face_image_path = Column(String, nullable=True)
     face_encoding = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

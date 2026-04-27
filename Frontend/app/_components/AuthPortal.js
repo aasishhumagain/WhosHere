@@ -135,6 +135,8 @@ export default function AuthPortal() {
         studentId: String(data.student_id || ""),
         studentName: data.full_name || "Student",
         studentEmail: data.email || "",
+        studentPhoneNumber: data.phone_number || "",
+        studentGrade: data.grade || "",
         faceImageUrl: data.face_image_url || "",
       });
 

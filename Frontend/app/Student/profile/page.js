@@ -251,6 +251,14 @@ export default function StudentProfilePage() {
                 value: profile?.email || studentSession.studentEmail || "Not provided",
               },
               {
+                label: "Phone Number",
+                value: profile?.phone_number || studentSession.studentPhoneNumber || "Not provided",
+              },
+              {
+                label: "Grade",
+                value: profile?.grade || studentSession.studentGrade || "Not provided",
+              },
+              {
                 label: "Registered",
                 value: formatDateTime(profile?.created_at),
               },

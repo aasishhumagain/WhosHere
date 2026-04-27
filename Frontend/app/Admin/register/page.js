@@ -267,6 +267,41 @@ export default function AdminRegisterStudentPage() {
                 />
               </FieldBlock>
 
+              <FieldBlock label="Phone Number" htmlFor="student-phone-number">
+                <input
+                  id="student-phone-number"
+                  type="text"
+                  inputMode="numeric"
+                  value={studentForm.phone_number}
+                  onChange={(event) =>
+                    setStudentForm((current) => ({
+                      ...current,
+                      phone_number: event.target.value,
+                    }))
+                  }
+                  placeholder="Enter phone number"
+                  className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
+                />
+              </FieldBlock>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Grade" htmlFor="student-grade">
+                <input
+                  id="student-grade"
+                  type="text"
+                  value={studentForm.grade}
+                  onChange={(event) =>
+                    setStudentForm((current) => ({
+                      ...current,
+                      grade: event.target.value,
+                    }))
+                  }
+                  placeholder="Enter grade or class"
+                  className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
+                />
+              </FieldBlock>
+
               <PasswordField
                 label="Password (Optional)"
                 value={studentForm.password}

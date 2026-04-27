@@ -95,12 +95,35 @@ function EditStudentModal({
               />
             </FieldBlock>
 
-            <FieldBlock label="Email" htmlFor="edit-student-email">
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Email" htmlFor="edit-student-email">
+                <Input
+                  id="edit-student-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => onFieldChange("email", event.target.value)}
+                  className={ADMIN_FIELD_CLASSNAME}
+                />
+              </FieldBlock>
+
+              <FieldBlock label="Phone Number" htmlFor="edit-student-phone-number">
+                <Input
+                  id="edit-student-phone-number"
+                  type="text"
+                  inputMode="numeric"
+                  value={form.phone_number}
+                  onChange={(event) => onFieldChange("phone_number", event.target.value)}
+                  className={ADMIN_FIELD_CLASSNAME}
+                />
+              </FieldBlock>
+            </div>
+
+            <FieldBlock label="Grade" htmlFor="edit-student-grade">
               <Input
-                id="edit-student-email"
-                type="email"
-                value={form.email}
-                onChange={(event) => onFieldChange("email", event.target.value)}
+                id="edit-student-grade"
+                type="text"
+                value={form.grade}
+                onChange={(event) => onFieldChange("grade", event.target.value)}
                 className={ADMIN_FIELD_CLASSNAME}
               />
             </FieldBlock>
@@ -131,6 +154,18 @@ function EditStudentModal({
                   Student Email
                 </p>
                 <p className="mt-2 text-sm text-slate-700">{student.email || "Not provided"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Phone Number
+                </p>
+                <p className="mt-2 text-sm text-slate-700">{student.phone_number || "Not provided"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Grade
+                </p>
+                <p className="mt-2 text-sm text-slate-700">{student.grade || "Not provided"}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
@@ -367,7 +402,7 @@ export default function AdminDirectoryPage() {
   }
 
   const filteredStudents = students.filter((student) =>
-    `${student.student_id} ${student.full_name} ${student.email || ""}`
+    `${student.student_id} ${student.full_name} ${student.email || ""} ${student.phone_number || ""} ${student.grade || ""}`
       .toLowerCase()
       .includes(studentSearch.toLowerCase()),
   );
@@ -379,6 +414,16 @@ export default function AdminDirectoryPage() {
     if (studentSortField === "student_id") {
       leftValue = leftStudent.student_id;
       rightValue = rightStudent.student_id;
+    }
+
+    if (studentSortField === "phone_number") {
+      leftValue = leftStudent.phone_number;
+      rightValue = rightStudent.phone_number;
+    }
+
+    if (studentSortField === "grade") {
+      leftValue = leftStudent.grade;
+      rightValue = rightStudent.grade;
     }
 
     if (studentSortField === "created_at") {
@@ -434,6 +479,8 @@ export default function AdminDirectoryPage() {
                 <option value="full_name">Sort by Name</option>
                 <option value="student_id">Sort by ID</option>
                 <option value="email">Sort by Email</option>
+                <option value="phone_number">Sort by Phone Number</option>
+                <option value="grade">Sort by Grade</option>
                 <option value="created_at">Sort by Created Date</option>
               </NativeSelect>
 
@@ -483,6 +530,8 @@ export default function AdminDirectoryPage() {
                 <TableHead className="px-6">ID</TableHead>
                 <TableHead className="px-6">Name</TableHead>
                 <TableHead className="px-6">Email</TableHead>
+                <TableHead className="px-6">Phone</TableHead>
+                <TableHead className="px-6">Grade</TableHead>
                 <TableHead className="px-6">Registered</TableHead>
                 <TableHead className="px-6 text-right">Actions</TableHead>
               </TableRow>
@@ -491,7 +540,7 @@ export default function AdminDirectoryPage() {
             <TableBody>
               {sortedStudents.length === 0 ? (
                 <TableRow>
-                  <TableCell className="px-6 py-8 text-slate-500" colSpan="6">
+                  <TableCell className="px-6 py-8 text-slate-500" colSpan="8">
                     No students matched the current search and sort settings.
                   </TableCell>
                 </TableRow>
@@ -510,6 +559,8 @@ export default function AdminDirectoryPage() {
                       <TableCell className="px-6 font-medium">{student.student_id}</TableCell>
                       <TableCell className="px-6">{student.full_name}</TableCell>
                       <TableCell className="px-6">{student.email || "-"}</TableCell>
+                      <TableCell className="px-6">{student.phone_number || "-"}</TableCell>
+                      <TableCell className="px-6">{student.grade || "-"}</TableCell>
                       <TableCell className="px-6">{formatDateTime(student.created_at)}</TableCell>
                       <TableCell className="px-6">
                         <div className="flex justify-end gap-2">

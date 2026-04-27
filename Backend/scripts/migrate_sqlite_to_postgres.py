@@ -14,15 +14,17 @@ from app.database import Base, build_engine, get_default_database_url, normalize
 from app.models import AttendanceRecord, LeaveRequest, Student
 
 
-def ensure_student_code_column(engine):
+def ensure_student_columns(engine):
     inspector = inspect(engine)
     student_columns = {column["name"] for column in inspector.get_columns("students")}
 
-    if "student_code" in student_columns:
-        return
-
     with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE students ADD COLUMN student_code VARCHAR"))
+        if "student_code" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN student_code VARCHAR"))
+        if "phone_number" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN phone_number VARCHAR"))
+        if "grade" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN grade VARCHAR"))
 
 
 def parse_args():
@@ -62,6 +64,8 @@ def copy_students(source_session, target_session):
                 full_name=student.full_name,
                 password=student.password,
                 email=student.email,
+                phone_number=student.phone_number,
+                grade=student.grade,
                 face_image_path=student.face_image_path,
                 face_encoding=student.face_encoding,
                 created_at=student.created_at,
@@ -136,8 +140,8 @@ def main():
     TargetSession = sessionmaker(bind=target_engine, autoflush=False, autocommit=False)
 
     Base.metadata.create_all(bind=target_engine)
-    ensure_student_code_column(source_engine)
-    ensure_student_code_column(target_engine)
+    ensure_student_columns(source_engine)
+    ensure_student_columns(target_engine)
 
     source_session = SourceSession()
     target_session = TargetSession()
