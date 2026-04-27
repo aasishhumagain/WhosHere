@@ -949,6 +949,56 @@ def change_admin_password(
     return {"message": "Admin password changed successfully."}
 
 
+@app.put(
+    "/admin-users/{admin_user_id}",
+    tags=["Admin Users"],
+    summary="Update an admin user",
+)
+def update_admin_user(
+    admin_user_id: int,
+    username: str = Form(...),
+    password: str = Form(None),
+    db: Session = Depends(get_db),
+    admin_session: dict = Depends(require_admin),
+):
+    current_admin = admin_session["admin"]
+
+    if not is_primary_admin(current_admin):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the admin account can edit other admin accounts.",
+        )
+
+    admin_user = db.query(AdminUser).filter(AdminUser.id == admin_user_id).first()
+
+    if not admin_user:
+        raise HTTPException(status_code=404, detail="Admin user not found.")
+
+    if is_primary_admin(admin_user):
+        raise HTTPException(
+            status_code=403,
+            detail="The protected admin username cannot be edited from this tool.",
+        )
+
+    admin_user.username = validate_admin_username(username)
+    normalized_password = normalize_optional_text(password)
+
+    if normalized_password:
+        admin_user.password = hash_password(validate_required_password(normalized_password))
+
+    try:
+        db.commit()
+        db.refresh(admin_user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Admin username already exists.")
+
+    return {
+        "message": "Admin account updated successfully.",
+        "admin": serialize_admin_user(admin_user),
+    }
+
+
 @app.delete(
     "/admin-users/{admin_user_id}",
     tags=["Admin Users"],

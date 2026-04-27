@@ -1,13 +1,20 @@
 "use client";
 
-import { RefreshCcw, ShieldCheck, Trash2 } from "lucide-react";
+import { PencilLine, RefreshCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import PasswordField from "@/app/_components/PasswordField";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -28,6 +35,7 @@ import {
   StatCard,
 } from "../_components/AdminUI";
 import {
+  createAdminEditForm,
   changeAdminPassword,
   createAdminPasswordForm,
   createAdminUser,
@@ -37,8 +45,99 @@ import {
   formatDateTime,
   isAdminAuthError,
   redirectAdminToLogin,
+  updateAdminUser,
   useAdminSessionGuard,
 } from "../_lib/admin-portal";
+
+function EditAdminModal({
+  adminUser,
+  form,
+  isSaving,
+  onClose,
+  onFieldChange,
+  onSubmit,
+}) {
+  if (!adminUser) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
+      <Card className="max-h-full w-full max-w-2xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
+        <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 p-6">
+          <div>
+            <CardTitle className="text-2xl">Edit {adminUser.username}</CardTitle>
+            <CardDescription className="mt-1 text-sm">
+              Update this admin account&apos;s username or set a new password.
+            </CardDescription>
+          </div>
+
+          <Button type="button" variant="outline" className="rounded-full" onClick={onClose}>
+            Close
+          </Button>
+        </CardHeader>
+
+        <CardContent className="space-y-4 p-6">
+          <form onSubmit={onSubmit} className="space-y-4">
+            <FieldBlock label="Username" htmlFor="edit-admin-username">
+              <Input
+                id="edit-admin-username"
+                type="text"
+                value={form.username}
+                onChange={(event) => onFieldChange("username", event.target.value)}
+                className={ADMIN_FIELD_CLASSNAME}
+              />
+            </FieldBlock>
+
+            <PasswordField
+              label="New Password"
+              value={form.password}
+              onChange={(event) => onFieldChange("password", event.target.value)}
+              placeholder="Leave blank to keep the existing password"
+              inputClassName={ADMIN_FIELD_CLASSNAME}
+            />
+
+            <PasswordField
+              label="Confirm New Password"
+              value={form.confirm_password}
+              onChange={(event) => onFieldChange("confirm_password", event.target.value)}
+              placeholder="Repeat the new password if you are changing it"
+              inputClassName={ADMIN_FIELD_CLASSNAME}
+            />
+
+            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Current Username
+                </p>
+                <p className="mt-2 text-sm text-slate-700">{adminUser.username}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Created
+                </p>
+                <p className="mt-2 text-sm text-slate-700">{formatDateTime(adminUser.created_at)}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="submit"
+                disabled={isSaving}
+                className="rounded-full bg-blue-600 hover:bg-blue-700"
+              >
+                {isSaving ? "Saving Changes..." : "Save Admin Changes"}
+              </Button>
+              <Button type="button" variant="outline" className="rounded-full" onClick={onClose}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default function AdminDirectoryPage() {
   const router = useRouter();
@@ -52,6 +151,9 @@ export default function AdminDirectoryPage() {
   const [adminPasswordForm, setAdminPasswordForm] = useState(createAdminPasswordForm());
   const [creatingAdmin, setCreatingAdmin] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [editAdminUser, setEditAdminUser] = useState(null);
+  const [editAdminForm, setEditAdminForm] = useState(createAdminEditForm());
+  const [savingEditAdmin, setSavingEditAdmin] = useState(false);
   const [deletingAdminId, setDeletingAdminId] = useState(null);
 
   async function refreshAdminUsers() {
@@ -281,6 +383,98 @@ export default function AdminDirectoryPage() {
     }
   }
 
+  function openEditAdmin(adminUser) {
+    setEditAdminUser(adminUser);
+    setEditAdminForm(createAdminEditForm(adminUser));
+  }
+
+  function closeEditAdmin(force = false) {
+    if (savingEditAdmin && !force) {
+      return;
+    }
+
+    setEditAdminUser(null);
+    setEditAdminForm(createAdminEditForm());
+  }
+
+  function handleEditAdminFieldChange(field, value) {
+    setEditAdminForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  async function handleUpdateAdmin(event) {
+    event.preventDefault();
+
+    if (!editAdminUser) {
+      return;
+    }
+
+    if (adminSession.username !== "admin") {
+      setDirectoryMessage({
+        type: "error",
+        message: "Only the admin account can edit other admin accounts.",
+      });
+      return;
+    }
+
+    if (!editAdminForm.username.trim()) {
+      setDirectoryMessage({
+        type: "error",
+        message: "Admin username is required.",
+      });
+      return;
+    }
+
+    if (editAdminForm.password || editAdminForm.confirm_password) {
+      if (!editAdminForm.password.trim() || !editAdminForm.confirm_password.trim()) {
+        setDirectoryMessage({
+          type: "error",
+          message: "Enter and confirm the new password, or leave both password fields blank.",
+        });
+        return;
+      }
+
+      if (editAdminForm.password !== editAdminForm.confirm_password) {
+        setDirectoryMessage({
+          type: "error",
+          message: "New password and confirmation do not match.",
+        });
+        return;
+      }
+    }
+
+    setSavingEditAdmin(true);
+    setDirectoryMessage(null);
+
+    try {
+      const response = await updateAdminUser(
+        adminSession.token,
+        editAdminUser.id,
+        editAdminForm,
+      );
+      await refreshAdminUsers();
+      closeEditAdmin(true);
+      setDirectoryMessage({
+        type: "success",
+        message: response.message || "Admin account updated successfully.",
+      });
+    } catch (error) {
+      if (isAdminAuthError(error)) {
+        redirectAdminToLogin(router);
+        return;
+      }
+
+      setDirectoryMessage({
+        type: "error",
+        message: error.message || "Could not update the admin account.",
+      });
+    } finally {
+      setSavingEditAdmin(false);
+    }
+  }
+
   if (!sessionReady || !adminSession.token) {
     return <AdminLoadingScreen title="Loading admin directory..." description="Preparing admin accounts and security settings." />;
   }
@@ -324,7 +518,8 @@ export default function AdminDirectoryPage() {
         <MessageBanner type="info" className="mt-5">
           Only the username <strong>admin</strong> can delete other admin accounts, and the
           <strong> admin </strong>
-          account itself is protected from deletion.
+          account itself is protected from deletion. The same protected admin can also edit other
+          admin usernames and passwords from this page.
         </MessageBanner>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -389,21 +584,34 @@ export default function AdminDirectoryPage() {
                   </TableCell>
                   <TableCell className="px-6 text-right">
                     {canDeleteAdmins && adminUser.username !== "admin" ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                        disabled={deletingAdminId === adminUser.id}
-                        onClick={() => handleDeleteAdmin(adminUser)}
-                      >
-                        <Trash2 className="size-4" />
-                        {deletingAdminId === adminUser.id ? "Deleting..." : "Delete"}
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full"
+                          disabled={savingEditAdmin && editAdminUser?.id === adminUser.id}
+                          onClick={() => openEditAdmin(adminUser)}
+                        >
+                          <PencilLine className="size-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          disabled={deletingAdminId === adminUser.id}
+                          onClick={() => handleDeleteAdmin(adminUser)}
+                        >
+                          <Trash2 className="size-4" />
+                          {deletingAdminId === adminUser.id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
                     ) : adminUser.username === "admin" ? (
                       <span className="text-sm text-slate-500">Primary admin is protected</span>
                     ) : (
-                      <span className="text-sm text-slate-500">Only admin can delete</span>
+                      <span className="text-sm text-slate-500">Only admin can edit or delete</span>
                     )}
                   </TableCell>
                 </TableRow>
@@ -548,6 +756,15 @@ export default function AdminDirectoryPage() {
           </form>
         </PageCard>
       </div>
+
+      <EditAdminModal
+        adminUser={editAdminUser}
+        form={editAdminForm}
+        isSaving={savingEditAdmin}
+        onClose={closeEditAdmin}
+        onFieldChange={handleEditAdminFieldChange}
+        onSubmit={handleUpdateAdmin}
+      />
     </AdminShell>
   );
 }

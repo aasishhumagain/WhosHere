@@ -82,6 +82,14 @@ export function createAdminUserForm() {
   };
 }
 
+export function createAdminEditForm(adminUser = {}) {
+  return {
+    username: adminUser.username || "",
+    password: "",
+    confirm_password: "",
+  };
+}
+
 export function createAdminPasswordForm() {
   return {
     current_password: "",
@@ -443,6 +451,25 @@ export function changeAdminPassword(adminToken, currentPassword, newPassword) {
     "Could not change the admin password.",
     {
       method: "POST",
+      body: formData,
+    },
+  );
+}
+
+export function updateAdminUser(adminToken, adminUserId, adminForm) {
+  const formData = new FormData();
+  formData.append("username", adminForm.username.trim());
+
+  if (adminForm.password.trim()) {
+    formData.append("password", adminForm.password.trim());
+  }
+
+  return fetchAdminApi(
+    `/admin-users/${adminUserId}`,
+    adminToken,
+    "Could not update the admin account.",
+    {
+      method: "PUT",
       body: formData,
     },
   );
