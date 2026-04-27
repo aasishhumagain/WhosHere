@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ClipboardCheck, RefreshCcw, UserPlus, Users, Waves } from "lucide-react";
+import {
+  ArrowRight,
+  ClipboardCheck,
+  RefreshCcw,
+  ShieldCheck,
+  UserPlus,
+  Users,
+  Waves,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -35,6 +43,12 @@ const QUICK_LINKS = [
     label: "Student Directory",
     description: "Review student records, edit details, and remove accounts.",
     icon: Users,
+  },
+  {
+    href: "/admin/admin-directory",
+    label: "Admin Directory",
+    description: "Create admin accounts and update admin password settings.",
+    icon: ShieldCheck,
   },
   {
     href: "/admin/attendance",
@@ -144,14 +158,14 @@ export default function AdminDashboardPage() {
       adminSession={adminSession}
       pageLabel="Admin Workspace"
       title="Admin Dashboard"
-      subtitle="Your admin landing page now stays focused on summary and quick navigation, while the bigger student, attendance, and leave tools live on their own dedicated pages."
+      subtitle="Your admin landing page now stays focused on summary and quick navigation, while admin accounts, student records, attendance, and leave tools live on their own dedicated pages."
     >
       <PageCard>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionIntro
             eyebrow="Overview"
             title="One view of the whole attendance system"
-            description="Use this page for the high-level snapshot, then jump into the exact admin page you need for student registration, directory cleanup, attendance corrections, or leave review."
+            description="Use this page for the high-level snapshot, then jump into the exact admin page you need for registration, admin account security, student directory cleanup, attendance corrections, or leave review."
           />
 
           <Button
@@ -199,7 +213,7 @@ export default function AdminDashboardPage() {
           <SectionIntro
             eyebrow="Quick Actions"
             title="Open the right admin page fast"
-            description="Each management area is now split into its own page, so you can work in one part of the system without carrying the full dashboard everywhere."
+            description="Each management area is now split into its own page, so you can work on admin accounts, student records, attendance, or leave without carrying the full dashboard everywhere."
           />
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -237,7 +251,16 @@ export default function AdminDashboardPage() {
           <div className="mt-6 space-y-4">
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">1. Register Student</p>
+                <p className="text-sm font-semibold text-slate-950">1. Secure Admin Access</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Keep admin credentials current and create separate admin accounts when another trusted user needs access.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
+              <CardContent className="p-5">
+                <p className="text-sm font-semibold text-slate-950">2. Register Student</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Create the account and capture a face photo before the student starts using the system.
                 </p>
@@ -246,16 +269,16 @@ export default function AdminDashboardPage() {
 
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">2. Review Directory</p>
+                <p className="text-sm font-semibold text-slate-950">3. Review Student Directory</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep student names, emails, passwords, and face images clean and current.
+                  Keep student names, emails, passwords, grades, phone numbers, and face images clean and current.
                 </p>
               </CardContent>
             </Card>
 
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">3. Correct Attendance and Leave</p>
+                <p className="text-sm font-semibold text-slate-950">4. Correct Attendance and Leave</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Use the attendance and leave pages to resolve mistakes, export reports, and approve requests.
                 </p>

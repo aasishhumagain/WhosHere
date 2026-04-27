@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   RefreshCcw,
+  ShieldCheck,
   UserPlus,
   Users,
   Waves,
@@ -54,6 +55,12 @@ const PRIMARY_LINKS = [
 ];
 
 const MENU_LINKS = [
+  {
+    href: "/admin/admin-directory",
+    label: "Admin Directory",
+    icon: ShieldCheck,
+    description: "Manage admin accounts and passwords",
+  },
   {
     href: "/admin/directory",
     label: "Student Directory",
@@ -234,7 +241,7 @@ export default function AdminShell({
                               Administrator Panel
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
-                              Separate admin pages for dashboard, enrollment, records, and leave.
+                              Separate pages for dashboard, admin accounts, students, attendance, and leave.
                             </p>
                           </div>
                         </div>
@@ -279,7 +286,7 @@ export default function AdminShell({
                     <RefreshCcw className="size-4" />
                   </div>
                   <span className="text-muted-foreground">
-                    Use the admin menu to open directory, attendance, and leave pages.
+                    Use the admin menu to open admin accounts, student records, attendance, and leave pages.
                   </span>
                 </div>
               </div>
@@ -290,7 +297,7 @@ export default function AdminShell({
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="font-medium text-slate-700">Admin workspace</span>
               <span>Dashboard and registration stay upfront.</span>
-              <span>Directory, attendance, and leave live on separate pages.</span>
+              <span>Admin directory, student directory, attendance, and leave live on separate pages.</span>
             </div>
           </CardHeader>
         </Card>

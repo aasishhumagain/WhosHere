@@ -74,6 +74,22 @@ export function createStudentForm(student = {}) {
   };
 }
 
+export function createAdminUserForm() {
+  return {
+    username: "",
+    password: "",
+    confirm_password: "",
+  };
+}
+
+export function createAdminPasswordForm() {
+  return {
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  };
+}
+
 export function createFilterState() {
   return {
     search: "",
@@ -370,6 +386,10 @@ export function fetchStudents(adminToken) {
   return fetchAdminApi("/students", adminToken, "Could not load students.");
 }
 
+export function fetchAdminUsers(adminToken) {
+  return fetchAdminApi("/admin-users", adminToken, "Could not load admin users.");
+}
+
 export function fetchAttendance(adminToken) {
   return fetchAdminApi("/attendance", adminToken, "Could not load attendance.");
 }
@@ -394,6 +414,38 @@ export async function fetchAdminDashboardData(adminToken) {
     attendance,
     leaveRequests,
   };
+}
+
+export function createAdminUser(adminToken, adminForm) {
+  const formData = new FormData();
+  formData.append("username", adminForm.username.trim());
+  formData.append("password", adminForm.password.trim());
+
+  return fetchAdminApi(
+    "/admin-users",
+    adminToken,
+    "Could not create the admin account.",
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+}
+
+export function changeAdminPassword(adminToken, currentPassword, newPassword) {
+  const formData = new FormData();
+  formData.append("current_password", currentPassword);
+  formData.append("new_password", newPassword);
+
+  return fetchAdminApi(
+    "/admin-users/change-password",
+    adminToken,
+    "Could not change the admin password.",
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
 }
 
 export function registerStudent(adminToken, studentForm) {

@@ -35,6 +35,10 @@ OPENAPI_TAGS = [
         "description": "Admin and student login/logout endpoints.",
     },
     {
+        "name": "Admin Users",
+        "description": "Admin account directory and password management.",
+    },
+    {
         "name": "Students",
         "description": "Student registration, lookup, update, and deletion.",
     },
@@ -598,6 +602,23 @@ def get_admin_user_by_username(username: str, db: Session):
     return db.query(AdminUser).filter(AdminUser.username == normalized_username).first()
 
 
+def validate_admin_username(username: str):
+    cleaned_username = username.strip()
+
+    if not cleaned_username:
+        raise HTTPException(status_code=400, detail="Admin username is required.")
+
+    return cleaned_username
+
+
+def serialize_admin_user(admin_user: AdminUser):
+    return {
+        "id": admin_user.id,
+        "username": admin_user.username,
+        "created_at": admin_user.created_at,
+    }
+
+
 def ensure_bootstrap_admin_user():
     db = SessionLocal()
 
@@ -853,6 +874,75 @@ def admin_login(
 def admin_logout(admin_session: dict = Depends(require_admin)):
     REVOKED_SESSION_TOKENS.add(admin_session["token"])
     return {"message": "Admin logged out successfully"}
+
+
+@app.get("/admin-users", tags=["Admin Users"], summary="List admin users")
+def get_admin_users(
+    db: Session = Depends(get_db),
+    admin_session: dict = Depends(require_admin),
+):
+    admin_users = db.query(AdminUser).order_by(AdminUser.created_at.asc()).all()
+
+    return {
+        "admins": [serialize_admin_user(admin_user) for admin_user in admin_users],
+        "current_admin_id": admin_session["admin"].id,
+    }
+
+
+@app.post("/admin-users", tags=["Admin Users"], summary="Create an admin user")
+def create_admin_user(
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+    _admin_session: dict = Depends(require_admin),
+):
+    admin_user = AdminUser(
+        username=validate_admin_username(username),
+        password=hash_password(validate_required_password(password)),
+    )
+
+    try:
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Admin username already exists.")
+
+    return {
+        "message": "Admin account created successfully.",
+        "admin": serialize_admin_user(admin_user),
+    }
+
+
+@app.post(
+    "/admin-users/change-password",
+    tags=["Admin Users"],
+    summary="Change the current admin password",
+)
+def change_admin_password(
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    db: Session = Depends(get_db),
+    admin_session: dict = Depends(require_admin),
+):
+    admin_user = admin_session["admin"]
+    validated_current_password = validate_required_password(current_password)
+    validated_new_password = validate_required_password(new_password)
+
+    if not verify_password(validated_current_password, admin_user.password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    if verify_password(validated_new_password, admin_user.password):
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from the current password.",
+        )
+
+    admin_user.password = hash_password(validated_new_password)
+    db.commit()
+
+    return {"message": "Admin password changed successfully."}
 
 
 @app.post("/students/register", tags=["Students"], summary="Register a student")
