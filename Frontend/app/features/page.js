@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Camera, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Camera, ShieldCheck, Users } from "lucide-react";
 
 import MarketingShell from "@/app/_components/MarketingShell";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +84,8 @@ export default function FeaturesPage() {
             </div>
 
             <Link href="/login" className={buttonVariants({ size: "lg" })}>
-              Continue to Login
+              Get Started
+              <ArrowRight className="size-4" />
             </Link>
           </CardContent>
         </Card>

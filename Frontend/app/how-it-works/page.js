@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 import MarketingShell from "@/app/_components/MarketingShell";
 import { Badge } from "@/components/ui/badge";
@@ -74,12 +75,13 @@ export default function HowItWorksPage() {
             <div>
               <p className="text-lg font-semibold text-slate-950">Ready to try the flow?</p>
               <p className="mt-2 text-sm text-slate-600">
-                Open the login page and continue as a student or admin.
+                Use Get Started to continue as a student or admin.
               </p>
             </div>
 
             <Link href="/login" className={buttonVariants({ size: "lg" })}>
-              Open Login Page
+              Get Started
+              <ArrowRight className="size-4" />
             </Link>
           </CardContent>
         </Card>
