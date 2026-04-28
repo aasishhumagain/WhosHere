@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { Camera, CameraOff, CheckCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import FacePosePreviewCard from "@/app/_components/FacePosePreviewCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -397,7 +397,7 @@ export default function AdminRegisterStudentPage() {
                     return (
                       <div
                         key={captureOption.pose}
-                        className="rounded-[1.25rem] border border-slate-200 bg-white p-4"
+                        className="flex h-full flex-col rounded-[1.25rem] border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950/78"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -416,7 +416,7 @@ export default function AdminRegisterStudentPage() {
                           </Badge>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
+                        <div className="mt-auto flex flex-wrap gap-2 pt-4">
                           <Button
                             type="button"
                             size="sm"
@@ -508,46 +508,19 @@ export default function AdminRegisterStudentPage() {
 
             <div className="mt-6 grid gap-4">
               {FACE_CAPTURE_OPTIONS.map((captureOption) => (
-                <Card
+                <FacePosePreviewCard
                   key={captureOption.pose}
-                  className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">
-                          {captureOption.title}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {captureOption.pose === "center"
-                            ? "Primary profile photo"
-                            : `${captureOption.title} for wider recognition coverage`}
-                        </p>
-                      </div>
-                      <Badge variant="outline">
-                        {studentForm.face_images?.[captureOption.pose] ? "Ready" : "Waiting"}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white">
-                      {studentPreviewUrls[captureOption.pose] ? (
-                        <div className="relative h-44 w-full">
-                          <Image
-                            src={studentPreviewUrls[captureOption.pose]}
-                            alt={`${captureOption.title} preview`}
-                            fill
-                            unoptimized
-                            className="object-cover object-center"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex h-44 items-center justify-center px-6 text-center text-sm text-slate-500">
-                          Capture the {captureOption.pose} pose to preview it here.
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                  title={captureOption.title}
+                  subtitle={
+                    captureOption.pose === "center"
+                      ? "Primary profile photo"
+                      : `${captureOption.title} for wider recognition coverage`
+                  }
+                  statusLabel={studentForm.face_images?.[captureOption.pose] ? "Ready" : "Waiting"}
+                  imageUrl={studentPreviewUrls[captureOption.pose]}
+                  emptyLabel={`Capture the ${captureOption.pose} pose to preview it here.`}
+                  alt={`${captureOption.title} preview`}
+                />
               ))}
             </div>
           </PageCard>

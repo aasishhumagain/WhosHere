@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  UserRound,
   Waves,
 } from "lucide-react";
 

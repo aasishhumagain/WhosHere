@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import FacePosePreviewCard from "@/app/_components/FacePosePreviewCard";
 import PasswordField from "@/app/_components/PasswordField";
 import { buildAssetUrl } from "@/app/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -232,34 +232,19 @@ export default function StudentProfilePage() {
 
           <div className="mt-6 grid gap-4">
             {FACE_CAPTURE_OPTIONS.map((captureOption) => (
-              <Card
+              <FacePosePreviewCard
                 key={captureOption.pose}
-                className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none"
-              >
-                <CardContent className="p-4">
-                  <Badge variant="outline" className="rounded-full px-3 py-1">
-                    {captureOption.title}
-                  </Badge>
-
-                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white">
-                    {faceImageMap[captureOption.pose] ? (
-                      <div className="relative h-44 w-full">
-                        <Image
-                          src={faceImageMap[captureOption.pose]}
-                          alt={`${captureOption.title} profile preview`}
-                          fill
-                          unoptimized
-                          className="object-cover object-center"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-44 items-center justify-center px-6 text-center text-sm text-slate-500">
-                        No {captureOption.pose} pose photo has been enrolled yet.
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                title={captureOption.title}
+                subtitle={
+                  captureOption.pose === "center"
+                    ? "Main photo used for the student profile"
+                    : "Extra pose saved to improve matching"
+                }
+                statusLabel={faceImageMap[captureOption.pose] ? "Saved" : "Missing"}
+                imageUrl={faceImageMap[captureOption.pose]}
+                emptyLabel={`No ${captureOption.pose} pose photo has been enrolled yet.`}
+                alt={`${captureOption.title} profile preview`}
+              />
             ))}
           </div>
         </PageCard>

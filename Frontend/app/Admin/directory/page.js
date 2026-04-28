@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { PencilLine, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import FacePosePreviewCard from "@/app/_components/FacePosePreviewCard";
 import PasswordField from "@/app/_components/PasswordField";
 import { buildAssetUrl } from "@/app/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -114,46 +114,19 @@ function EditStudentModal({
         <CardContent className="grid gap-6 p-6 lg:grid-cols-[0.95fr,1.05fr]">
           <div className="grid gap-4">
             {FACE_CAPTURE_OPTIONS.map((captureOption) => (
-              <Card
+              <FacePosePreviewCard
                 key={captureOption.pose}
-                className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none dark:border-white/10 dark:bg-slate-950/72"
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">
-                        {captureOption.title}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {captureOption.pose === "center"
-                          ? "Primary profile preview"
-                          : "Additional enrollment pose"}
-                      </p>
-                    </div>
-                    <Badge variant="outline">
-                      {visibleFaceImages[captureOption.pose] ? "Available" : "Missing"}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/84">
-                    {visibleFaceImages[captureOption.pose] ? (
-                      <div className="relative h-40 w-full">
-                        <Image
-                          src={visibleFaceImages[captureOption.pose]}
-                          alt={`${captureOption.title} preview`}
-                          fill
-                          unoptimized
-                          className="object-cover object-center"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-40 items-center justify-center px-6 text-center text-sm text-slate-500">
-                        No {captureOption.pose} pose image is stored for this student yet.
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                title={captureOption.title}
+                subtitle={
+                  captureOption.pose === "center"
+                    ? "Primary profile preview"
+                    : "Additional enrollment pose"
+                }
+                statusLabel={visibleFaceImages[captureOption.pose] ? "Available" : "Missing"}
+                imageUrl={visibleFaceImages[captureOption.pose]}
+                emptyLabel={`No ${captureOption.pose} pose image is stored for this student yet.`}
+                alt={`${captureOption.title} preview`}
+              />
             ))}
           </div>
 
