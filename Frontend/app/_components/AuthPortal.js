@@ -192,7 +192,7 @@ export default function AuthPortal() {
             WhosHere Platform
           </Badge>
           <CardTitle className="max-w-2xl text-5xl leading-tight tracking-tight text-white">
-            Choose the right login for your role.
+            Choose the right login to continue.
           </CardTitle>
           <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
             Students use this system for daily attendance and leave requests. Admins use it to
