@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 
 import {
   capitalizeWords,
@@ -135,46 +134,6 @@ export function StatCard({
         <p className="text-sm text-muted-foreground">{label}</p>
         <p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p>
         {helper ? <p className="mt-2 text-sm text-muted-foreground">{helper}</p> : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function PhotoPreviewCard({
-  title,
-  subtitle,
-  imageUrl,
-  fallbackLabel,
-  imageLoading = "lazy",
-}) {
-  return (
-    <Card className="border-border/70 bg-slate-50/70 shadow-none">
-      <CardHeader className="gap-2">
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{subtitle}</CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <Separator className="mb-4" />
-
-        {imageUrl ? (
-          <div className="flex h-72 items-center justify-center overflow-hidden rounded-2xl border border-border/80 bg-white p-4 shadow-inner">
-            <div className="relative h-full w-full">
-              <Image
-                src={imageUrl}
-                alt={title}
-                fill
-                unoptimized
-                loading={imageLoading}
-                sizes="(max-width: 1024px) 100vw, 40vw"
-                className="rounded-xl object-contain object-center"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-72 items-center justify-center rounded-2xl border border-dashed border-border bg-white/80 px-6 text-center text-sm text-muted-foreground">
-            {fallbackLabel}
-          </div>
-        )}
       </CardContent>
     </Card>
   );

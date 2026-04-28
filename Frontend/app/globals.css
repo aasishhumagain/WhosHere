@@ -2,8 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -54,28 +52,6 @@
   --border: oklch(0.9 0.01 247.88);
   --input: oklch(0.9 0.01 247.88);
   --ring: oklch(0.62 0.17 259.89);
-}
-
-.dark {
-  --background: oklch(0.18 0.02 264.05);
-  --foreground: oklch(0.98 0.005 264.53);
-  --card: oklch(0.22 0.02 264.1);
-  --card-foreground: oklch(0.98 0.005 264.53);
-  --popover: oklch(0.22 0.02 264.1);
-  --popover-foreground: oklch(0.98 0.005 264.53);
-  --primary: oklch(0.75 0.14 254.62);
-  --primary-foreground: oklch(0.18 0.02 264.05);
-  --secondary: oklch(0.28 0.02 264.54);
-  --secondary-foreground: oklch(0.98 0.005 264.53);
-  --muted: oklch(0.28 0.02 264.54);
-  --muted-foreground: oklch(0.72 0.03 260.07);
-  --accent: oklch(0.32 0.03 251.79);
-  --accent-foreground: oklch(0.98 0.005 264.53);
-  --destructive: oklch(0.7 0.19 22.22);
-  --destructive-foreground: oklch(0.98 0.005 264.53);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.68 0.11 253.23);
 }
 
 @layer base {

@@ -26,16 +26,6 @@ function TableBody({ className, ...props }) {
   );
 }
 
-function TableFooter({ className, ...props }) {
-  return (
-    <tfoot
-      data-slot="table-footer"
-      className={cn("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", className)}
-      {...props}
-    />
-  );
-}
-
 function TableRow({ className, ...props }) {
   return (
     <tr
@@ -72,22 +62,10 @@ function TableCell({ className, ...props }) {
   );
 }
 
-function TableCaption({ className, ...props }) {
-  return (
-    <caption
-      data-slot="table-caption"
-      className={cn("mt-4 text-sm text-muted-foreground", className)}
-      {...props}
-    />
-  );
-}
-
 export {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
