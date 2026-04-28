@@ -96,6 +96,26 @@ FACE_POSES = ("left", "center", "right")
 PRIMARY_FACE_POSE = "center"
 
 
+@app.get("/", include_in_schema=False)
+def read_root():
+    return {
+        "message": "WhosHere backend is running.",
+        "docs_url": "/docs",
+        "health_url": "/healthz",
+    }
+
+
+@app.get("/healthz", include_in_schema=False)
+def health_check():
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+    finally:
+        db.close()
+
+    return {"status": "ok"}
+
+
 def get_local_now():
     return datetime.now().astimezone()
 

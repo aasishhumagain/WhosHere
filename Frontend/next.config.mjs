@@ -1,5 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/Admin/:path*",
+        destination: "/admin/:path*",
+        permanent: false,
+      },
+      {
+        source: "/Student/:path*",
+        destination: "/student/:path*",
+        permanent: false,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {
@@ -11,6 +25,10 @@ const nextConfig = {
         protocol: "http",
         hostname: "localhost",
         port: "8000",
+      },
+      {
+        protocol: "https",
+        hostname: "**.onrender.com",
       },
     ],
   },
