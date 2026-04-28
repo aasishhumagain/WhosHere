@@ -123,6 +123,26 @@
     background-color: color-mix(in oklab, rgb(2 6 23) 86%, white 6%);
   }
 
+  html.dark .bg-sky-50,
+  html.dark .bg-sky-50\/80 {
+    background-color: rgba(14, 165, 233, 0.12);
+  }
+
+  html.dark .bg-emerald-50,
+  html.dark .bg-emerald-50\/80 {
+    background-color: rgba(16, 185, 129, 0.12);
+  }
+
+  html.dark .bg-amber-50,
+  html.dark .bg-amber-50\/80 {
+    background-color: rgba(245, 158, 11, 0.12);
+  }
+
+  html.dark .bg-rose-50,
+  html.dark .bg-rose-50\/80 {
+    background-color: rgba(244, 63, 94, 0.12);
+  }
+
   html.dark .border-white,
   html.dark .border-white\/70,
   html.dark .border-white\/80,
@@ -130,6 +150,26 @@
   html.dark .border-slate-200\/80,
   html.dark .border-slate-300 {
     border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  html.dark .border-sky-200,
+  html.dark .border-sky-200\/80 {
+    border-color: rgba(56, 189, 248, 0.22);
+  }
+
+  html.dark .border-emerald-200,
+  html.dark .border-emerald-200\/80 {
+    border-color: rgba(52, 211, 153, 0.22);
+  }
+
+  html.dark .border-amber-200,
+  html.dark .border-amber-200\/80 {
+    border-color: rgba(251, 191, 36, 0.22);
+  }
+
+  html.dark .border-rose-200,
+  html.dark .border-rose-200\/80 {
+    border-color: rgba(251, 113, 133, 0.22);
   }
 
   html.dark .text-slate-950,

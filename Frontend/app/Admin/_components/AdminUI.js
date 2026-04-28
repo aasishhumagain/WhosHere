@@ -64,7 +64,7 @@ export function PageCard({ children, className = "" }) {
   return (
     <Card
       className={cn(
-        "overflow-hidden border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/12 dark:bg-slate-950/72 dark:shadow-[0_24px_70px_rgba(2,8,23,0.45)]",
+        "overflow-hidden border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/84 dark:shadow-[0_28px_90px_rgba(0,0,0,0.55)]",
         className,
       )}
     >
@@ -127,14 +127,14 @@ export function StatCard({
   label,
   value,
   helper,
-  accentClass = "border-slate-200/80 bg-white text-slate-900 dark:border-white/12 dark:bg-slate-950/65 dark:text-slate-100",
+  accentClass = "border-slate-200/80 bg-white text-slate-900 dark:border-white/12 dark:bg-slate-950/76 dark:text-slate-100",
 }) {
   return (
     <Card className={cn("gap-0 rounded-[1.75rem] shadow-none", accentClass)}>
       <CardContent className="p-5">
-        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-sm opacity-70">{label}</p>
         <p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p>
-        {helper ? <p className="mt-2 text-sm text-muted-foreground">{helper}</p> : null}
+        {helper ? <p className="mt-2 text-sm opacity-70">{helper}</p> : null}
       </CardContent>
     </Card>
   );

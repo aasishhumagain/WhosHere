@@ -200,17 +200,17 @@ export default function AdminDashboardPage() {
           <StatCard
             label="Attendance entries"
             value={loadingDashboard && attendance.length === 0 ? "..." : attendance.length}
-            accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900"
+            accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-slate-50"
           />
           <StatCard
             label="Pending leave requests"
             value={loadingDashboard && leaveRequests.length === 0 ? "..." : pendingLeaveRequests}
-            accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900"
+            accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-400/25 dark:bg-amber-400/12 dark:text-slate-50"
           />
           <StatCard
             label="Approved leave requests"
             value={loadingDashboard && leaveRequests.length === 0 ? "..." : approvedLeaveRequests}
-            accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900"
+            accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900 dark:border-emerald-400/25 dark:bg-emerald-400/12 dark:text-slate-50"
           />
         </div>
       </PageCard>

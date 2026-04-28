@@ -54,16 +54,16 @@ export default function ThemeToggle({ className = "" }) {
     <Button
       type="button"
       variant="outline"
-      size="lg"
+      size="default"
       className={cn(
-        "rounded-full border-white/60 bg-white/75 text-slate-700 shadow-sm backdrop-blur-sm hover:bg-white dark:border-white/12 dark:bg-slate-950/65 dark:text-slate-100 dark:hover:bg-slate-900",
+        "rounded-full border-white/60 bg-white/75 px-4 text-slate-700 shadow-sm backdrop-blur-sm hover:bg-white dark:border-white/12 dark:bg-slate-950/78 dark:text-slate-100 dark:hover:bg-slate-900",
         className,
       )}
       onClick={() => applyTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? <SunMedium className="size-4" /> : <MoonStar className="size-4" />}
-      {isDark ? "Light Mode" : "Dark Mode"}
+      {isDark ? "Light" : "Dark"}
     </Button>
   );
 }
