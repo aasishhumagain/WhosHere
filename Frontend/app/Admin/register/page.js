@@ -28,7 +28,6 @@ import {
   redirectAdminToLogin,
   registerStudent,
   STUDENT_FACE_POSES,
-  STUDENT_ROLE_OPTIONS,
   useAdminSessionGuard,
 } from "../_lib/admin-portal";
 
@@ -332,26 +331,6 @@ export default function AdminRegisterStudentPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <FieldBlock label="Role" htmlFor="student-role">
-                <NativeSelect
-                  id="student-role"
-                  value={studentForm.role}
-                  onChange={(event) =>
-                    setStudentForm((current) => ({
-                      ...current,
-                      role: event.target.value,
-                    }))
-                  }
-                  className={ADMIN_FIELD_CLASSNAME}
-                >
-                  {STUDENT_ROLE_OPTIONS.map((roleOption) => (
-                    <option key={roleOption} value={roleOption}>
-                      {roleOption}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </FieldBlock>
-
               <PasswordField
                 label="Password (Optional)"
                 value={studentForm.password}

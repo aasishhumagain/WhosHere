@@ -63,8 +63,8 @@ function EditAdminModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
-      <Card className="max-h-full w-full max-w-2xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
-        <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 p-6">
+      <Card className="max-h-full w-full max-w-2xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/92 dark:shadow-[0_35px_120px_rgba(0,0,0,0.62)]">
+        <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 p-6 dark:border-white/10">
           <div>
             <CardTitle className="text-2xl">Edit {adminUser.username}</CardTitle>
             <CardDescription className="mt-1 text-sm">
@@ -105,7 +105,7 @@ function EditAdminModal({
               inputClassName={ADMIN_FIELD_CLASSNAME}
             />
 
-            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2">
+            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2 dark:border-white/10 dark:bg-slate-950/72">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
                   Current Username

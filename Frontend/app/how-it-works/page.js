@@ -34,7 +34,7 @@ export default function HowItWorksPage() {
   return (
     <MarketingShell activePage="how-it-works">
       <section className="space-y-6">
-        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/88 dark:shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
           <CardHeader className="gap-4 p-6">
             <Badge
               variant="outline"
@@ -57,7 +57,7 @@ export default function HowItWorksPage() {
           {STEPS.map((item) => (
             <Card
               key={item.step}
-              className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+              className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-slate-950/84 dark:shadow-[0_28px_90px_rgba(0,0,0,0.55)]"
             >
               <CardContent className="p-6">
                 <span className="text-sm font-semibold uppercase tracking-[0.28em] text-primary/80">
@@ -70,7 +70,7 @@ export default function HowItWorksPage() {
           ))}
         </div>
 
-        <Card className="border-dashed border-primary/20 bg-white/72 shadow-none">
+        <Card className="border-dashed border-primary/20 bg-white/72 shadow-none dark:bg-slate-950/78">
           <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-lg font-semibold text-slate-950">Ready to try the flow?</p>

@@ -12,7 +12,7 @@ export default function LoginPage() {
   return (
     <MarketingShell activePage="login">
       <section className="space-y-6">
-        <Card className="border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+        <Card className="border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/88 dark:shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
           <CardHeader className="gap-4 p-6">
             <Badge
               variant="outline"

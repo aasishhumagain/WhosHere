@@ -128,6 +128,11 @@
     background-color: rgba(14, 165, 233, 0.12);
   }
 
+  html.dark .bg-blue-50,
+  html.dark .bg-blue-50\/80 {
+    background-color: rgba(59, 130, 246, 0.12);
+  }
+
   html.dark .bg-emerald-50,
   html.dark .bg-emerald-50\/80 {
     background-color: rgba(16, 185, 129, 0.12);
@@ -143,6 +148,14 @@
     background-color: rgba(244, 63, 94, 0.12);
   }
 
+  html.dark .bg-sky-100,
+  html.dark .bg-blue-100,
+  html.dark .bg-emerald-100,
+  html.dark .bg-amber-100,
+  html.dark .bg-rose-100 {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
   html.dark .border-white,
   html.dark .border-white\/70,
   html.dark .border-white\/80,
@@ -155,6 +168,11 @@
   html.dark .border-sky-200,
   html.dark .border-sky-200\/80 {
     border-color: rgba(56, 189, 248, 0.22);
+  }
+
+  html.dark .border-blue-200,
+  html.dark .border-blue-200\/80 {
+    border-color: rgba(96, 165, 250, 0.24);
   }
 
   html.dark .border-emerald-200,
@@ -182,6 +200,31 @@
   html.dark .text-slate-500,
   html.dark .text-slate-400 {
     color: rgb(165 180 201);
+  }
+
+  html.dark .text-sky-700,
+  html.dark .text-sky-800 {
+    color: rgb(125 211 252);
+  }
+
+  html.dark .text-blue-700,
+  html.dark .text-blue-800 {
+    color: rgb(147 197 253);
+  }
+
+  html.dark .text-emerald-700,
+  html.dark .text-emerald-800 {
+    color: rgb(110 231 183);
+  }
+
+  html.dark .text-amber-700,
+  html.dark .text-amber-800 {
+    color: rgb(253 224 71);
+  }
+
+  html.dark .text-rose-700,
+  html.dark .text-rose-800 {
+    color: rgb(253 164 175);
   }
 
   html.dark .shadow-\[0_20px_90px_rgba\(15\2c 23\2c 42\2c 0\.08\)\],

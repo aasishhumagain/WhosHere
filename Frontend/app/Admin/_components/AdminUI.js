@@ -23,10 +23,10 @@ import {
 } from "../_lib/admin-portal";
 
 export const ADMIN_FIELD_CLASSNAME =
-  "h-12 rounded-2xl border-slate-200 bg-slate-50 text-slate-900 shadow-none focus-visible:border-ring dark:border-white/12 dark:bg-slate-950/55 dark:text-slate-100 dark:placeholder:text-slate-400";
+  "h-12 rounded-2xl border-slate-200 bg-slate-50 text-slate-900 shadow-none focus-visible:border-ring dark:border-white/12 dark:bg-slate-950/72 dark:text-slate-100 dark:placeholder:text-slate-400";
 
 export const ADMIN_FILE_INPUT_CLASSNAME =
-  "h-auto rounded-2xl border-slate-200 bg-slate-50 py-3 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 dark:border-white/12 dark:bg-slate-950/55 dark:text-slate-100 dark:file:bg-slate-200 dark:file:text-slate-950 dark:hover:file:bg-white";
+  "h-auto rounded-2xl border-slate-200 bg-slate-50 py-3 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 dark:border-white/12 dark:bg-slate-950/72 dark:text-slate-100 dark:file:bg-slate-200 dark:file:text-slate-950 dark:hover:file:bg-white";
 
 function getAlertVariant(type) {
   if (type === "error") {
@@ -155,7 +155,7 @@ export function NativeSelect({ className = "", ...props }) {
     <div className="relative">
       <select
         className={cn(
-          "h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-11 text-sm text-slate-900 outline-none transition focus:border-ring focus:ring-[3px] focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/12 dark:bg-slate-950/55 dark:text-slate-100 dark:[color-scheme:dark]",
+          "h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-11 text-sm text-slate-900 outline-none transition focus:border-ring focus:ring-[3px] focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/12 dark:bg-slate-950/72 dark:text-slate-100 dark:[color-scheme:dark]",
           className,
         )}
         {...props}
@@ -172,14 +172,14 @@ export function FileInput({ className = "", ...props }) {
 export function PhotoThumb({ imageUrl, alt }) {
   if (!imageUrl) {
     return (
-      <div className="flex size-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-[11px] text-slate-400">
+      <div className="flex size-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-[11px] text-slate-400 dark:border-white/12 dark:bg-slate-950/78">
         No image
       </div>
     );
   }
 
   return (
-    <div className="relative size-14 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/12 dark:bg-slate-900/70">
+    <div className="relative size-14 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/12 dark:bg-slate-950/82">
       <Image
         src={imageUrl}
         alt={alt}
@@ -199,7 +199,7 @@ export function AdminLoadingScreen({
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(254,240,138,0.45),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_24%),radial-gradient(circle_at_80%_18%,rgba(59,130,246,0.18),transparent_22%),linear-gradient(180deg,#020617_0%,#0f172a_55%,#111827_100%)] dark:text-slate-100 md:px-6">
       <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
-        <Card className="w-full max-w-xl border-white/80 bg-white/90 shadow-[0_24px_90px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-white/12 dark:bg-slate-950/78 dark:shadow-[0_24px_70px_rgba(2,8,23,0.5)]">
+        <Card className="w-full max-w-xl border-white/80 bg-white/90 shadow-[0_24px_90px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-white/12 dark:bg-slate-950/88 dark:shadow-[0_24px_70px_rgba(2,8,23,0.5)]">
           <CardHeader className="pb-2 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-primary/90">
               WhosHere

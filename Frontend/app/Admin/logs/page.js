@@ -41,14 +41,14 @@ import {
 
 function getActorBadgeClass(actorType) {
   if (actorType === "admin") {
-    return "border-blue-200 bg-blue-50 text-blue-700";
+    return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-200/80 dark:bg-blue-50/80 dark:text-blue-700";
   }
 
   if (actorType === "student") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-200/80 dark:bg-emerald-50/80 dark:text-emerald-700";
   }
 
-  return "border-slate-200 bg-slate-50 text-slate-700";
+  return "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/12 dark:bg-slate-950/76 dark:text-slate-200";
 }
 
 function buildAuditTargetLabel(auditLog) {
@@ -421,10 +421,10 @@ export default function AdminLogsPage() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <StatCard label="Filtered logs" value={filteredAuditLogs.length} />
-          <StatCard label="Admin actions" value={adminCount} accentClass="border-blue-200/80 bg-blue-50/80 text-slate-900" />
-          <StatCard label="Student actions" value={studentCount} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900" />
-          <StatCard label="Today's logs" value={todayCount} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900" />
-          <StatCard label="Unique actors" value={uniqueActorCount} accentClass="border-slate-200/80 bg-white text-slate-900" />
+          <StatCard label="Admin actions" value={adminCount} accentClass="border-blue-200/80 bg-blue-50/80 text-slate-900 dark:border-blue-200/80 dark:bg-blue-50/80 dark:text-slate-50" />
+          <StatCard label="Student actions" value={studentCount} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900 dark:border-emerald-200/80 dark:bg-emerald-50/80 dark:text-slate-50" />
+          <StatCard label="Today's logs" value={todayCount} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-200/80 dark:bg-amber-50/80 dark:text-slate-50" />
+          <StatCard label="Unique actors" value={uniqueActorCount} accentClass="border-slate-200/80 bg-white text-slate-900 dark:border-white/12 dark:bg-slate-950/76 dark:text-slate-50" />
         </div>
       </PageCard>
 

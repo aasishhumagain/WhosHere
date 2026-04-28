@@ -275,9 +275,9 @@ export default function AdminLeaveRequestsPage() {
         ) : null}
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <StatCard label="Pending" value={pendingCount} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900" />
-          <StatCard label="Approved" value={approvedCount} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900" />
-          <StatCard label="Rejected" value={rejectedCount} accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900" />
+          <StatCard label="Pending" value={pendingCount} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-200/80 dark:bg-amber-50/80 dark:text-slate-50" />
+          <StatCard label="Approved" value={approvedCount} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900 dark:border-emerald-200/80 dark:bg-emerald-50/80 dark:text-slate-50" />
+          <StatCard label="Rejected" value={rejectedCount} accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900 dark:border-rose-200/80 dark:bg-rose-50/80 dark:text-slate-50" />
         </div>
       </PageCard>
 
@@ -332,7 +332,7 @@ export default function AdminLeaveRequestsPage() {
                           [leaveRequest.id]: event.target.value,
                         }))
                       }
-                      className="h-10 rounded-xl bg-white px-3 py-2"
+                      className="h-10 rounded-xl bg-white px-3 py-2 dark:bg-slate-950/78"
                     >
                       <option value="pending">Pending</option>
                       <option value="approved">Approved</option>

@@ -82,7 +82,7 @@ export default function WelcomePage() {
         </Card>
 
         <div className="grid gap-6">
-          <Card className="h-full border-white/80 bg-white/90 shadow-[0_20px_90px_rgba(15,23,42,0.08)]">
+          <Card className="h-full border-white/80 bg-white/90 shadow-[0_20px_90px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-slate-950/88 dark:shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
             <CardHeader className="gap-3 p-6">
               <Badge
                 variant="outline"
@@ -106,7 +106,7 @@ export default function WelcomePage() {
               return (
                 <Card
                   key={card.label}
-                  className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+                  className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-slate-950/84 dark:shadow-[0_28px_90px_rgba(0,0,0,0.55)]"
                 >
                   <CardContent className="p-5">
                     <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -126,7 +126,7 @@ export default function WelcomePage() {
         {QUICK_LINKS.map((item) => (
           <Card
             key={item.href}
-            className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
+            className="h-full border-white/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-slate-950/84 dark:shadow-[0_28px_90px_rgba(0,0,0,0.55)]"
           >
             <CardContent className="space-y-4 p-6">
               <div>

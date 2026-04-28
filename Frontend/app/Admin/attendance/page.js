@@ -578,16 +578,16 @@ export default function AdminAttendancePage() {
         />
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <StatCard label="Filtered records" value={filteredAttendance.length} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900" />
-          <StatCard label="Unique students" value={attendanceUniqueStudents} accentClass="border-slate-200/80 bg-white text-slate-900" />
-          <StatCard label="Present" value={attendanceStatusSummary.present} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900" />
-          <StatCard label="Late" value={attendanceStatusSummary.late} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900" />
-          <StatCard label="Absent" value={attendanceStatusSummary.absent} accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900" />
-          <StatCard label="Coverage rate" value={formatPercent(attendanceCoverageRate)} accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900" />
+          <StatCard label="Filtered records" value={filteredAttendance.length} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-200/80 dark:bg-amber-50/80 dark:text-slate-50" />
+          <StatCard label="Unique students" value={attendanceUniqueStudents} accentClass="border-slate-200/80 bg-white text-slate-900 dark:border-white/12 dark:bg-slate-950/76 dark:text-slate-50" />
+          <StatCard label="Present" value={attendanceStatusSummary.present} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900 dark:border-emerald-200/80 dark:bg-emerald-50/80 dark:text-slate-50" />
+          <StatCard label="Late" value={attendanceStatusSummary.late} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-200/80 dark:bg-amber-50/80 dark:text-slate-50" />
+          <StatCard label="Absent" value={attendanceStatusSummary.absent} accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900 dark:border-rose-200/80 dark:bg-rose-50/80 dark:text-slate-50" />
+          <StatCard label="Coverage rate" value={formatPercent(attendanceCoverageRate)} accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900 dark:border-sky-200/80 dark:bg-sky-50/80 dark:text-slate-50" />
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
-          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none">
+          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none dark:border-white/10 dark:bg-slate-950/72">
             <CardHeader className="gap-2">
               <CardTitle className="text-lg">Daily Breakdown</CardTitle>
               <CardDescription>Attendance totals grouped by marked date.</CardDescription>
@@ -630,7 +630,7 @@ export default function AdminAttendancePage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none">
+          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none dark:border-white/10 dark:bg-slate-950/72">
             <CardHeader className="gap-2">
               <CardTitle className="text-lg">Student Breakdown</CardTitle>
               <CardDescription>Per-student attendance totals for the current report.</CardDescription>
@@ -719,7 +719,7 @@ export default function AdminAttendancePage() {
                           [record.id]: event.target.value,
                         }))
                       }
-                      className="h-10 rounded-xl bg-white px-3 py-2"
+                      className="h-10 rounded-xl bg-white px-3 py-2 dark:bg-slate-950/78"
                     >
                       <option value="present">Present</option>
                       <option value="late">Late</option>

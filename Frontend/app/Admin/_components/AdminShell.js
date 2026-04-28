@@ -109,7 +109,7 @@ function MenuLinkRow({ href, label, icon: Icon, description, active }) {
       <Link href={href} className="flex w-full items-center gap-3">
         <span
           className={cn(
-            "flex size-9 items-center justify-center rounded-xl border border-border/80 bg-white text-muted-foreground",
+            "flex size-9 items-center justify-center rounded-xl border border-border/80 bg-white text-muted-foreground dark:border-white/12 dark:bg-slate-950/76",
             active && "border-primary/20 bg-primary/10 text-primary",
           )}
         >
@@ -235,9 +235,9 @@ export default function AdminShell({
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end" className="w-80 p-2">
-                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-900/75">
+                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/82">
                         <div className="flex items-center gap-3">
-                          <Avatar className="size-12 border border-border bg-white shadow-sm dark:border-white/12 dark:bg-slate-900/70">
+                          <Avatar className="size-12 border border-border bg-white shadow-sm dark:border-white/12 dark:bg-slate-950/82">
                             <AvatarFallback className="bg-slate-950 text-sm text-white dark:bg-slate-200 dark:text-slate-950">
                               {adminInitials}
                             </AvatarFallback>

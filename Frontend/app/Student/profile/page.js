@@ -309,10 +309,6 @@ export default function StudentProfilePage() {
                 value: profile?.phone_number || studentSession.studentPhoneNumber || "Not provided",
               },
               {
-                label: "Role",
-                value: profile?.role || studentSession.studentRole || "Student",
-              },
-              {
                 label: "Registered",
                 value: formatDateTime(profile?.created_at),
               },

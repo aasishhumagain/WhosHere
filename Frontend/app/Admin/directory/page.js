@@ -41,7 +41,6 @@ import {
   isAdminAuthError,
   redirectAdminToLogin,
   STUDENT_FACE_POSES,
-  STUDENT_ROLE_OPTIONS,
   updateStudent,
   useAdminSessionGuard,
 } from "../_lib/admin-portal";
@@ -98,8 +97,8 @@ function EditStudentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
-      <Card className="max-h-full w-full max-w-6xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm">
-        <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 p-6">
+      <Card className="max-h-full w-full max-w-6xl overflow-y-auto rounded-[2rem] border-white/80 bg-white/95 shadow-[0_35px_120px_rgba(15,23,42,0.35)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/92 dark:shadow-[0_35px_120px_rgba(0,0,0,0.62)]">
+        <CardHeader className="flex flex-row items-start justify-between gap-4 border-b border-slate-200 p-6 dark:border-white/10">
           <div>
             <CardTitle className="text-2xl">{student.full_name}</CardTitle>
             <CardDescription className="mt-1 text-sm">
@@ -117,7 +116,7 @@ function EditStudentModal({
             {FACE_CAPTURE_OPTIONS.map((captureOption) => (
               <Card
                 key={captureOption.pose}
-                className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none"
+                className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none dark:border-white/10 dark:bg-slate-950/72"
               >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-3">
@@ -136,7 +135,7 @@ function EditStudentModal({
                     </Badge>
                   </div>
 
-                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white">
+                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/84">
                     {visibleFaceImages[captureOption.pose] ? (
                       <div className="relative h-40 w-full">
                         <Image
@@ -192,21 +191,6 @@ function EditStudentModal({
               </FieldBlock>
             </div>
 
-            <FieldBlock label="Role" htmlFor="edit-student-role">
-              <NativeSelect
-                id="edit-student-role"
-                value={form.role}
-                onChange={(event) => onFieldChange("role", event.target.value)}
-                className={ADMIN_FIELD_CLASSNAME}
-              >
-                {STUDENT_ROLE_OPTIONS.map((roleOption) => (
-                  <option key={roleOption} value={roleOption}>
-                    {roleOption}
-                  </option>
-                ))}
-              </NativeSelect>
-            </FieldBlock>
-
             <PasswordField
               label="Password"
               value={form.password}
@@ -215,7 +199,7 @@ function EditStudentModal({
               inputClassName={ADMIN_FIELD_CLASSNAME}
             />
 
-            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4">
+            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/72">
               <div>
                 <p className="text-sm font-semibold text-slate-950">Replace Enrollment Photos</p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -240,7 +224,7 @@ function EditStudentModal({
               </div>
             </div>
 
-            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2">
+            <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 md:grid-cols-2 dark:border-white/10 dark:bg-slate-950/72">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
                   Student Email
@@ -252,12 +236,6 @@ function EditStudentModal({
                   Phone Number
                 </p>
                 <p className="mt-2 text-sm text-slate-700">{student.phone_number || "Not provided"}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Role
-                </p>
-                <p className="mt-2 text-sm text-slate-700">{student.role || "Student"}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
@@ -505,7 +483,7 @@ export default function AdminDirectoryPage() {
   }
 
   const filteredStudents = students.filter((student) =>
-    `${student.student_id} ${student.full_name} ${student.email || ""} ${student.phone_number || ""} ${student.role || ""}`
+    `${student.student_id} ${student.full_name} ${student.email || ""} ${student.phone_number || ""}`
       .toLowerCase()
       .includes(studentSearch.toLowerCase()),
   );
@@ -522,11 +500,6 @@ export default function AdminDirectoryPage() {
     if (studentSortField === "phone_number") {
       leftValue = leftStudent.phone_number;
       rightValue = rightStudent.phone_number;
-    }
-
-    if (studentSortField === "role") {
-      leftValue = leftStudent.role;
-      rightValue = rightStudent.role;
     }
 
     if (studentSortField === "created_at") {
@@ -583,7 +556,6 @@ export default function AdminDirectoryPage() {
                 <option value="student_id">Sort by ID</option>
                 <option value="email">Sort by Email</option>
                 <option value="phone_number">Sort by Phone Number</option>
-                <option value="role">Sort by Role</option>
                 <option value="created_at">Sort by Created Date</option>
               </NativeSelect>
 
@@ -634,7 +606,6 @@ export default function AdminDirectoryPage() {
                 <TableHead className="px-6">Name</TableHead>
                 <TableHead className="px-6">Email</TableHead>
                 <TableHead className="px-6">Phone</TableHead>
-                <TableHead className="px-6">Role</TableHead>
                 <TableHead className="px-6">Registered</TableHead>
                 <TableHead className="px-6 text-right">Actions</TableHead>
               </TableRow>
@@ -643,7 +614,7 @@ export default function AdminDirectoryPage() {
             <TableBody>
               {sortedStudents.length === 0 ? (
                 <TableRow>
-                  <TableCell className="px-6 py-8 text-slate-500" colSpan="8">
+                  <TableCell className="px-6 py-8 text-slate-500" colSpan="7">
                     No students matched the current search and sort settings.
                   </TableCell>
                 </TableRow>
@@ -663,7 +634,6 @@ export default function AdminDirectoryPage() {
                       <TableCell className="px-6">{student.full_name}</TableCell>
                       <TableCell className="px-6">{student.email || "-"}</TableCell>
                       <TableCell className="px-6">{student.phone_number || "-"}</TableCell>
-                      <TableCell className="px-6">{student.role || "Student"}</TableCell>
                       <TableCell className="px-6">{formatDateTime(student.created_at)}</TableCell>
                       <TableCell className="px-6">
                         <div className="flex justify-end gap-2">

@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
-  UserRound,
   Waves,
 } from "lucide-react";
 
@@ -114,7 +113,7 @@ function MenuLinkRow({ href, label, icon: Icon, description, active }) {
         {Icon ? (
           <span
             className={cn(
-              "flex size-9 items-center justify-center rounded-xl border border-border/80 bg-white text-muted-foreground",
+              "flex size-9 items-center justify-center rounded-xl border border-border/80 bg-white text-muted-foreground dark:border-white/12 dark:bg-slate-950/76",
               active && "border-primary/20 bg-primary/10 text-primary",
             )}
           >
@@ -148,7 +147,6 @@ export default function StudentShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const studentInitials = getStudentInitials(studentSession.studentName);
   const hasActiveMenuPage = MENU_LINKS.some((link) => isLinkActive(pathname, link.href));
-  const studentRole = String(studentSession.studentRole || "Student").trim() || "Student";
   const studentEmail = String(studentSession.studentEmail || "").trim();
 
   async function handleLogout() {
@@ -245,9 +243,9 @@ export default function StudentShell({
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end" className="w-80 p-2">
-                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-900/75">
+                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-950/82">
                         <div className="flex items-center gap-3">
-                          <Avatar className="size-12 border border-border bg-white shadow-sm dark:border-white/12 dark:bg-slate-900/70">
+                          <Avatar className="size-12 border border-border bg-white shadow-sm dark:border-white/12 dark:bg-slate-950/82">
                             <AvatarFallback className="bg-slate-950 text-sm text-white dark:bg-slate-200 dark:text-slate-950">
                               {studentInitials}
                             </AvatarFallback>
@@ -258,11 +256,10 @@ export default function StudentShell({
                               {studentSession.studentName}
                             </p>
                             <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-                              {studentRole} account
+                              Student account
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
                               ID {studentSession.studentId || "Not assigned"}
-                              {studentRole ? ` - ${studentRole}` : ""}
                             </p>
                           </div>
                         </div>
@@ -302,7 +299,7 @@ export default function StudentShell({
                   </DropdownMenu>
                 </div>
 
-                <div className="flex w-full max-w-[33rem] flex-wrap items-center gap-2 rounded-[1.25rem] border border-border/70 bg-white/90 px-3 py-2.5 text-xs shadow-sm dark:border-white/12 dark:bg-slate-950/72">
+                <div className="flex w-full max-w-[33rem] flex-wrap items-center gap-2 rounded-[1.25rem] border border-border/70 bg-white/90 px-3 py-2.5 text-xs shadow-sm dark:border-white/12 dark:bg-slate-950/80">
                   <Badge
                     variant="outline"
                     className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700"
@@ -310,16 +307,6 @@ export default function StudentShell({
                     <IdCard className="mr-1 size-3.5" />
                     ID {studentSession.studentId || "Not assigned"}
                   </Badge>
-
-                  {studentRole ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700"
-                    >
-                      <UserRound className="mr-1 size-3.5" />
-                      Role {studentRole}
-                    </Badge>
-                  ) : null}
 
                   {studentEmail ? (
                     <span className="inline-flex min-w-0 items-center gap-1 text-slate-600">
