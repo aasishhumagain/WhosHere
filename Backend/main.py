@@ -73,6 +73,7 @@ app.add_middleware(
 
 ATTENDANCE_STATUSES = {"present", "absent", "late", "excused"}
 LEAVE_REQUEST_STATUSES = {"pending", "approved", "rejected"}
+STUDENT_ACCOUNT_ROLES = {"Student", "Staff"}
 ADMIN_BOOTSTRAP_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_BOOTSTRAP_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
@@ -197,8 +198,44 @@ def ensure_student_schema():
             connection.execute(text("ALTER TABLE students ADD COLUMN student_code VARCHAR"))
         if "phone_number" not in student_columns:
             connection.execute(text("ALTER TABLE students ADD COLUMN phone_number VARCHAR"))
-        if "grade" not in student_columns:
-            connection.execute(text("ALTER TABLE students ADD COLUMN grade VARCHAR"))
+        if "role" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN role VARCHAR"))
+
+        if "grade" in student_columns:
+            connection.execute(
+                text(
+                    """
+                    UPDATE students
+                    SET role = CASE
+                        WHEN LOWER(
+                            COALESCE(
+                                NULLIF(BTRIM(COALESCE(role, '')), ''),
+                                NULLIF(BTRIM(COALESCE(grade, '')), ''),
+                                'student'
+                            )
+                        ) = 'staff' THEN 'Staff'
+                        ELSE 'Student'
+                    END
+                    """
+                )
+            )
+            connection.execute(text("ALTER TABLE students DROP COLUMN IF EXISTS grade"))
+        else:
+            connection.execute(
+                text(
+                    """
+                    UPDATE students
+                    SET role = CASE
+                        WHEN LOWER(COALESCE(NULLIF(BTRIM(COALESCE(role, '')), ''), 'student')) = 'staff'
+                            THEN 'Staff'
+                        ELSE 'Student'
+                    END
+                    """
+                )
+            )
+
+        connection.execute(text("ALTER TABLE students ALTER COLUMN role SET DEFAULT 'Student'"))
+        connection.execute(text("ALTER TABLE students ALTER COLUMN role SET NOT NULL"))
 
         connection.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS ix_students_student_code ON students (student_code)")
@@ -415,6 +452,26 @@ def validate_full_name(full_name: str):
         raise HTTPException(status_code=400, detail="Full name is required.")
 
     return cleaned_name
+
+
+def validate_student_role(role: str | None):
+    normalized_role = normalize_optional_text(role)
+
+    if not normalized_role:
+        return "Student"
+
+    lowered_role = normalized_role.lower()
+
+    if lowered_role == "student":
+        return "Student"
+
+    if lowered_role == "staff":
+        return "Staff"
+
+    raise HTTPException(
+        status_code=400,
+        detail="Role must be either Student or Staff.",
+    )
 
 
 def validate_required_password(password: str):
@@ -1055,7 +1112,7 @@ def serialize_student(student: Student):
         "full_name": student.full_name,
         "email": student.email,
         "phone_number": student.phone_number,
-        "grade": student.grade,
+        "role": student.role,
         "face_image_path": student.face_image_path,
         "face_image_url": primary_face_profile["image_url"] if primary_face_profile else build_upload_url(student.face_image_path),
         "face_images": face_profiles,
@@ -1578,7 +1635,7 @@ def register_student(
     password: str = Form(None),
     email: str = Form(None),
     phone_number: str = Form(None),
-    grade: str = Form(None),
+    role: str = Form("Student"),
     face_image_left: UploadFile | None = File(None),
     face_image_center: UploadFile | None = File(None),
     face_image_right: UploadFile | None = File(None),
@@ -1607,7 +1664,7 @@ def register_student(
         password="",
         email=normalize_optional_text(email),
         phone_number=normalize_optional_text(phone_number),
-        grade=normalize_optional_text(grade),
+        role=validate_student_role(role),
         face_image_path=primary_saved_face["image_path"],
         face_encoding=primary_saved_face["face_encoding"],
     )
@@ -1720,7 +1777,7 @@ def update_student(
     full_name: str = Form(...),
     email: str = Form(None),
     phone_number: str = Form(None),
-    grade: str = Form(None),
+    role: str = Form("Student"),
     password: str = Form(None),
     face_image_left: UploadFile | None = File(None),
     face_image_center: UploadFile | None = File(None),
@@ -1746,7 +1803,7 @@ def update_student(
     student.full_name = validate_full_name(full_name)
     student.email = normalize_optional_text(email)
     student.phone_number = normalize_optional_text(phone_number)
-    student.grade = normalize_optional_text(grade)
+    student.role = validate_student_role(role)
 
     if password and password.strip():
         student.password = hash_password(password.strip())
@@ -1887,7 +1944,7 @@ def student_login(
         "full_name": student.full_name,
         "email": student.email,
         "phone_number": student.phone_number,
-        "grade": student.grade,
+        "role": student.role,
         "face_image_url": build_upload_url(student.face_image_path),
         "created_at": student.created_at,
         "token": token,

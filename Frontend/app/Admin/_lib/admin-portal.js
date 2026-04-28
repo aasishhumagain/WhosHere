@@ -14,6 +14,7 @@ export const DEFAULT_ADMIN_SESSION = {
   username: "admin",
 };
 export const STUDENT_FACE_POSES = ["left", "center", "right"];
+export const STUDENT_ROLE_OPTIONS = ["Student", "Staff"];
 
 const ADMIN_SESSION_EVENT = "whoshere-admin-session-change";
 let cachedAdminSession = DEFAULT_ADMIN_SESSION;
@@ -69,7 +70,7 @@ export function createStudentForm(student = {}) {
     full_name: student.full_name || "",
     email: student.email || "",
     phone_number: student.phone_number || "",
-    grade: student.grade || "",
+    role: student.role || "Student",
     password: "",
     face_images: {
       left: null,
@@ -512,7 +513,7 @@ export function registerStudent(adminToken, studentForm) {
   formData.append("full_name", studentForm.full_name.trim());
   formData.append("email", studentForm.email.trim());
   formData.append("phone_number", studentForm.phone_number.trim());
-  formData.append("grade", studentForm.grade.trim());
+  formData.append("role", studentForm.role);
   formData.append("password", studentForm.password.trim());
 
   STUDENT_FACE_POSES.forEach((pose) => {
@@ -537,7 +538,7 @@ export function updateStudent(adminToken, studentId, studentForm) {
   formData.append("full_name", studentForm.full_name.trim());
   formData.append("email", studentForm.email.trim());
   formData.append("phone_number", studentForm.phone_number.trim());
-  formData.append("grade", studentForm.grade.trim());
+  formData.append("role", studentForm.role);
 
   if (studentForm.password.trim()) {
     formData.append("password", studentForm.password.trim());

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,10 +23,10 @@ import {
 } from "../_lib/admin-portal";
 
 export const ADMIN_FIELD_CLASSNAME =
-  "h-12 rounded-2xl border-slate-200 bg-slate-50 shadow-none focus-visible:border-ring";
+  "h-12 rounded-2xl border-slate-200 bg-slate-50 text-slate-900 shadow-none focus-visible:border-ring dark:border-white/12 dark:bg-slate-950/55 dark:text-slate-100 dark:placeholder:text-slate-400";
 
 export const ADMIN_FILE_INPUT_CLASSNAME =
-  "h-auto rounded-2xl border-slate-200 bg-slate-50 py-3 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800";
+  "h-auto rounded-2xl border-slate-200 bg-slate-50 py-3 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 dark:border-white/12 dark:bg-slate-950/55 dark:text-slate-100 dark:file:bg-slate-200 dark:file:text-slate-950 dark:hover:file:bg-white";
 
 function getAlertVariant(type) {
   if (type === "error") {
@@ -63,7 +64,7 @@ export function PageCard({ children, className = "" }) {
   return (
     <Card
       className={cn(
-        "overflow-hidden border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm",
+        "overflow-hidden border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/12 dark:bg-slate-950/72 dark:shadow-[0_24px_70px_rgba(2,8,23,0.45)]",
         className,
       )}
     >
@@ -126,7 +127,7 @@ export function StatCard({
   label,
   value,
   helper,
-  accentClass = "border-slate-200/80 bg-white text-slate-900",
+  accentClass = "border-slate-200/80 bg-white text-slate-900 dark:border-white/12 dark:bg-slate-950/65 dark:text-slate-100",
 }) {
   return (
     <Card className={cn("gap-0 rounded-[1.75rem] shadow-none", accentClass)}>
@@ -144,20 +145,23 @@ export function FieldBlock({ label, htmlFor, hint, children }) {
     <div className="space-y-2">
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
-      {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+      {hint ? <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p> : null}
     </div>
   );
 }
 
 export function NativeSelect({ className = "", ...props }) {
   return (
-    <select
-      className={cn(
-        "h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-ring focus:ring-[3px] focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50",
-        className,
-      )}
-      {...props}
-    />
+    <div className="relative">
+      <select
+        className={cn(
+          "h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-11 text-sm text-slate-900 outline-none transition focus:border-ring focus:ring-[3px] focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/12 dark:bg-slate-950/55 dark:text-slate-100 dark:[color-scheme:dark]",
+          className,
+        )}
+        {...props}
+      />
+      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+    </div>
   );
 }
 
@@ -175,7 +179,7 @@ export function PhotoThumb({ imageUrl, alt }) {
   }
 
   return (
-    <div className="relative size-14 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="relative size-14 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/12 dark:bg-slate-900/70">
       <Image
         src={imageUrl}
         alt={alt}
@@ -193,9 +197,9 @@ export function AdminLoadingScreen({
   description = "Preparing student records, attendance history, and leave requests.",
 }) {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(254,240,138,0.45),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(254,240,138,0.45),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_24%),radial-gradient(circle_at_80%_18%,rgba(59,130,246,0.18),transparent_22%),linear-gradient(180deg,#020617_0%,#0f172a_55%,#111827_100%)] dark:text-slate-100 md:px-6">
       <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
-        <Card className="w-full max-w-xl border-white/80 bg-white/90 shadow-[0_24px_90px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+        <Card className="w-full max-w-xl border-white/80 bg-white/90 shadow-[0_24px_90px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-white/12 dark:bg-slate-950/78 dark:shadow-[0_24px_70px_rgba(2,8,23,0.5)]">
           <CardHeader className="pb-2 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-primary/90">
               WhosHere

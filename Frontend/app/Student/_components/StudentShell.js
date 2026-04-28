@@ -7,7 +7,6 @@ import {
   Camera,
   ChevronDown,
   Clock3,
-  GraduationCap,
   IdCard,
   LayoutDashboard,
   LogOut,
@@ -35,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import ThemeToggle from "@/app/_components/ThemeToggle";
 
 import {
   clearStudentSessionStorage,
@@ -148,7 +148,7 @@ export default function StudentShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const studentInitials = getStudentInitials(studentSession.studentName);
   const hasActiveMenuPage = MENU_LINKS.some((link) => isLinkActive(pathname, link.href));
-  const studentGrade = String(studentSession.studentGrade || "").trim();
+  const studentRole = String(studentSession.studentRole || "Student").trim() || "Student";
   const studentEmail = String(studentSession.studentEmail || "").trim();
 
   async function handleLogout() {
@@ -165,14 +165,14 @@ export default function StudentShell({
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 md:px-6">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(254,240,138,0.45),transparent_20%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(59,130,246,0.18),transparent_20%),linear-gradient(180deg,#020617_0%,#0f172a_55%,#111827_100%)] dark:text-slate-100 md:px-6">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-10rem] top-[-8rem] size-80 rounded-full bg-primary/8 blur-3xl" />
-        <div className="absolute bottom-[-10rem] right-[-4rem] size-96 rounded-full bg-sky-300/25 blur-3xl" />
+        <div className="absolute left-[-10rem] top-[-8rem] size-80 rounded-full bg-primary/8 blur-3xl dark:bg-primary/25" />
+        <div className="absolute bottom-[-10rem] right-[-4rem] size-96 rounded-full bg-sky-300/25 blur-3xl dark:bg-sky-300/12" />
       </div>
 
       <div className="relative mx-auto max-w-7xl space-y-6">
-        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+        <Card className="overflow-hidden border-white/80 bg-white/88 shadow-[0_20px_90px_rgba(15,23,42,0.08)] backdrop-blur-sm dark:border-white/12 dark:bg-slate-950/76 dark:shadow-[0_24px_70px_rgba(2,8,23,0.45)]">
           <CardHeader className="gap-6 p-6">
             <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
               <div className="max-w-3xl">
@@ -189,6 +189,8 @@ export default function StudentShell({
 
               <div className="flex flex-col gap-4 xl:items-end">
                 <div className="flex flex-wrap items-center justify-end gap-3">
+                  <ThemeToggle />
+
                   {PRIMARY_LINKS.map((link) => {
                     const active = isLinkActive(pathname, link.href);
                     const Icon = link.icon;
@@ -222,14 +224,14 @@ export default function StudentShell({
                         )}
                       >
                         <span className="flex items-center gap-3">
-                          <Avatar className="size-11 border border-white shadow-sm">
-                            <AvatarFallback className="bg-slate-950 text-sm text-white">
+                          <Avatar className="size-11 border border-white shadow-sm dark:border-white/12">
+                            <AvatarFallback className="bg-slate-950 text-sm text-white dark:bg-slate-200 dark:text-slate-950">
                               {studentInitials}
                             </AvatarFallback>
                           </Avatar>
 
                           <span className="min-w-0 text-left">
-                            <span className="block truncate text-sm font-semibold text-slate-950">
+                            <span className="block truncate text-sm font-semibold text-slate-950 dark:text-slate-50">
                               {studentSession.studentName}
                             </span>
                             <span className="block text-xs text-muted-foreground">
@@ -243,24 +245,24 @@ export default function StudentShell({
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end" className="w-80 p-2">
-                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3">
+                      <DropdownMenuLabel className="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-900/75">
                         <div className="flex items-center gap-3">
-                          <Avatar className="size-12 border border-border bg-white shadow-sm">
-                            <AvatarFallback className="bg-slate-950 text-sm text-white">
+                          <Avatar className="size-12 border border-border bg-white shadow-sm dark:border-white/12 dark:bg-slate-900/70">
+                            <AvatarFallback className="bg-slate-950 text-sm text-white dark:bg-slate-200 dark:text-slate-950">
                               {studentInitials}
                             </AvatarFallback>
                           </Avatar>
 
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-950">
+                            <p className="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">
                               {studentSession.studentName}
                             </p>
                             <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-                              Student account
+                              {studentRole} account
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
                               ID {studentSession.studentId || "Not assigned"}
-                              {studentGrade ? ` • Grade ${studentGrade}` : ""}
+                              {studentRole ? ` - ${studentRole}` : ""}
                             </p>
                           </div>
                         </div>
@@ -300,7 +302,7 @@ export default function StudentShell({
                   </DropdownMenu>
                 </div>
 
-                <div className="flex w-full max-w-[33rem] flex-wrap items-center gap-2 rounded-[1.5rem] border border-border/70 bg-white/90 px-3 py-3 text-xs shadow-sm">
+                <div className="flex w-full max-w-[33rem] flex-wrap items-center gap-2 rounded-[1.5rem] border border-border/70 bg-white/90 px-3 py-3 text-xs shadow-sm dark:border-white/12 dark:bg-slate-950/68">
                   <Badge
                     variant="outline"
                     className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700"
@@ -309,13 +311,13 @@ export default function StudentShell({
                     ID {studentSession.studentId || "Not assigned"}
                   </Badge>
 
-                  {studentGrade ? (
+                  {studentRole ? (
                     <Badge
                       variant="outline"
                       className="rounded-full border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700"
                     >
-                      <GraduationCap className="mr-1 size-3.5" />
-                      Grade {studentGrade}
+                      <UserRound className="mr-1 size-3.5" />
+                      Role {studentRole}
                     </Badge>
                   ) : null}
 

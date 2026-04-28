@@ -278,7 +278,7 @@ export default function AdminDashboardPage() {
               <CardContent className="p-5">
                 <p className="text-sm font-semibold text-slate-950">3. Keep Records Updated</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Check names, emails, grades, phone numbers, passwords, and face photos when something changes.
+                  Check names, roles, emails, phone numbers, passwords, and face photos when something changes.
                 </p>
               </CardContent>
             </Card>

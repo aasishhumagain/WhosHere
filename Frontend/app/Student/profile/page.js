@@ -309,8 +309,8 @@ export default function StudentProfilePage() {
                 value: profile?.phone_number || studentSession.studentPhoneNumber || "Not provided",
               },
               {
-                label: "Grade",
-                value: profile?.grade || studentSession.studentGrade || "Not provided",
+                label: "Role",
+                value: profile?.role || studentSession.studentRole || "Student",
               },
               {
                 label: "Registered",

@@ -41,6 +41,7 @@ import {
   isAdminAuthError,
   redirectAdminToLogin,
   STUDENT_FACE_POSES,
+  STUDENT_ROLE_OPTIONS,
   updateStudent,
   useAdminSessionGuard,
 } from "../_lib/admin-portal";
@@ -191,14 +192,19 @@ function EditStudentModal({
               </FieldBlock>
             </div>
 
-            <FieldBlock label="Grade" htmlFor="edit-student-grade">
-              <Input
-                id="edit-student-grade"
-                type="text"
-                value={form.grade}
-                onChange={(event) => onFieldChange("grade", event.target.value)}
+            <FieldBlock label="Role" htmlFor="edit-student-role">
+              <NativeSelect
+                id="edit-student-role"
+                value={form.role}
+                onChange={(event) => onFieldChange("role", event.target.value)}
                 className={ADMIN_FIELD_CLASSNAME}
-              />
+              >
+                {STUDENT_ROLE_OPTIONS.map((roleOption) => (
+                  <option key={roleOption} value={roleOption}>
+                    {roleOption}
+                  </option>
+                ))}
+              </NativeSelect>
             </FieldBlock>
 
             <PasswordField
@@ -249,9 +255,9 @@ function EditStudentModal({
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Grade
+                  Role
                 </p>
-                <p className="mt-2 text-sm text-slate-700">{student.grade || "Not provided"}</p>
+                <p className="mt-2 text-sm text-slate-700">{student.role || "Student"}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
@@ -499,7 +505,7 @@ export default function AdminDirectoryPage() {
   }
 
   const filteredStudents = students.filter((student) =>
-    `${student.student_id} ${student.full_name} ${student.email || ""} ${student.phone_number || ""} ${student.grade || ""}`
+    `${student.student_id} ${student.full_name} ${student.email || ""} ${student.phone_number || ""} ${student.role || ""}`
       .toLowerCase()
       .includes(studentSearch.toLowerCase()),
   );
@@ -518,9 +524,9 @@ export default function AdminDirectoryPage() {
       rightValue = rightStudent.phone_number;
     }
 
-    if (studentSortField === "grade") {
-      leftValue = leftStudent.grade;
-      rightValue = rightStudent.grade;
+    if (studentSortField === "role") {
+      leftValue = leftStudent.role;
+      rightValue = rightStudent.role;
     }
 
     if (studentSortField === "created_at") {
@@ -577,7 +583,7 @@ export default function AdminDirectoryPage() {
                 <option value="student_id">Sort by ID</option>
                 <option value="email">Sort by Email</option>
                 <option value="phone_number">Sort by Phone Number</option>
-                <option value="grade">Sort by Grade</option>
+                <option value="role">Sort by Role</option>
                 <option value="created_at">Sort by Created Date</option>
               </NativeSelect>
 
@@ -628,7 +634,7 @@ export default function AdminDirectoryPage() {
                 <TableHead className="px-6">Name</TableHead>
                 <TableHead className="px-6">Email</TableHead>
                 <TableHead className="px-6">Phone</TableHead>
-                <TableHead className="px-6">Grade</TableHead>
+                <TableHead className="px-6">Role</TableHead>
                 <TableHead className="px-6">Registered</TableHead>
                 <TableHead className="px-6 text-right">Actions</TableHead>
               </TableRow>
@@ -657,7 +663,7 @@ export default function AdminDirectoryPage() {
                       <TableCell className="px-6">{student.full_name}</TableCell>
                       <TableCell className="px-6">{student.email || "-"}</TableCell>
                       <TableCell className="px-6">{student.phone_number || "-"}</TableCell>
-                      <TableCell className="px-6">{student.grade || "-"}</TableCell>
+                      <TableCell className="px-6">{student.role || "Student"}</TableCell>
                       <TableCell className="px-6">{formatDateTime(student.created_at)}</TableCell>
                       <TableCell className="px-6">
                         <div className="flex justify-end gap-2">

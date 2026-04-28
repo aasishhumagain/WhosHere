@@ -14,7 +14,7 @@ export const DEFAULT_STUDENT_SESSION = {
   studentName: "Student",
   studentEmail: "",
   studentPhoneNumber: "",
-  studentGrade: "",
+  studentRole: "Student",
   faceImageUrl: "",
 };
 
@@ -28,7 +28,7 @@ function buildStudentSessionSnapshot() {
     studentName: localStorage.getItem("student_name") || "Student",
     studentEmail: localStorage.getItem("student_email") || "",
     studentPhoneNumber: localStorage.getItem("student_phone_number") || "",
-    studentGrade: localStorage.getItem("student_grade") || "",
+    studentRole: localStorage.getItem("student_role") || "Student",
     faceImageUrl: localStorage.getItem("student_face_image_url") || "",
   };
 }
@@ -40,7 +40,7 @@ function studentSessionsMatch(left, right) {
     left.studentName === right.studentName &&
     left.studentEmail === right.studentEmail &&
     left.studentPhoneNumber === right.studentPhoneNumber &&
-    left.studentGrade === right.studentGrade &&
+    left.studentRole === right.studentRole &&
     left.faceImageUrl === right.faceImageUrl
   );
 }
@@ -226,8 +226,9 @@ export function setStudentSessionStorage(studentSession) {
   localStorage.setItem("student_name", studentSession.studentName || "Student");
   localStorage.setItem("student_email", studentSession.studentEmail || "");
   localStorage.setItem("student_phone_number", studentSession.studentPhoneNumber || "");
-  localStorage.setItem("student_grade", studentSession.studentGrade || "");
+  localStorage.setItem("student_role", studentSession.studentRole || "Student");
   localStorage.setItem("student_face_image_url", studentSession.faceImageUrl || "");
+  localStorage.removeItem("student_grade");
 
   const nextSnapshot = buildStudentSessionSnapshot();
   cachedStudentSession = nextSnapshot;
@@ -249,6 +250,7 @@ export function clearStudentSessionStorage() {
   localStorage.removeItem("student_name");
   localStorage.removeItem("student_email");
   localStorage.removeItem("student_phone_number");
+  localStorage.removeItem("student_role");
   localStorage.removeItem("student_grade");
   localStorage.removeItem("student_face_image_url");
 

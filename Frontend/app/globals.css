@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -54,6 +56,28 @@
   --ring: oklch(0.62 0.17 259.89);
 }
 
+.dark {
+  --background: oklch(0.12 0.018 264.2);
+  --foreground: oklch(0.965 0.008 257.12);
+  --card: oklch(0.165 0.018 264.12);
+  --card-foreground: oklch(0.965 0.008 257.12);
+  --popover: oklch(0.165 0.018 264.12);
+  --popover-foreground: oklch(0.965 0.008 257.12);
+  --primary: oklch(0.7 0.14 254.6);
+  --primary-foreground: oklch(0.18 0.02 264.05);
+  --secondary: oklch(0.215 0.02 264.54);
+  --secondary-foreground: oklch(0.965 0.008 257.12);
+  --muted: oklch(0.2 0.018 264.54);
+  --muted-foreground: oklch(0.78 0.02 257.17);
+  --accent: oklch(0.235 0.025 251.79);
+  --accent-foreground: oklch(0.97 0.006 257.2);
+  --destructive: oklch(0.68 0.19 22.22);
+  --destructive-foreground: oklch(0.97 0.006 257.2);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.72 0.1 251.5);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -61,10 +85,15 @@
 
   html {
     scroll-behavior: smooth;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
-    @apply min-h-screen bg-background text-foreground antialiased;
+    @apply min-h-screen bg-background text-foreground antialiased transition-colors duration-300;
     font-family: "Trebuchet MS", "Segoe UI", sans-serif;
   }
 
@@ -73,5 +102,52 @@
   select,
   textarea {
     font: inherit;
+  }
+}
+
+@layer utilities {
+  html.dark .bg-white,
+  html.dark .bg-white\/72,
+  html.dark .bg-white\/80,
+  html.dark .bg-white\/88,
+  html.dark .bg-white\/90,
+  html.dark .bg-white\/92,
+  html.dark .bg-white\/95 {
+    background-color: color-mix(in oklab, rgb(2 6 23) 92%, white 8%);
+  }
+
+  html.dark .bg-slate-50,
+  html.dark .bg-slate-50\/50,
+  html.dark .bg-slate-50\/70,
+  html.dark .bg-slate-50\/80 {
+    background-color: color-mix(in oklab, rgb(2 6 23) 86%, white 6%);
+  }
+
+  html.dark .border-white,
+  html.dark .border-white\/70,
+  html.dark .border-white\/80,
+  html.dark .border-slate-200,
+  html.dark .border-slate-200\/80,
+  html.dark .border-slate-300 {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  html.dark .text-slate-950,
+  html.dark .text-slate-900 {
+    color: rgb(241 245 249);
+  }
+
+  html.dark .text-slate-700,
+  html.dark .text-slate-600,
+  html.dark .text-slate-500,
+  html.dark .text-slate-400 {
+    color: rgb(165 180 201);
+  }
+
+  html.dark .shadow-\[0_20px_90px_rgba\(15\2c 23\2c 42\2c 0\.08\)\],
+  html.dark .shadow-\[0_18px_60px_rgba\(15\2c 23\2c 42\2c 0\.08\)\],
+  html.dark .shadow-\[0_24px_90px_rgba\(15\2c 23\2c 42\2c 0\.12\)\],
+  html.dark .shadow-\[0_35px_120px_rgba\(15\2c 23\2c 42\2c 0\.35\)\] {
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58);
   }
 }

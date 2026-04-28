@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarClock, GraduationCap, IdCard, Mail, Phone, RefreshCcw } from "lucide-react";
+import { ArrowRight, CalendarClock, IdCard, Mail, Phone, RefreshCcw, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -307,11 +307,11 @@ export default function StudentDashboardPage() {
             <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
               <CardContent className="p-5">
                 <Badge variant="outline" className="rounded-full px-3 py-1">
-                  <GraduationCap className="mr-1 size-3.5" />
-                  Grade
+                  <UserRound className="mr-1 size-3.5" />
+                  Role
                 </Badge>
                 <p className="mt-4 text-lg font-semibold text-slate-950">
-                  {profile?.grade || studentSession.studentGrade || "Not provided"}
+                  {profile?.role || studentSession.studentRole || "Student"}
                 </p>
               </CardContent>
             </Card>
