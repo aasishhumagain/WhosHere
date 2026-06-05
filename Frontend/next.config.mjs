@@ -1,5 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    return [
+      // Keep lowercase URLs stable while the tracked route folders still use uppercase names.
+      {
+        source: "/admin/:path*",
+        destination: "/Admin/:path*",
+      },
+      {
+        source: "/student/:path*",
+        destination: "/Student/:path*",
+      },
+    ];
+  },
   async redirects() {
     return [
       {
