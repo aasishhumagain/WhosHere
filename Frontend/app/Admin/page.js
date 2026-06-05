@@ -1,298 +1,544 @@
 "use client";
 
-import Link from "next/link";
-import {
-  ArrowRight,
-  ClipboardCheck,
-  RefreshCcw,
-  ScrollText,
-  ShieldCheck,
-  UserPlus,
-  Users,
-  Waves,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { Camera, CameraOff, CheckCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import FacePosePreviewCard from "@/app/_components/FacePosePreviewCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import AdminShell from "./_components/AdminShell";
+import PasswordField from "@/app/_components/PasswordField";
+
+import AdminShell from "../_components/AdminShell";
 import {
+  ADMIN_FIELD_CLASSNAME,
   AdminLoadingScreen,
+  FieldBlock,
   MessageBanner,
   PageCard,
   SectionIntro,
-  StatCard,
-} from "./_components/AdminUI";
+} from "../_components/AdminUI";
 import {
-  fetchAdminDashboardData,
+  createStudentForm,
+  fileToDataUrl,
   isAdminAuthError,
   redirectAdminToLogin,
+  registerStudent,
+  STUDENT_FACE_POSES,
   useAdminSessionGuard,
-} from "./_lib/admin-portal";
+} from "../_lib/admin-portal";
 
-const QUICK_LINKS = [
+const FACE_CAPTURE_OPTIONS = [
   {
-    href: "/admin/register",
-    label: "Register Student",
-    description: "Create a new student account and capture a face photo.",
-    icon: UserPlus,
+    pose: "left",
+    title: "Left Pose",
+    description: "Ask the student to turn slightly left while keeping the whole face visible.",
   },
   {
-    href: "/admin/directory",
-    label: "Student Directory",
-    description: "Review student records, edit details, and remove accounts.",
-    icon: Users,
+    pose: "center",
+    title: "Center Pose",
+    description: "Capture one straight-on photo with even lighting and a neutral expression.",
   },
   {
-    href: "/admin/admin-directory",
-    label: "Admin Directory",
-    description: "Create admin accounts and update admin password settings.",
-    icon: ShieldCheck,
-  },
-  {
-    href: "/admin/attendance",
-    label: "Attendance Control",
-    description: "Filter, correct, export, and delete attendance records.",
-    icon: ClipboardCheck,
-  },
-  {
-    href: "/admin/logs",
-    label: "Audit Logs",
-    description: "Review login history and track all major admin and student actions.",
-    icon: ScrollText,
-  },
-  {
-    href: "/admin/leave",
-    label: "Leave Requests",
-    description: "Approve, reject, and clean up leave submissions.",
-    icon: Waves,
+    pose: "right",
+    title: "Right Pose",
+    description: "Ask the student to turn slightly right while keeping both eyes visible.",
   },
 ];
 
-export default function AdminDashboardPage() {
+function createPreviewMap() {
+  return {
+    left: "",
+    center: "",
+    right: "",
+  };
+}
+
+export default function AdminRegisterStudentPage() {
   const router = useRouter();
   const { sessionReady, adminSession } = useAdminSessionGuard(router);
 
-  const [students, setStudents] = useState([]);
-  const [attendance, setAttendance] = useState([]);
-  const [leaveRequests, setLeaveRequests] = useState([]);
-  const [loadingDashboard, setLoadingDashboard] = useState(true);
-  const [dashboardError, setDashboardError] = useState("");
+  const [studentForm, setStudentForm] = useState(createStudentForm());
+  const [studentPreviewUrls, setStudentPreviewUrls] = useState(createPreviewMap());
+  const [studentMessage, setStudentMessage] = useState(null);
+  const [studentCameraOpen, setStudentCameraOpen] = useState(false);
+  const [studentCameraError, setStudentCameraError] = useState("");
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
 
-  async function refreshDashboard() {
-    if (!adminSession.token) {
+  const studentVideoRef = useRef(null);
+  const studentCanvasRef = useRef(null);
+  const studentStreamRef = useRef(null);
+
+  function stopStudentCamera(updateState = true) {
+    if (studentStreamRef.current) {
+      studentStreamRef.current.getTracks().forEach((track) => track.stop());
+      studentStreamRef.current = null;
+    }
+
+    if (studentVideoRef.current) {
+      studentVideoRef.current.srcObject = null;
+    }
+
+    if (updateState) {
+      setStudentCameraOpen(false);
+    }
+  }
+
+  useEffect(() => () => stopStudentCamera(false), []);
+
+  useEffect(() => {
+    if (studentCameraOpen && studentVideoRef.current && studentStreamRef.current) {
+      studentVideoRef.current.srcObject = studentStreamRef.current;
+    }
+  }, [studentCameraOpen]);
+
+  async function startStudentCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStudentCameraError("Camera access is not supported in this browser.");
       return;
     }
 
-    setLoadingDashboard(true);
-    setDashboardError("");
+    stopStudentCamera(false);
 
     try {
-      const data = await fetchAdminDashboardData(adminSession.token);
-      setStudents(data.students);
-      setAttendance(data.attendance);
-      setLeaveRequests(data.leaveRequests);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+        },
+      });
+
+      studentStreamRef.current = stream;
+      setStudentCameraError("");
+      setStudentMessage(null);
+      setStudentCameraOpen(true);
+
+      if (studentVideoRef.current) {
+        studentVideoRef.current.srcObject = stream;
+      }
+    } catch {
+      setStudentCameraError("Could not access the camera. Please allow camera permission and try again.");
+    }
+  }
+
+  async function captureStudentPoseFromCamera(pose) {
+    if (!studentVideoRef.current || !studentCanvasRef.current) {
+      setStudentCameraError("Camera preview is not ready yet.");
+      return;
+    }
+
+    const video = studentVideoRef.current;
+    const canvas = studentCanvasRef.current;
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      setStudentCameraError("Could not capture the camera frame.");
+      return;
+    }
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.95);
+    });
+
+    if (!blob) {
+      setStudentCameraError("Could not capture the image.");
+      return;
+    }
+
+    const cameraFile = new File(
+      [blob],
+      `student_registration_${pose}.jpg`,
+      { type: "image/jpeg" },
+    );
+
+    try {
+      const previewUrl = await fileToDataUrl(cameraFile);
+
+      setStudentForm((current) => ({
+        ...current,
+        face_images: {
+          ...current.face_images,
+          [pose]: cameraFile,
+        },
+      }));
+      setStudentPreviewUrls((current) => ({
+        ...current,
+        [pose]: previewUrl,
+      }));
+      setStudentCameraError("");
+      setStudentMessage(null);
+    } catch (error) {
+      setStudentMessage({
+        type: "error",
+        message: error.message || "Could not preview the captured image.",
+      });
+    }
+  }
+
+  function clearStudentCapture(pose) {
+    setStudentForm((current) => ({
+      ...current,
+      face_images: {
+        ...current.face_images,
+        [pose]: null,
+      },
+    }));
+    setStudentPreviewUrls((current) => ({
+      ...current,
+      [pose]: "",
+    }));
+    setStudentCameraError("");
+  }
+
+  function resetStudentForm() {
+    setStudentForm(createStudentForm());
+    setStudentPreviewUrls(createPreviewMap());
+    setStudentCameraError("");
+    setStudentMessage(null);
+    stopStudentCamera();
+  }
+
+  const missingFacePoses = STUDENT_FACE_POSES.filter(
+    (pose) => !studentForm.face_images?.[pose],
+  );
+
+  async function handleRegisterStudent(event) {
+    event.preventDefault();
+
+    if (!studentForm.full_name.trim()) {
+      setStudentMessage({ type: "error", message: "Student name is required." });
+      return;
+    }
+
+    if (missingFacePoses.length > 0) {
+      setStudentMessage({
+        type: "error",
+        message: `Please capture the ${missingFacePoses.join(", ")} pose photo${missingFacePoses.length > 1 ? "s" : ""} before registering the student.`,
+      });
+      return;
+    }
+
+    setIsSavingStudent(true);
+    setStudentMessage(null);
+
+    try {
+      const response = await registerStudent(adminSession.token, studentForm);
+      resetStudentForm();
+      setStudentMessage({
+        type: "success",
+        message:
+          response.message ||
+          (response.uses_student_id_password
+            ? "Student registered successfully. The initial password is the student ID."
+            : "Student registered successfully."),
+      });
     } catch (error) {
       if (isAdminAuthError(error)) {
         redirectAdminToLogin(router);
         return;
       }
 
-      setDashboardError(error.message || "Could not load the admin dashboard.");
+      setStudentMessage({
+        type: "error",
+        message: error.message || "Could not register the student.",
+      });
     } finally {
-      setLoadingDashboard(false);
+      setIsSavingStudent(false);
     }
   }
-
-  useEffect(() => {
-    if (!sessionReady || !adminSession.token) {
-      return;
-    }
-
-    let isActive = true;
-
-    async function loadInitialDashboard() {
-      try {
-        const data = await fetchAdminDashboardData(adminSession.token);
-
-        if (!isActive) {
-          return;
-        }
-
-        setStudents(data.students);
-        setAttendance(data.attendance);
-        setLeaveRequests(data.leaveRequests);
-      } catch (error) {
-        if (!isActive) {
-          return;
-        }
-
-        if (isAdminAuthError(error)) {
-          redirectAdminToLogin(router);
-          return;
-        }
-
-        setDashboardError(error.message || "Could not load the admin dashboard.");
-      } finally {
-        if (isActive) {
-          setLoadingDashboard(false);
-        }
-      }
-    }
-
-    loadInitialDashboard();
-
-    return () => {
-      isActive = false;
-    };
-  }, [adminSession.token, router, sessionReady]);
 
   if (!sessionReady || !adminSession.token) {
     return <AdminLoadingScreen />;
   }
 
-  const pendingLeaveRequests = leaveRequests.filter(
-    (leaveRequest) => leaveRequest.status === "pending",
-  ).length;
-  const approvedLeaveRequests = leaveRequests.filter(
-    (leaveRequest) => leaveRequest.status === "approved",
-  ).length;
-
   return (
     <AdminShell
       adminSession={adminSession}
-      pageLabel="Admin Workspace"
-      title="Admin Dashboard"
-      subtitle="This page shows the main totals. Use the links below to open student records, attendance, leave requests, logs, and admin settings."
+      pageLabel="Student Enrollment"
+      title="Register Student"
+      subtitle="Add a student, capture the required face photos, and save the account details from one page."
     >
-      <PageCard>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <SectionIntro
-            eyebrow="Summary"
-            title="Main numbers at a glance"
-            description="Check the current totals here, then open the page you need for the next task."
-          />
-
-          <Button
-            type="button"
-            size="lg"
-            className="rounded-full"
-            onClick={refreshDashboard}
-          >
-            <RefreshCcw className={`size-4 ${loadingDashboard ? "animate-spin" : ""}`} />
-            {loadingDashboard ? "Refreshing..." : "Refresh Dashboard"}
-          </Button>
-        </div>
-
-        {dashboardError ? (
-          <MessageBanner type="error" className="mt-5">
-            {dashboardError}
-          </MessageBanner>
-        ) : null}
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Registered students"
-            value={loadingDashboard && students.length === 0 ? "..." : students.length}
-          />
-          <StatCard
-            label="Attendance entries"
-            value={loadingDashboard && attendance.length === 0 ? "..." : attendance.length}
-            accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-slate-50"
-          />
-          <StatCard
-            label="Pending leave requests"
-            value={loadingDashboard && leaveRequests.length === 0 ? "..." : pendingLeaveRequests}
-            accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-400/25 dark:bg-amber-400/12 dark:text-slate-50"
-          />
-          <StatCard
-            label="Approved leave requests"
-            value={loadingDashboard && leaveRequests.length === 0 ? "..." : approvedLeaveRequests}
-            accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900 dark:border-emerald-400/25 dark:bg-emerald-400/12 dark:text-slate-50"
-          />
-        </div>
-      </PageCard>
-
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-[1.04fr,0.96fr]">
         <PageCard>
           <SectionIntro
-            eyebrow="Quick Actions"
-            title="Open the page you need"
-            description="Use these shortcuts to move straight to registration, records, attendance, logs, or leave requests."
+            eyebrow="Enrollment Form"
+            title="Create a new student account"
+            description="Enter the student details, take the left, center, and right photos, and then save the record."
           />
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {QUICK_LINKS.map((link) => {
-              const Icon = link.icon;
+          {studentMessage ? (
+            <MessageBanner type={studentMessage.type} className="mt-5">
+              {studentMessage.message}
+            </MessageBanner>
+          ) : null}
 
-              return (
-                <Card key={link.href} className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
-                  <CardContent className="p-5">
-                    <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Icon className="size-5" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-semibold text-slate-950">{link.label}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{link.description}</p>
-                    <Button asChild variant="outline" className="mt-4 rounded-full">
-                      <Link href={link.href}>
-                        Open Page
-                        <ArrowRight className="size-4" />
-                      </Link>
+          <form onSubmit={handleRegisterStudent} className="mt-6 space-y-5">
+            <FieldBlock label="Full Name" htmlFor="student-full-name">
+              <input
+                id="student-full-name"
+                type="text"
+                value={studentForm.full_name}
+                onChange={(event) =>
+                  setStudentForm((current) => ({
+                    ...current,
+                    full_name: event.target.value,
+                  }))
+                }
+                placeholder="Enter the student's full name"
+                className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
+              />
+            </FieldBlock>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Email" htmlFor="student-email">
+                <input
+                  id="student-email"
+                  type="email"
+                  value={studentForm.email}
+                  onChange={(event) =>
+                    setStudentForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  placeholder="student@example.com"
+                  className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
+                />
+              </FieldBlock>
+
+              <FieldBlock label="Phone Number" htmlFor="student-phone-number">
+                <input
+                  id="student-phone-number"
+                  type="text"
+                  inputMode="numeric"
+                  value={studentForm.phone_number}
+                  onChange={(event) =>
+                    setStudentForm((current) => ({
+                      ...current,
+                      phone_number: event.target.value,
+                    }))
+                  }
+                  placeholder="Enter phone number"
+                  className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
+                />
+              </FieldBlock>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <PasswordField
+                label="Password (Optional)"
+                value={studentForm.password}
+                onChange={(event) =>
+                  setStudentForm((current) => ({
+                    ...current,
+                    password: event.target.value,
+                  }))
+                }
+                placeholder="Leave blank to use the student ID"
+                inputClassName={ADMIN_FIELD_CLASSNAME}
+              />
+            </div>
+
+            <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
+              <CardContent className="p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-lg">Three-Pose Face Capture</CardTitle>
+                    <CardDescription className="mt-2 text-sm leading-6">
+                      Use the camera to save three photos for the same student: left, center, and right.
+                    </CardDescription>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      type="button"
+                      className="rounded-full bg-sky-600 hover:bg-sky-700"
+                      onClick={startStudentCamera}
+                    >
+                      <Camera className="size-4" />
+                      {studentCameraOpen ? "Restart Camera" : "Open Live Camera"}
                     </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+
+                    {studentCameraOpen ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => stopStudentCamera()}
+                      >
+                        <CameraOff className="size-4" />
+                        Close Camera
+                      </Button>
+                    ) : null}
+
+                    {STUDENT_FACE_POSES.some((pose) => studentForm.face_images?.[pose]) ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={resetStudentForm}
+                      >
+                        Clear All Captures
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {FACE_CAPTURE_OPTIONS.map((captureOption) => {
+                    const isCaptured = Boolean(studentForm.face_images?.[captureOption.pose]);
+
+                    return (
+                      <div
+                        key={captureOption.pose}
+                        className="flex h-full flex-col rounded-[1.25rem] border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950/78"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">
+                              {captureOption.title}
+                            </p>
+                            <p className="mt-2 text-xs leading-5 text-slate-500">
+                              {captureOption.description}
+                            </p>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={isCaptured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : ""}
+                          >
+                            {isCaptured ? "Captured" : "Missing"}
+                          </Badge>
+                        </div>
+
+                        <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+                            disabled={!studentCameraOpen}
+                            onClick={() => captureStudentPoseFromCamera(captureOption.pose)}
+                          >
+                            <CheckCheck className="size-4" />
+                            {isCaptured ? `Retake ${captureOption.title}` : `Capture ${captureOption.title}`}
+                          </Button>
+
+                          {isCaptured ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => clearStudentCapture(captureOption.pose)}
+                            >
+                              Clear
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {studentCameraError ? (
+                  <MessageBanner type="error" className="mt-4">
+                    {studentCameraError}
+                  </MessageBanner>
+                ) : null}
+
+                {studentCameraOpen ? (
+                  <div className="mt-4">
+                    <video
+                      ref={studentVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full rounded-[1.25rem] border border-slate-200 bg-slate-900"
+                    />
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => stopStudentCamera()}
+                      >
+                        Cancel Camera
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="submit"
+                disabled={isSavingStudent}
+                className="rounded-full bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isSavingStudent ? "Registering..." : "Register Student"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={resetStudentForm}
+              >
+                Clear Form
+              </Button>
+            </div>
+          </form>
         </PageCard>
 
-        <PageCard>
-          <SectionIntro
-            eyebrow="Daily Use"
-            title="A simple admin routine"
-            description="This is a practical order for using the system during normal work."
-          />
+        <div className="grid gap-6">
+          <canvas ref={studentCanvasRef} className="hidden" />
 
-          <div className="mt-6 space-y-4">
-            <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
-              <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">1. Check Admin Access</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep admin accounts up to date and create another one if someone else needs access.
-                </p>
-              </CardContent>
-            </Card>
+          <PageCard>
+            <SectionIntro
+              eyebrow="Enrollment Preview"
+              title="Left, center, and right photo set"
+              description="Check each photo here before saving the student."
+            />
 
-            <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
-              <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">2. Register Students</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Add the student details and save the face photos before the student starts using the system.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="mt-6 grid gap-4">
+              {FACE_CAPTURE_OPTIONS.map((captureOption) => (
+                <FacePosePreviewCard
+                  key={captureOption.pose}
+                  title={captureOption.title}
+                  subtitle={
+                    captureOption.pose === "center"
+                      ? "Primary profile photo"
+                      : `${captureOption.title} for wider recognition coverage`
+                  }
+                  statusLabel={studentForm.face_images?.[captureOption.pose] ? "Ready" : "Waiting"}
+                  imageUrl={studentPreviewUrls[captureOption.pose]}
+                  emptyLabel={`Capture the ${captureOption.pose} pose to preview it here.`}
+                  alt={`${captureOption.title} preview`}
+                />
+              ))}
+            </div>
+          </PageCard>
 
-            <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
-              <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">3. Keep Records Updated</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Check names, roles, emails, phone numbers, passwords, and face photos when something changes.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
-              <CardContent className="p-5">
-                <p className="text-sm font-semibold text-slate-950">4. Review Attendance and Leave</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Fix attendance mistakes, check logs when needed, export reports, and approve or reject leave requests.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </PageCard>
+          <PageCard>
+            <SectionIntro
+              eyebrow="Enrollment Tips"
+              title="Tips before saving"
+              description="Clear photos and correct student details help the system match faces more reliably."
+            />
+            <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
+              <li>Capture all three poses in the same lighting so the model sees a consistent face set.</li>
+              <li>Ask the student to rotate slightly left and right instead of turning fully sideways.</li>
+              <li>Leave the password blank if you want the student&apos;s initial password to be their student ID.</li>
+              <li>Passwords are hashed on the backend before storage.</li>
+              <li>Duplicate student emails are blocked automatically.</li>
+            </ul>
+          </PageCard>
+        </div>
       </div>
     </AdminShell>
   );
