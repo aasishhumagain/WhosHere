@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 import PasswordField from "@/app/_components/PasswordField";
 
-import AdminShell from "../_components/AdminShell";
+import AdminShell from "./_components/AdminShell";
 import {
   ADMIN_FIELD_CLASSNAME,
   AdminLoadingScreen,
@@ -19,7 +19,7 @@ import {
   MessageBanner,
   PageCard,
   SectionIntro,
-} from "../_components/AdminUI";
+} from "./_components/AdminUI";
 import {
   createStudentForm,
   fileToDataUrl,
@@ -28,7 +28,7 @@ import {
   registerStudent,
   STUDENT_FACE_POSES,
   useAdminSessionGuard,
-} from "../_lib/admin-portal";
+} from "./_lib/admin-portal";
 
 const FACE_CAPTURE_OPTIONS = [
   {

@@ -11,14 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-import StudentShell from "../_components/StudentShell";
+import StudentShell from "./_components/StudentShell";
 import {
   MessageBanner,
   PageCard,
   SectionIntro,
   StatCard,
   StudentLoadingScreen,
-} from "../_components/StudentUI";
+} from "./_components/StudentUI";
 import {
   calculateApprovedLeaveDays,
   calculateUniquePresentDays,
@@ -28,7 +28,7 @@ import {
   isStudentAuthError,
   redirectStudentToLogin,
   useStudentSessionGuard,
-} from "../_lib/student-portal";
+} from "./_lib/student-portal";
 
 function createPasswordForm() {
   return {
