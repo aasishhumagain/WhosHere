@@ -28,10 +28,14 @@ import {
   StatusPill,
 } from "../_components/AdminUI";
 import {
+  capitalizeWords,
+  createFallbackReviewDraft,
   createFilterState,
   deleteAttendanceRecord,
   exportAttendanceCsv,
   fetchAttendance,
+  fetchAttendanceFallbackRequests,
+  fetchAttendanceReviewTrail,
   fetchStudents,
   formatDate,
   formatDateTime,
@@ -41,9 +45,17 @@ import {
   parseDateInputValue,
   redirectAdminToLogin,
   toDateInputValue,
+  updateAttendanceFallbackRequest,
   updateAttendanceRecord,
   useAdminSessionGuard,
 } from "../_lib/admin-portal";
+
+function buildFallbackDraftMap(fallbackRequests) {
+  return fallbackRequests.reduce((result, request) => {
+    result[request.id] = createFallbackReviewDraft(request);
+    return result;
+  }, {});
+}
 
 export default function AdminAttendancePage() {
   const router = useRouter();
@@ -51,13 +63,31 @@ export default function AdminAttendancePage() {
 
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [fallbackRequests, setFallbackRequests] = useState([]);
+  const [reviewTrail, setReviewTrail] = useState([]);
   const [attendanceFilters, setAttendanceFilters] = useState(createFilterState());
   const [attendanceMessage, setAttendanceMessage] = useState(null);
   const [loadingAttendance, setLoadingAttendance] = useState(true);
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState(null);
   const [deletingAttendanceId, setDeletingAttendanceId] = useState(null);
+  const [reviewingFallbackId, setReviewingFallbackId] = useState(null);
   const [isExportingAttendance, setIsExportingAttendance] = useState(false);
   const [attendanceDrafts, setAttendanceDrafts] = useState({});
+  const [attendanceReviewNotes, setAttendanceReviewNotes] = useState({});
+  const [fallbackReviewDrafts, setFallbackReviewDrafts] = useState({});
+
+  function applyAttendancePageData({
+    studentRecords,
+    attendanceRecords,
+    fallbackRecords,
+    reviewEntries,
+  }) {
+    setStudents(studentRecords);
+    setAttendance(attendanceRecords);
+    setFallbackRequests(fallbackRecords);
+    setReviewTrail(reviewEntries);
+    setFallbackReviewDrafts(buildFallbackDraftMap(fallbackRecords));
+  }
 
   async function refreshAttendancePage() {
     if (!adminSession.token) {
@@ -68,13 +98,19 @@ export default function AdminAttendancePage() {
     setAttendanceMessage(null);
 
     try {
-      const [studentRecords, attendanceRecords] = await Promise.all([
+      const [studentRecords, attendanceRecords, fallbackRecords, reviewEntries] = await Promise.all([
         fetchStudents(adminSession.token),
         fetchAttendance(adminSession.token),
+        fetchAttendanceFallbackRequests(adminSession.token),
+        fetchAttendanceReviewTrail(adminSession.token),
       ]);
 
-      setStudents(studentRecords);
-      setAttendance(attendanceRecords);
+      applyAttendancePageData({
+        studentRecords,
+        attendanceRecords,
+        fallbackRecords,
+        reviewEntries,
+      });
     } catch (error) {
       if (isAdminAuthError(error)) {
         redirectAdminToLogin(router);
@@ -99,17 +135,23 @@ export default function AdminAttendancePage() {
 
     async function loadInitialAttendancePage() {
       try {
-        const [studentRecords, attendanceRecords] = await Promise.all([
+        const [studentRecords, attendanceRecords, fallbackRecords, reviewEntries] = await Promise.all([
           fetchStudents(adminSession.token),
           fetchAttendance(adminSession.token),
+          fetchAttendanceFallbackRequests(adminSession.token),
+          fetchAttendanceReviewTrail(adminSession.token),
         ]);
 
         if (!isActive) {
           return;
         }
 
-        setStudents(studentRecords);
-        setAttendance(attendanceRecords);
+        applyAttendancePageData({
+          studentRecords,
+          attendanceRecords,
+          fallbackRecords,
+          reviewEntries,
+        });
       } catch (error) {
         if (!isActive) {
           return;
@@ -140,6 +182,16 @@ export default function AdminAttendancePage() {
 
   async function handleUpdateAttendance(record) {
     const nextStatus = attendanceDrafts[record.id] || record.status;
+    const reviewNote = (attendanceReviewNotes[record.id] || "").trim();
+
+    if (!reviewNote) {
+      setAttendanceMessage({
+        type: "error",
+        message: `Add a review note before saving the attendance record for ${record.student_name}.`,
+      });
+      return;
+    }
+
     setUpdatingAttendanceId(record.id);
     setAttendanceMessage(null);
 
@@ -148,10 +200,14 @@ export default function AdminAttendancePage() {
         adminSession.token,
         record.id,
         nextStatus,
+        reviewNote,
       );
 
-      const refreshedAttendance = await fetchAttendance(adminSession.token);
-      setAttendance(refreshedAttendance);
+      await refreshAttendancePage();
+      setAttendanceReviewNotes((current) => ({
+        ...current,
+        [record.id]: "",
+      }));
       setAttendanceMessage({
         type: "success",
         message: response.message || "Attendance updated successfully.",
@@ -172,6 +228,16 @@ export default function AdminAttendancePage() {
   }
 
   async function handleDeleteAttendance(record) {
+    const reviewNote = (attendanceReviewNotes[record.id] || "").trim();
+
+    if (!reviewNote) {
+      setAttendanceMessage({
+        type: "error",
+        message: `Add a review note before deleting the attendance record for ${record.student_name}.`,
+      });
+      return;
+    }
+
     const confirmed = window.confirm(
       `Delete the attendance entry for ${record.student_name} marked on ${formatDateTime(record.marked_at)}?`,
     );
@@ -184,9 +250,12 @@ export default function AdminAttendancePage() {
     setAttendanceMessage(null);
 
     try {
-      const response = await deleteAttendanceRecord(adminSession.token, record.id);
-      const refreshedAttendance = await fetchAttendance(adminSession.token);
-      setAttendance(refreshedAttendance);
+      const response = await deleteAttendanceRecord(adminSession.token, record.id, reviewNote);
+      await refreshAttendancePage();
+      setAttendanceReviewNotes((current) => ({
+        ...current,
+        [record.id]: "",
+      }));
       setAttendanceMessage({
         type: "success",
         message: response.message || "Attendance deleted successfully.",
@@ -203,6 +272,57 @@ export default function AdminAttendancePage() {
       });
     } finally {
       setDeletingAttendanceId(null);
+    }
+  }
+
+  async function handleReviewFallbackRequest(fallbackRequest) {
+    const draft = fallbackReviewDrafts[fallbackRequest.id] || createFallbackReviewDraft(fallbackRequest);
+
+    if (!draft.reviewNote.trim()) {
+      setAttendanceMessage({
+        type: "error",
+        message: `Add a review note before deciding the fallback request for ${fallbackRequest.student_name}.`,
+      });
+      return;
+    }
+
+    if (draft.decision === "pending") {
+      setAttendanceMessage({
+        type: "error",
+        message: "Choose Approved or Rejected before saving the fallback review.",
+      });
+      return;
+    }
+
+    setReviewingFallbackId(fallbackRequest.id);
+    setAttendanceMessage(null);
+
+    try {
+      const response = await updateAttendanceFallbackRequest(
+        adminSession.token,
+        fallbackRequest.id,
+        draft.decision,
+        draft.attendanceStatus,
+        draft.reviewNote,
+      );
+
+      await refreshAttendancePage();
+      setAttendanceMessage({
+        type: "success",
+        message: response.message || "Fallback request reviewed successfully.",
+      });
+    } catch (error) {
+      if (isAdminAuthError(error)) {
+        redirectAdminToLogin(router);
+        return;
+      }
+
+      setAttendanceMessage({
+        type: "error",
+        message: error.message || "Could not review the fallback request.",
+      });
+    } finally {
+      setReviewingFallbackId(null);
     }
   }
 
@@ -394,19 +514,25 @@ export default function AdminAttendancePage() {
     { label: "This Month", value: "thisMonth" },
   ];
 
+  const pendingFallbackCount = fallbackRequests.filter((request) => request.status === "pending").length;
+  const approvedFallbackCount = fallbackRequests.filter((request) => request.status === "approved").length;
+  const rejectedFallbackCount = fallbackRequests.filter((request) => request.status === "rejected").length;
+  const pendingFallbackRequests = fallbackRequests.filter((request) => request.status === "pending");
+  const resolvedFallbackRequests = fallbackRequests.filter((request) => request.status !== "pending");
+
   return (
     <AdminShell
       adminSession={adminSession}
       pageLabel="Attendance Control"
       title="Attendance Control"
-      subtitle="Search attendance records, fix mistakes, and export the list from this page."
+      subtitle="Search attendance records, review fallback requests, and keep a note-backed audit trail for every admin decision."
     >
       <PageCard>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <SectionIntro
             eyebrow="Attendance Filters"
-            title="Search, sort, and correct attendance"
-            description="Use these filters to find the records you need, then edit or export them."
+            title="Search, sort, and review attendance"
+            description="Use filters to find records, attach a review note, and save any correction with a recorded trail."
           />
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -574,20 +700,20 @@ export default function AdminAttendancePage() {
         <SectionIntro
           eyebrow="Attendance Report"
           title="Summary for the current filters"
-          description="These totals change with your filters, so you can quickly review the records before exporting them."
+          description="These totals update with your filters so you can review the current slice before editing or exporting."
         />
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <StatCard label="Filtered records" value={filteredAttendance.length} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-200/80 dark:bg-amber-50/80 dark:text-slate-50" />
-          <StatCard label="Unique students" value={attendanceUniqueStudents} accentClass="border-slate-200/80 bg-white text-slate-900 dark:border-white/12 dark:bg-slate-950/76 dark:text-slate-50" />
-          <StatCard label="Present" value={attendanceStatusSummary.present} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900 dark:border-emerald-200/80 dark:bg-emerald-50/80 dark:text-slate-50" />
-          <StatCard label="Late" value={attendanceStatusSummary.late} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900 dark:border-amber-200/80 dark:bg-amber-50/80 dark:text-slate-50" />
-          <StatCard label="Absent" value={attendanceStatusSummary.absent} accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900 dark:border-rose-200/80 dark:bg-rose-50/80 dark:text-slate-50" />
-          <StatCard label="Coverage rate" value={formatPercent(attendanceCoverageRate)} accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900 dark:border-sky-200/80 dark:bg-sky-50/80 dark:text-slate-50" />
+          <StatCard label="Filtered records" value={filteredAttendance.length} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900" />
+          <StatCard label="Unique students" value={attendanceUniqueStudents} />
+          <StatCard label="Present" value={attendanceStatusSummary.present} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900" />
+          <StatCard label="Late" value={attendanceStatusSummary.late} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900" />
+          <StatCard label="Absent" value={attendanceStatusSummary.absent} accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900" />
+          <StatCard label="Coverage rate" value={formatPercent(attendanceCoverageRate)} accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900" />
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
-          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none dark:border-white/10 dark:bg-slate-950/72">
+          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none">
             <CardHeader className="gap-2">
               <CardTitle className="text-lg">Daily Breakdown</CardTitle>
               <CardDescription>Attendance totals grouped by marked date.</CardDescription>
@@ -630,7 +756,7 @@ export default function AdminAttendancePage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none dark:border-white/10 dark:bg-slate-950/72">
+          <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/50 shadow-none">
             <CardHeader className="gap-2">
               <CardTitle className="text-lg">Student Breakdown</CardTitle>
               <CardDescription>Per-student attendance totals for the current report.</CardDescription>
@@ -682,8 +808,181 @@ export default function AdminAttendancePage() {
         </div>
       </PageCard>
 
+      <PageCard>
+        <SectionIntro
+          eyebrow="Fallback Queue"
+          title="Review fallback attendance requests"
+          description="Pending requests require an explicit decision and note. Approved requests can create an attendance record for the requested date."
+        />
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <StatCard label="Pending" value={pendingFallbackCount} accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900" />
+          <StatCard label="Approved" value={approvedFallbackCount} accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900" />
+          <StatCard label="Rejected" value={rejectedFallbackCount} accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900" />
+        </div>
+
+        <div className="mt-6 overflow-hidden rounded-[1.25rem] border border-slate-200">
+          <Table className="min-w-[88rem]">
+            <TableHeader className="bg-slate-50">
+              <TableRow>
+                <TableHead className="px-6">Student</TableHead>
+                <TableHead className="px-6">Date</TableHead>
+                <TableHead className="px-6">Issue</TableHead>
+                <TableHead className="px-6">Requested Status</TableHead>
+                <TableHead className="px-6">Decision</TableHead>
+                <TableHead className="px-6">Final Status</TableHead>
+                <TableHead className="px-6">Review Note</TableHead>
+                <TableHead className="px-6 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {fallbackRequests.length === 0 ? (
+                <TableRow>
+                  <TableCell className="px-6 py-8 text-slate-500" colSpan="8">
+                    No fallback attendance requests have been submitted yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                [...pendingFallbackRequests, ...resolvedFallbackRequests].map((fallbackRequest) => {
+                  const draft =
+                    fallbackReviewDrafts[fallbackRequest.id] || createFallbackReviewDraft(fallbackRequest);
+                  const isPending = fallbackRequest.status === "pending";
+
+                  return (
+                    <TableRow key={fallbackRequest.id}>
+                      <TableCell className="px-6">
+                        <div>
+                          <p className="font-medium text-slate-900">{fallbackRequest.student_name}</p>
+                          <p className="text-xs text-slate-500">ID #{fallbackRequest.student_id}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6">
+                        <div>
+                          <p className="font-medium text-slate-900">
+                            {formatDate(fallbackRequest.attendance_date)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {formatDateTime(fallbackRequest.created_at)}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6">
+                        <div>
+                          <p className="font-medium text-slate-900">
+                            {capitalizeWords(fallbackRequest.issue_type)}
+                          </p>
+                          <p className="mt-1 max-w-xs whitespace-pre-wrap text-xs text-slate-500">
+                            {fallbackRequest.reason}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6">
+                        <StatusPill status={fallbackRequest.requested_status} />
+                      </TableCell>
+                      <TableCell className="px-6">
+                        {isPending ? (
+                          <NativeSelect
+                            value={draft.decision}
+                            onChange={(event) =>
+                              setFallbackReviewDrafts((current) => ({
+                                ...current,
+                                [fallbackRequest.id]: {
+                                  ...draft,
+                                  decision: event.target.value,
+                                },
+                              }))
+                            }
+                            className="h-10 rounded-xl bg-white px-3 py-2"
+                          >
+                            <option value="approved">Approve</option>
+                            <option value="rejected">Reject</option>
+                            <option value="pending">Keep Pending</option>
+                          </NativeSelect>
+                        ) : (
+                          <StatusPill status={fallbackRequest.status} />
+                        )}
+                      </TableCell>
+                      <TableCell className="px-6">
+                        {isPending ? (
+                          <NativeSelect
+                            value={draft.attendanceStatus}
+                            onChange={(event) =>
+                              setFallbackReviewDrafts((current) => ({
+                                ...current,
+                                [fallbackRequest.id]: {
+                                  ...draft,
+                                  attendanceStatus: event.target.value,
+                                },
+                              }))
+                            }
+                            className="h-10 rounded-xl bg-white px-3 py-2"
+                          >
+                            <option value="present">Present</option>
+                            <option value="late">Late</option>
+                            <option value="excused">Excused</option>
+                            <option value="absent">Absent</option>
+                          </NativeSelect>
+                        ) : fallbackRequest.approved_attendance_status ? (
+                          <StatusPill status={fallbackRequest.approved_attendance_status} />
+                        ) : (
+                          <span className="text-sm text-slate-500">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-6">
+                        {isPending ? (
+                          <Input
+                            type="text"
+                            value={draft.reviewNote}
+                            onChange={(event) =>
+                              setFallbackReviewDrafts((current) => ({
+                                ...current,
+                                [fallbackRequest.id]: {
+                                  ...draft,
+                                  reviewNote: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="Required review note"
+                            className="h-10 rounded-xl border-slate-200 bg-white"
+                          />
+                        ) : (
+                          <p className="max-w-xs whitespace-pre-wrap text-sm text-slate-600">
+                            {fallbackRequest.admin_note || "No review note recorded."}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-6">
+                        <div className="flex justify-end">
+                          {isPending ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="rounded-full bg-blue-600 hover:bg-blue-700"
+                              onClick={() => handleReviewFallbackRequest(fallbackRequest)}
+                              disabled={reviewingFallbackId === fallbackRequest.id}
+                            >
+                              {reviewingFallbackId === fallbackRequest.id ? "Saving..." : "Save Decision"}
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-slate-500">
+                              {fallbackRequest.reviewed_at
+                                ? `Reviewed ${formatDateTime(fallbackRequest.reviewed_at)}`
+                                : "Reviewed"}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </PageCard>
+
       <PageCard className="overflow-hidden p-0">
-        <Table className="min-w-[78rem]">
+        <Table className="min-w-[92rem]">
           <TableHeader className="bg-slate-50">
             <TableRow>
               <TableHead className="px-6">Student</TableHead>
@@ -691,13 +990,14 @@ export default function AdminAttendancePage() {
               <TableHead className="px-6">Current Status</TableHead>
               <TableHead className="px-6">Marked At</TableHead>
               <TableHead className="px-6">Edit Status</TableHead>
+              <TableHead className="px-6">Review Note</TableHead>
               <TableHead className="px-6 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedAttendance.length === 0 ? (
               <TableRow>
-                <TableCell className="px-6 py-8 text-slate-500" colSpan="6">
+                <TableCell className="px-6 py-8 text-slate-500" colSpan="7">
                   No attendance records matched the selected filters.
                 </TableCell>
               </TableRow>
@@ -719,13 +1019,27 @@ export default function AdminAttendancePage() {
                           [record.id]: event.target.value,
                         }))
                       }
-                      className="h-10 rounded-xl bg-white px-3 py-2 dark:bg-slate-950/78"
+                      className="h-10 rounded-xl bg-white px-3 py-2"
                     >
                       <option value="present">Present</option>
                       <option value="late">Late</option>
                       <option value="absent">Absent</option>
                       <option value="excused">Excused</option>
                     </NativeSelect>
+                  </TableCell>
+                  <TableCell className="px-6">
+                    <Input
+                      type="text"
+                      value={attendanceReviewNotes[record.id] || ""}
+                      onChange={(event) =>
+                        setAttendanceReviewNotes((current) => ({
+                          ...current,
+                          [record.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Required review note"
+                      className="h-10 rounded-xl border-slate-200 bg-white"
+                    />
                   </TableCell>
                   <TableCell className="px-6">
                     <div className="flex justify-end gap-2">
@@ -749,6 +1063,69 @@ export default function AdminAttendancePage() {
                         {deletingAttendanceId === record.id ? "Deleting..." : "Delete"}
                       </Button>
                     </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </PageCard>
+
+      <PageCard className="overflow-hidden p-0">
+        <div className="border-b border-slate-200 px-6 py-6">
+          <SectionIntro
+            eyebrow="Review Trail"
+            title="Recent attendance review decisions"
+            description="Every status confirmation, update, deletion, and approved fallback record is listed here with the attached review note."
+          />
+        </div>
+
+        <Table className="min-w-[86rem]">
+          <TableHeader className="bg-slate-50">
+            <TableRow>
+              <TableHead className="px-6">Reviewed At</TableHead>
+              <TableHead className="px-6">Student</TableHead>
+              <TableHead className="px-6">Action</TableHead>
+              <TableHead className="px-6">Previous</TableHead>
+              <TableHead className="px-6">Next</TableHead>
+              <TableHead className="px-6">Admin</TableHead>
+              <TableHead className="px-6">Review Note</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {reviewTrail.length === 0 ? (
+              <TableRow>
+                <TableCell className="px-6 py-8 text-slate-500" colSpan="7">
+                  No attendance review activity has been recorded yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              reviewTrail.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="px-6">
+                    <div>
+                      <p className="font-medium text-slate-900">{formatDateTime(entry.created_at)}</p>
+                      <p className="text-xs text-slate-500">Trail #{entry.id}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-6">
+                    <div>
+                      <p className="font-medium text-slate-900">{entry.student_name}</p>
+                      <p className="text-xs text-slate-500">ID #{entry.student_id}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-6">{capitalizeWords(entry.action)}</TableCell>
+                  <TableCell className="px-6">
+                    {entry.previous_status ? <StatusPill status={entry.previous_status} /> : "-"}
+                  </TableCell>
+                  <TableCell className="px-6">
+                    {entry.next_status ? <StatusPill status={entry.next_status} /> : "-"}
+                  </TableCell>
+                  <TableCell className="px-6">{entry.reviewed_by_admin_label}</TableCell>
+                  <TableCell className="px-6">
+                    <p className="max-w-md whitespace-pre-wrap text-sm text-slate-600">
+                      {entry.review_note}
+                    </p>
                   </TableCell>
                 </TableRow>
               ))

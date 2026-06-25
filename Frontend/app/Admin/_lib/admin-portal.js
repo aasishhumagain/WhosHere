@@ -121,6 +121,17 @@ export function createLeaveFilterState() {
   };
 }
 
+export function createFallbackReviewDraft(fallbackRequest = {}) {
+  return {
+    decision: fallbackRequest.status === "pending" ? "approved" : fallbackRequest.status || "approved",
+    attendanceStatus:
+      fallbackRequest.approved_attendance_status ||
+      fallbackRequest.requested_status ||
+      "present",
+    reviewNote: fallbackRequest.admin_note || "",
+  };
+}
+
 export function createAuditLogFilterState() {
   return {
     search: "",
@@ -422,6 +433,22 @@ export function fetchAttendance(adminToken) {
   return fetchAdminApi("/attendance", adminToken, "Could not load attendance.");
 }
 
+export function fetchAttendanceReviewTrail(adminToken) {
+  return fetchAdminApi(
+    "/attendance/review-trail",
+    adminToken,
+    "Could not load the attendance review trail.",
+  );
+}
+
+export function fetchAttendanceFallbackRequests(adminToken) {
+  return fetchAdminApi(
+    "/attendance/fallback-requests",
+    adminToken,
+    "Could not load fallback attendance requests.",
+  );
+}
+
 export function fetchLeaveRequests(adminToken) {
   return fetchAdminApi(
     "/leave-requests",
@@ -431,16 +458,18 @@ export function fetchLeaveRequests(adminToken) {
 }
 
 export async function fetchAdminDashboardData(adminToken) {
-  const [students, attendance, leaveRequests] = await Promise.all([
+  const [students, attendance, leaveRequests, fallbackRequests] = await Promise.all([
     fetchStudents(adminToken),
     fetchAttendance(adminToken),
     fetchLeaveRequests(adminToken),
+    fetchAttendanceFallbackRequests(adminToken),
   ]);
 
   return {
     students,
     attendance,
     leaveRequests,
+    fallbackRequests,
   };
 }
 
@@ -557,6 +586,21 @@ export function updateStudent(adminToken, studentId, studentForm) {
   );
 }
 
+export function deleteStudentFaceProfile(adminToken, studentId, pose, reviewNote) {
+  const formData = new FormData();
+  formData.append("review_note", reviewNote.trim());
+
+  return fetchAdminApi(
+    `/students/${studentId}/face-profiles/${pose}`,
+    adminToken,
+    "Could not remove the face profile.",
+    {
+      method: "DELETE",
+      body: formData,
+    },
+  );
+}
+
 export function deleteStudentRecord(adminToken, studentId) {
   return fetchAdminApi(
     `/students/${studentId}`,
@@ -568,9 +612,10 @@ export function deleteStudentRecord(adminToken, studentId) {
   );
 }
 
-export function updateAttendanceRecord(adminToken, recordId, status) {
+export function updateAttendanceRecord(adminToken, recordId, status, reviewNote) {
   const formData = new FormData();
   formData.append("status", status);
+  formData.append("review_note", reviewNote.trim());
 
   return fetchAdminApi(
     `/attendance/${recordId}`,
@@ -583,13 +628,43 @@ export function updateAttendanceRecord(adminToken, recordId, status) {
   );
 }
 
-export function deleteAttendanceRecord(adminToken, recordId) {
+export function deleteAttendanceRecord(adminToken, recordId, reviewNote) {
+  const formData = new FormData();
+  formData.append("review_note", reviewNote.trim());
+
   return fetchAdminApi(
     `/attendance/${recordId}`,
     adminToken,
     "Could not delete the attendance record.",
     {
       method: "DELETE",
+      body: formData,
+    },
+  );
+}
+
+export function updateAttendanceFallbackRequest(
+  adminToken,
+  fallbackRequestId,
+  decision,
+  attendanceStatus,
+  reviewNote,
+) {
+  const formData = new FormData();
+  formData.append("status", decision);
+  formData.append("review_note", reviewNote.trim());
+
+  if (attendanceStatus) {
+    formData.append("attendance_status", attendanceStatus);
+  }
+
+  return fetchAdminApi(
+    `/attendance/fallback-requests/${fallbackRequestId}`,
+    adminToken,
+    "Could not review the fallback attendance request.",
+    {
+      method: "PUT",
+      body: formData,
     },
   );
 }

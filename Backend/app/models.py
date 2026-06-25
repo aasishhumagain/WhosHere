@@ -59,6 +59,11 @@ class Student(Base):
         back_populates="student",
         cascade="all, delete-orphan",
     )
+    attendance_fallback_requests = relationship(
+        "AttendanceFallbackRequest",
+        back_populates="student",
+        cascade="all, delete-orphan",
+    )
 
 
 class StudentFaceProfile(Base):
@@ -86,6 +91,42 @@ class AttendanceRecord(Base):
     marked_at = Column(DateTime, default=datetime.utcnow)
 
     student = relationship("Student", back_populates="attendance_records")
+
+
+class AttendanceReviewTrail(Base):
+    __tablename__ = "attendance_review_trail"
+
+    id = Column(Integer, primary_key=True, index=True)
+    attendance_record_id = Column(Integer, nullable=True, index=True)
+    student_id = Column(String, nullable=False, index=True)
+    student_name = Column(String, nullable=False)
+    action = Column(String, nullable=False, index=True)
+    previous_status = Column(String, nullable=True)
+    next_status = Column(String, nullable=True)
+    review_note = Column(Text, nullable=False)
+    reviewed_by_admin_id = Column(Integer, ForeignKey("admin_users.id"), nullable=True)
+    reviewed_by_admin_label = Column(String, nullable=False)
+    attendance_marked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AttendanceFallbackRequest(Base):
+    __tablename__ = "attendance_fallback_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False, index=True)
+    attendance_date = Column(Date, nullable=False, index=True)
+    requested_status = Column(String, nullable=False, default="present")
+    issue_type = Column(String, nullable=False, index=True)
+    reason = Column(Text, nullable=False)
+    failure_context = Column(Text, nullable=True)
+    status = Column(String, nullable=False, default="pending", index=True)
+    admin_note = Column(Text, nullable=True)
+    approved_attendance_status = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    reviewed_at = Column(DateTime, nullable=True)
+
+    student = relationship("Student", back_populates="attendance_fallback_requests")
 
 
 class LeaveRequest(Base):

@@ -85,6 +85,14 @@ export function createLeaveForm() {
   };
 }
 
+export function createFallbackAttendanceForm() {
+  return {
+    issue_type: "recognition",
+    requested_status: "present",
+    reason: "",
+  };
+}
+
 export function formatDateTime(value) {
   if (!value) {
     return "-";
@@ -329,6 +337,14 @@ export function fetchStudentAttendance(studentId, studentToken) {
   );
 }
 
+export function fetchStudentFallbackAttendanceRequests(studentId, studentToken) {
+  return fetchStudentApi(
+    `/attendance/fallback-requests/student/${studentId}`,
+    studentToken,
+    "Could not load fallback attendance requests.",
+  );
+}
+
 export function fetchStudentLeaveRequests(studentId, studentToken) {
   return fetchStudentApi(
     `/leave-requests/student/${studentId}`,
@@ -379,6 +395,36 @@ export function markStudentAttendance(studentToken, faceImage, verificationPaylo
     "/attendance/mark",
     studentToken,
     "Could not mark attendance right now.",
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+}
+
+export function submitAttendanceFallbackRequest(
+  studentToken,
+  fallbackForm,
+  fallbackContext = "",
+  attendanceDate = "",
+) {
+  const formData = new FormData();
+  formData.append("issue_type", fallbackForm.issue_type);
+  formData.append("requested_status", fallbackForm.requested_status);
+  formData.append("reason", fallbackForm.reason.trim());
+
+  if (fallbackContext && fallbackContext.trim()) {
+    formData.append("failure_context", fallbackContext.trim());
+  }
+
+  if (attendanceDate) {
+    formData.append("attendance_date", attendanceDate);
+  }
+
+  return fetchStudentApi(
+    "/attendance/fallback-requests",
+    studentToken,
+    "Could not submit the fallback attendance request.",
     {
       method: "POST",
       body: formData,

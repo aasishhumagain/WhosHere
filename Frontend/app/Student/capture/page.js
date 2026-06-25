@@ -6,6 +6,16 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 
 import StudentShell from "../_components/StudentShell";
 import {
@@ -13,19 +23,28 @@ import {
   PageCard,
   PhotoPreviewCard,
   SectionIntro,
+  StatusPill,
   StudentLoadingScreen,
 } from "../_components/StudentUI";
 import {
+  capitalizeWords,
+  createFallbackAttendanceForm,
+  fetchStudentFallbackAttendanceRequests,
   fileToDataUrl,
+  formatDate,
   formatDateTime,
   getAttendanceResultHeading,
   isStudentAuthError,
   markStudentAttendance,
   redirectStudentToLogin,
+  submitAttendanceFallbackRequest,
+  toLocalDayKey,
   useStudentSessionGuard,
 } from "../_lib/student-portal";
 
 const AUTO_CAPTURE_HOLD_SECONDS = 5;
+const FALLBACK_SELECT_CLASSNAME =
+  "h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-ring focus:ring-[3px] focus:ring-ring/20 dark:border-white/12 dark:bg-slate-950/72 dark:text-slate-100";
 
 const CAMERA_CONSTRAINTS = {
   audio: false,
@@ -80,6 +99,22 @@ function getCameraErrorMessage(error) {
   return error?.message || "Could not open the live camera. Please try again.";
 }
 
+function resolveFallbackIssueType({ cameraError, locationError, attendanceResult }) {
+  if (cameraError) {
+    return "camera";
+  }
+
+  if (locationError) {
+    return "location";
+  }
+
+  if (attendanceResult?.status === "unknown") {
+    return "recognition";
+  }
+
+  return "other";
+}
+
 export default function StudentAttendanceCapturePage() {
   const router = useRouter();
   const { sessionReady, studentSession } = useStudentSessionGuard(router);
@@ -95,6 +130,11 @@ export default function StudentAttendanceCapturePage() {
   const [preparingLiveCheck, setPreparingLiveCheck] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(AUTO_CAPTURE_HOLD_SECONDS);
+  const [fallbackRequests, setFallbackRequests] = useState([]);
+  const [loadingFallbackRequests, setLoadingFallbackRequests] = useState(true);
+  const [fallbackForm, setFallbackForm] = useState(createFallbackAttendanceForm());
+  const [fallbackMessage, setFallbackMessage] = useState(null);
+  const [submittingFallbackRequest, setSubmittingFallbackRequest] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -203,6 +243,34 @@ export default function StudentAttendanceCapturePage() {
     });
   }, []);
 
+  async function refreshFallbackRequests() {
+    if (!studentSession.studentId || !studentSession.studentToken) {
+      return;
+    }
+
+    setLoadingFallbackRequests(true);
+
+    try {
+      const requests = await fetchStudentFallbackAttendanceRequests(
+        studentSession.studentId,
+        studentSession.studentToken,
+      );
+      setFallbackRequests(requests);
+    } catch (error) {
+      if (isStudentAuthError(error)) {
+        redirectStudentToLogin(router);
+        return;
+      }
+
+      setFallbackMessage({
+        type: "error",
+        message: error.message || "Could not load fallback attendance requests.",
+      });
+    } finally {
+      setLoadingFallbackRequests(false);
+    }
+  }
+
   const runAutomaticAttendanceCheck = useCallback(async () => {
     clearCountdownTimer({ resetCountdown: true });
     stopCamera(true, { resetCountdown: true });
@@ -248,8 +316,16 @@ export default function StudentAttendanceCapturePage() {
 
       if (message.toLowerCase().includes("location")) {
         setLocationError(message);
+        setFallbackForm((current) => ({
+          ...current,
+          issue_type: "location",
+        }));
       } else {
         setCameraError(message);
+        setFallbackForm((current) => ({
+          ...current,
+          issue_type: "camera",
+        }));
       }
     } finally {
       setPreparingLiveCheck(false);
@@ -281,6 +357,13 @@ export default function StudentAttendanceCapturePage() {
         type: data.status === "present" || data.status === "duplicate" ? "success" : "error",
         ...data,
       });
+
+      if (data.status === "unknown") {
+        setFallbackForm((current) => ({
+          ...current,
+          issue_type: "recognition",
+        }));
+      }
     } catch (error) {
       if (isStudentAuthError(error)) {
         redirectStudentToLogin(router);
@@ -292,6 +375,10 @@ export default function StudentAttendanceCapturePage() {
         status: "error",
         message: error.message || "Could not complete the live attendance check.",
       });
+      setFallbackForm((current) => ({
+        ...current,
+        issue_type: "other",
+      }));
     } finally {
       setLoadingAttendance(false);
       autoCapturePendingRef.current = false;
@@ -315,6 +402,53 @@ export default function StudentAttendanceCapturePage() {
     studentSession.studentId,
     studentSession.studentToken,
   ]);
+
+  useEffect(() => {
+    if (!sessionReady || !studentSession.studentId || !studentSession.studentToken) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadInitialFallbackRequests() {
+      try {
+        const requests = await fetchStudentFallbackAttendanceRequests(
+          studentSession.studentId,
+          studentSession.studentToken,
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        setFallbackRequests(requests);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        if (isStudentAuthError(error)) {
+          redirectStudentToLogin(router);
+          return;
+        }
+
+        setFallbackMessage({
+          type: "error",
+          message: error.message || "Could not load fallback attendance requests.",
+        });
+      } finally {
+        if (isActive) {
+          setLoadingFallbackRequests(false);
+        }
+      }
+    }
+
+    loadInitialFallbackRequests();
+
+    return () => {
+      isActive = false;
+    };
+  }, [router, sessionReady, studentSession.studentId, studentSession.studentToken]);
 
   useEffect(() => {
     if (
@@ -353,18 +487,101 @@ export default function StudentAttendanceCapturePage() {
     cameraOpen,
     captureAndSubmitAttendance,
     clearCountdownTimer,
-    countdownIntervalRef,
-    videoReady,
+    loadingAttendance,
     locationSnapshot,
     preparingLiveCheck,
-    loadingAttendance,
     selectedFile,
-    studentSession.studentToken,
+    videoReady,
   ]);
+
+  async function handleSubmitFallbackRequest(event) {
+    event.preventDefault();
+
+    if (!fallbackForm.reason.trim()) {
+      setFallbackMessage({
+        type: "error",
+        message: "Explain why you need a fallback attendance review.",
+      });
+      return;
+    }
+
+    if (hasRecordedAttendanceToday) {
+      setFallbackMessage({
+        type: "error",
+        message: "Attendance is already recorded for today. A fallback request is not needed.",
+      });
+      return;
+    }
+
+    if (pendingFallbackRequestToday) {
+      setFallbackMessage({
+        type: "error",
+        message: "A fallback attendance request for today is already pending review.",
+      });
+      return;
+    }
+
+    setSubmittingFallbackRequest(true);
+    setFallbackMessage(null);
+
+    const fallbackContext = [
+      cameraError,
+      locationError,
+      attendanceResult?.message,
+      attendanceResult?.confidence !== undefined && attendanceResult?.confidence !== null
+        ? `Recognition confidence: ${attendanceResult.confidence}`
+        : "",
+      locationSnapshot
+        ? `Location accuracy: ${Math.round(locationSnapshot.accuracyMeters || 0)}m`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    try {
+      const response = await submitAttendanceFallbackRequest(
+        studentSession.studentToken,
+        fallbackForm,
+        fallbackContext,
+        todayKey,
+      );
+
+      setFallbackForm(createFallbackAttendanceForm());
+      await refreshFallbackRequests();
+      setFallbackMessage({
+        type: "success",
+        message: response.message || "Fallback attendance request submitted successfully.",
+      });
+    } catch (error) {
+      if (isStudentAuthError(error)) {
+        redirectStudentToLogin(router);
+        return;
+      }
+
+      setFallbackMessage({
+        type: "error",
+        message: error.message || "Could not submit the fallback attendance request.",
+      });
+    } finally {
+      setSubmittingFallbackRequest(false);
+    }
+  }
 
   if (!sessionReady || !studentSession.studentId || !studentSession.studentToken) {
     return <StudentLoadingScreen />;
   }
+
+  const todayKey = toLocalDayKey(new Date());
+  const pendingFallbackRequestToday = fallbackRequests.find(
+    (request) => request.attendance_date === todayKey && request.status === "pending",
+  );
+  const hasRecordedAttendanceToday =
+    attendanceResult?.status === "present" || attendanceResult?.status === "duplicate";
+  const suggestedFallbackIssueType = resolveFallbackIssueType({
+    cameraError,
+    locationError,
+    attendanceResult,
+  });
 
   const liveCheckStatus = preparingLiveCheck
     ? "Requesting camera and location access..."
@@ -521,6 +738,192 @@ export default function StudentAttendanceCapturePage() {
               <li>Location permission is required so the backend can apply the attendance geofence.</li>
               <li>If matching fails, restart the check-in and stay centered with steady lighting.</li>
             </ul>
+          </PageCard>
+
+          <PageCard>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <SectionIntro
+                eyebrow="Manual Review"
+                title="Fallback attendance request"
+                description="If automated verification cannot be completed, send a request for admin review."
+              />
+
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="rounded-full"
+                onClick={refreshFallbackRequests}
+              >
+                {loadingFallbackRequests ? "Refreshing..." : "Refresh Requests"}
+              </Button>
+            </div>
+
+            {fallbackMessage ? (
+              <MessageBanner type={fallbackMessage.type} className="mt-5">
+                {fallbackMessage.message}
+              </MessageBanner>
+            ) : null}
+
+            {hasRecordedAttendanceToday ? (
+              <MessageBanner type="success" className="mt-5">
+                Attendance is already recorded for today. No fallback request is needed.
+              </MessageBanner>
+            ) : null}
+
+            {pendingFallbackRequestToday ? (
+              <MessageBanner type="info" className="mt-5">
+                A fallback request for today is already pending review.
+              </MessageBanner>
+            ) : null}
+
+            <form onSubmit={handleSubmitFallbackRequest} className="mt-6 space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="fallback-issue-type">Issue type</Label>
+                  <p className="text-xs text-slate-500">
+                    Suggested: {capitalizeWords(suggestedFallbackIssueType)}
+                  </p>
+                  <select
+                    id="fallback-issue-type"
+                    value={fallbackForm.issue_type}
+                    onChange={(event) =>
+                      setFallbackForm((current) => ({
+                        ...current,
+                        issue_type: event.target.value,
+                      }))
+                    }
+                    className={FALLBACK_SELECT_CLASSNAME}
+                  >
+                    <option value="recognition">Face not recognized</option>
+                    <option value="camera">Camera problem</option>
+                    <option value="location">Location problem</option>
+                    <option value="device">Device/browser problem</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fallback-requested-status">Requested attendance status</Label>
+                  <select
+                    id="fallback-requested-status"
+                    value={fallbackForm.requested_status}
+                    onChange={(event) =>
+                      setFallbackForm((current) => ({
+                        ...current,
+                        requested_status: event.target.value,
+                      }))
+                    }
+                    className={FALLBACK_SELECT_CLASSNAME}
+                  >
+                    <option value="present">Present</option>
+                    <option value="late">Late</option>
+                    <option value="excused">Excused</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fallback-reason">Reason for review</Label>
+                <Textarea
+                  id="fallback-reason"
+                  rows="4"
+                  value={fallbackForm.reason}
+                  onChange={(event) =>
+                    setFallbackForm((current) => ({
+                      ...current,
+                      reason: event.target.value,
+                    }))
+                  }
+                  placeholder="Explain what prevented the live attendance check from completing."
+                  className="rounded-2xl border-slate-200 bg-slate-50"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="rounded-full bg-sky-600 hover:bg-sky-700"
+                  disabled={submittingFallbackRequest || hasRecordedAttendanceToday || Boolean(pendingFallbackRequestToday)}
+                >
+                  {submittingFallbackRequest ? "Submitting..." : "Submit Fallback Request"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full"
+                  onClick={() => setFallbackForm(createFallbackAttendanceForm())}
+                >
+                  Clear Form
+                </Button>
+              </div>
+            </form>
+          </PageCard>
+
+          <PageCard className="overflow-hidden p-0">
+            <div className="border-b border-slate-200 px-6 py-6">
+              <SectionIntro
+                eyebrow="Fallback History"
+                title="Submitted review requests"
+                description="See previous fallback attendance requests and the latest admin decision."
+              />
+            </div>
+
+            <Table className="min-w-[42rem]">
+              <TableHeader className="bg-slate-50">
+                <TableRow>
+                  <TableHead className="px-6">Requested</TableHead>
+                  <TableHead className="px-6">Issue</TableHead>
+                  <TableHead className="px-6">Requested Status</TableHead>
+                  <TableHead className="px-6">Review Status</TableHead>
+                  <TableHead className="px-6">Admin Note</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {fallbackRequests.length === 0 ? (
+                  <TableRow>
+                    <TableCell className="px-6 py-8 text-slate-500" colSpan="5">
+                      {loadingFallbackRequests
+                        ? "Loading fallback requests..."
+                        : "No fallback attendance requests submitted yet."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  fallbackRequests.map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell className="px-6">
+                        <div>
+                          <p className="font-medium text-slate-900">{formatDate(request.attendance_date)}</p>
+                          <p className="text-xs text-slate-500">{formatDateTime(request.created_at)}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6">{capitalizeWords(request.issue_type)}</TableCell>
+                      <TableCell className="px-6">
+                        <StatusPill status={request.requested_status} />
+                      </TableCell>
+                      <TableCell className="px-6">
+                        <div className="space-y-2">
+                          <StatusPill status={request.status} />
+                          {request.approved_attendance_status ? (
+                            <p className="text-xs text-slate-500">
+                              Final status: {capitalizeWords(request.approved_attendance_status)}
+                            </p>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6">
+                        <p className="max-w-xs whitespace-pre-wrap text-sm text-slate-600">
+                          {request.admin_note || "No admin note yet."}
+                        </p>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </PageCard>
         </div>
       </div>

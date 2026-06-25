@@ -13,12 +13,14 @@ from app.dependencies import (
 from app.face_profiles import (
     apply_saved_face_images_to_student,
     collect_student_face_image_paths,
+    get_face_profile_by_pose,
     get_uploaded_face_images,
     remove_saved_face_images,
     save_face_images_by_pose,
+    sync_student_primary_face,
     validate_required_face_images,
 )
-from app.models import AttendanceRecord, LeaveRequest, Student
+from app.models import AttendanceFallbackRequest, AttendanceRecord, LeaveRequest, Student
 from app.security import hash_password, verify_password
 from app.storage import remove_file
 from app.students import (
@@ -32,6 +34,7 @@ from app.validation import (
     normalize_optional_text,
     validate_full_name,
     validate_required_password,
+    validate_review_note,
     validate_student_role,
 )
 
@@ -272,6 +275,11 @@ def delete_student(
         .filter(LeaveRequest.student_id == student.id)
         .delete(synchronize_session=False)
     )
+    deleted_fallback_requests = (
+        db.query(AttendanceFallbackRequest)
+        .filter(AttendanceFallbackRequest.student_id == student.id)
+        .delete(synchronize_session=False)
+    )
 
     db.delete(student)
     db.commit()
@@ -288,7 +296,8 @@ def delete_student(
         target_label=deleted_student_label,
         details=(
             f"Deleted student account along with {deleted_attendance_records} attendance "
-            f"records and {deleted_leave_requests} leave requests."
+            f"records, {deleted_leave_requests} leave requests, and "
+            f"{deleted_fallback_requests} fallback attendance requests."
         ),
     )
     db.commit()
@@ -297,4 +306,57 @@ def delete_student(
         "message": "Student deleted successfully",
         "attendance_records_deleted": deleted_attendance_records,
         "leave_requests_deleted": deleted_leave_requests,
+        "fallback_requests_deleted": deleted_fallback_requests,
+    }
+
+
+@router.delete("/students/{student_id}/face-profiles/{pose}", summary="Delete one student face profile")
+def delete_student_face_profile(
+    student_id: str,
+    pose: str,
+    review_note: str = Form(...),
+    db: Session = Depends(get_db),
+    admin_session: dict = Depends(require_admin),
+):
+    student = get_student_with_profiles_or_404(student_id, db)
+    face_profile = get_face_profile_by_pose(student, pose)
+
+    if not face_profile:
+        raise HTTPException(status_code=404, detail="Face profile not found for that pose.")
+
+    if len(student.face_profiles or []) <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one stored face profile must remain for the student.",
+        )
+
+    removed_pose = face_profile.pose
+    removed_image_path = face_profile.image_path
+    validated_review_note = validate_review_note(review_note)
+
+    student.face_profiles.remove(face_profile)
+    db.delete(face_profile)
+    sync_student_primary_face(student)
+    db.commit()
+    db.refresh(student)
+
+    remove_file(removed_image_path)
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="student_face_profile_deleted",
+        target_type="student",
+        target_id=get_public_student_id(student),
+        target_label=get_student_actor_label(student),
+        details=(
+            f"Removed the {removed_pose} face profile. "
+            f"Review note: {validated_review_note}"
+        ),
+    )
+    db.commit()
+
+    return {
+        "message": f"{removed_pose.title()} face profile removed successfully.",
+        "student": serialize_student(student),
     }

@@ -16,6 +16,9 @@ def parse_optional_float_env(name: str):
 
 ATTENDANCE_STATUSES = {"present", "absent", "late", "excused"}
 LEAVE_REQUEST_STATUSES = {"pending", "approved", "rejected"}
+ATTENDANCE_FALLBACK_REQUEST_STATUSES = {"pending", "approved", "rejected"}
+ATTENDANCE_FALLBACK_ISSUE_TYPES = {"camera", "location", "recognition", "device", "other"}
+ATTENDANCE_FALLBACK_REQUESTABLE_STATUSES = {"present", "late", "excused"}
 STUDENT_ACCOUNT_ROLES = {"Student", "Staff"}
 
 ADMIN_BOOTSTRAP_USERNAME = os.getenv("ADMIN_USERNAME", "admin")

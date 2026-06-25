@@ -2,7 +2,13 @@ from datetime import date, datetime, timezone
 
 from fastapi import HTTPException
 
-from app.config import ATTENDANCE_STATUSES, LEAVE_REQUEST_STATUSES
+from app.config import (
+    ATTENDANCE_FALLBACK_ISSUE_TYPES,
+    ATTENDANCE_FALLBACK_REQUEST_STATUSES,
+    ATTENDANCE_FALLBACK_REQUESTABLE_STATUSES,
+    ATTENDANCE_STATUSES,
+    LEAVE_REQUEST_STATUSES,
+)
 
 
 def normalize_optional_text(value: str | None):
@@ -80,6 +86,77 @@ def validate_leave_reason(reason: str):
 
     if not cleaned_reason:
         raise HTTPException(status_code=400, detail="Leave reason is required.")
+
+    return cleaned_reason
+
+
+def validate_review_note(review_note: str, field_name: str = "Review note"):
+    cleaned_note = review_note.strip()
+
+    if not cleaned_note:
+        raise HTTPException(status_code=400, detail=f"{field_name} is required.")
+
+    return cleaned_note
+
+
+def validate_attendance_fallback_issue_type(issue_type: str):
+    cleaned_issue_type = issue_type.strip().lower()
+
+    if cleaned_issue_type not in ATTENDANCE_FALLBACK_ISSUE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Fallback issue type must be one of: "
+                + ", ".join(sorted(ATTENDANCE_FALLBACK_ISSUE_TYPES))
+                + "."
+            ),
+        )
+
+    return cleaned_issue_type
+
+
+def validate_attendance_fallback_status(status: str):
+    cleaned_status = status.strip().lower()
+
+    if cleaned_status not in ATTENDANCE_FALLBACK_REQUEST_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Fallback request status must be one of: "
+                + ", ".join(sorted(ATTENDANCE_FALLBACK_REQUEST_STATUSES))
+                + "."
+            ),
+        )
+
+    return cleaned_status
+
+
+def validate_requested_attendance_status(status: str | None):
+    normalized_status = normalize_optional_text(status)
+
+    if not normalized_status:
+        return "present"
+
+    cleaned_status = normalized_status.lower()
+
+    if cleaned_status not in ATTENDANCE_FALLBACK_REQUESTABLE_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Requested attendance status must be one of: "
+                + ", ".join(sorted(ATTENDANCE_FALLBACK_REQUESTABLE_STATUSES))
+                + "."
+            ),
+        )
+
+    return cleaned_status
+
+
+def validate_fallback_reason(reason: str):
+    cleaned_reason = reason.strip()
+
+    if not cleaned_reason:
+        raise HTTPException(status_code=400, detail="Fallback request reason is required.")
 
     return cleaned_reason
 

@@ -5,6 +5,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import (
+    FACE_POSES,
     LEGACY_STUDENT_CODE_YEAR_PREFIX_WIDTH,
     PRIMARY_FACE_POSE,
     STUDENT_CODE_SEQUENCE_WIDTH,
@@ -213,6 +214,8 @@ def backfill_student_codes():
 
 def serialize_student(student: Student):
     face_profiles = get_student_face_profiles_payload(student)
+    stored_face_poses = {profile["pose"] for profile in face_profiles if profile.get("pose")}
+    missing_face_poses = [pose for pose in FACE_POSES if pose not in stored_face_poses]
     primary_face_profile = next(
         (profile for profile in face_profiles if profile["pose"] == PRIMARY_FACE_POSE),
         face_profiles[0] if face_profiles else None,
@@ -227,6 +230,9 @@ def serialize_student(student: Student):
         "face_image_path": student.face_image_path,
         "face_image_url": primary_face_profile["image_url"] if primary_face_profile else build_upload_url(student.face_image_path),
         "face_images": face_profiles,
+        "face_profile_count": len(stored_face_poses),
+        "missing_face_poses": missing_face_poses,
+        "has_complete_face_enrollment": len(missing_face_poses) == 0,
         "created_at": student.created_at,
     }
 

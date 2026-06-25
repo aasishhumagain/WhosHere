@@ -13,6 +13,7 @@ export default function FacePosePreviewCard({
   imageUrl,
   emptyLabel,
   alt,
+  footer = null,
   className = "",
 }) {
   return (
@@ -62,6 +63,8 @@ export default function FacePosePreviewCard({
             )}
           </div>
         </div>
+
+        {footer ? <div className="mt-4">{footer}</div> : null}
       </CardContent>
     </Card>
   );

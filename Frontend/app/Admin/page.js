@@ -1,544 +1,525 @@
 "use client";
 
-import { Camera, CameraOff, CheckCheck } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, ClipboardCheck, RefreshCcw, ScrollText, UserPlus, Users, Waves } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import FacePosePreviewCard from "@/app/_components/FacePosePreviewCard";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-import PasswordField from "@/app/_components/PasswordField";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 import AdminShell from "./_components/AdminShell";
 import {
-  ADMIN_FIELD_CLASSNAME,
   AdminLoadingScreen,
-  FieldBlock,
   MessageBanner,
   PageCard,
   SectionIntro,
+  StatCard,
+  StatusPill,
 } from "./_components/AdminUI";
 import {
-  createStudentForm,
-  fileToDataUrl,
+  fetchAdminDashboardData,
+  formatDate,
+  formatPercent,
   isAdminAuthError,
   redirectAdminToLogin,
-  registerStudent,
-  STUDENT_FACE_POSES,
+  toDateInputValue,
   useAdminSessionGuard,
 } from "./_lib/admin-portal";
 
-const FACE_CAPTURE_OPTIONS = [
+const QUICK_ACTIONS = [
   {
-    pose: "left",
-    title: "Left Pose",
-    description: "Ask the student to turn slightly left while keeping the whole face visible.",
+    href: "/admin/register",
+    label: "Register Student",
+    description: "Create student accounts and capture face enrollment.",
+    icon: UserPlus,
   },
   {
-    pose: "center",
-    title: "Center Pose",
-    description: "Capture one straight-on photo with even lighting and a neutral expression.",
+    href: "/admin/attendance",
+    label: "Attendance Control",
+    description: "Review attendance, fallback requests, and review notes.",
+    icon: ClipboardCheck,
   },
   {
-    pose: "right",
-    title: "Right Pose",
-    description: "Ask the student to turn slightly right while keeping both eyes visible.",
+    href: "/admin/directory",
+    label: "Student Directory",
+    description: "Manage student records and stored face poses.",
+    icon: Users,
+  },
+  {
+    href: "/admin/leave",
+    label: "Leave Requests",
+    description: "Approve or reject pending leave submissions.",
+    icon: Waves,
+  },
+  {
+    href: "/admin/logs",
+    label: "Audit Logs",
+    description: "Review authentication and system activity.",
+    icon: ScrollText,
   },
 ];
 
-function createPreviewMap() {
-  return {
-    left: "",
-    center: "",
-    right: "",
-  };
+function buildRecentDateKeys(numberOfDays) {
+  return Array.from({ length: numberOfDays }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (numberOfDays - index - 1));
+    return toDateInputValue(date);
+  });
 }
 
-export default function AdminRegisterStudentPage() {
+function countFaceSetMissing(student) {
+  return (student.missing_face_poses || []).length;
+}
+
+export default function AdminDashboardPage() {
   const router = useRouter();
   const { sessionReady, adminSession } = useAdminSessionGuard(router);
 
-  const [studentForm, setStudentForm] = useState(createStudentForm());
-  const [studentPreviewUrls, setStudentPreviewUrls] = useState(createPreviewMap());
-  const [studentMessage, setStudentMessage] = useState(null);
-  const [studentCameraOpen, setStudentCameraOpen] = useState(false);
-  const [studentCameraError, setStudentCameraError] = useState("");
-  const [isSavingStudent, setIsSavingStudent] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [fallbackRequests, setFallbackRequests] = useState([]);
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [dashboardMessage, setDashboardMessage] = useState(null);
 
-  const studentVideoRef = useRef(null);
-  const studentCanvasRef = useRef(null);
-  const studentStreamRef = useRef(null);
-
-  function stopStudentCamera(updateState = true) {
-    if (studentStreamRef.current) {
-      studentStreamRef.current.getTracks().forEach((track) => track.stop());
-      studentStreamRef.current = null;
-    }
-
-    if (studentVideoRef.current) {
-      studentVideoRef.current.srcObject = null;
-    }
-
-    if (updateState) {
-      setStudentCameraOpen(false);
-    }
+  function applyDashboardData(dashboardData) {
+    setStudents(dashboardData.students || []);
+    setAttendance(dashboardData.attendance || []);
+    setLeaveRequests(dashboardData.leaveRequests || []);
+    setFallbackRequests(dashboardData.fallbackRequests || []);
   }
 
-  useEffect(() => () => stopStudentCamera(false), []);
-
-  useEffect(() => {
-    if (studentCameraOpen && studentVideoRef.current && studentStreamRef.current) {
-      studentVideoRef.current.srcObject = studentStreamRef.current;
-    }
-  }, [studentCameraOpen]);
-
-  async function startStudentCamera() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStudentCameraError("Camera access is not supported in this browser.");
+  async function refreshDashboard() {
+    if (!adminSession.token) {
       return;
     }
 
-    stopStudentCamera(false);
+    setLoadingDashboard(true);
+    setDashboardMessage(null);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-        },
-      });
-
-      studentStreamRef.current = stream;
-      setStudentCameraError("");
-      setStudentMessage(null);
-      setStudentCameraOpen(true);
-
-      if (studentVideoRef.current) {
-        studentVideoRef.current.srcObject = stream;
-      }
-    } catch {
-      setStudentCameraError("Could not access the camera. Please allow camera permission and try again.");
-    }
-  }
-
-  async function captureStudentPoseFromCamera(pose) {
-    if (!studentVideoRef.current || !studentCanvasRef.current) {
-      setStudentCameraError("Camera preview is not ready yet.");
-      return;
-    }
-
-    const video = studentVideoRef.current;
-    const canvas = studentCanvasRef.current;
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      setStudentCameraError("Could not capture the camera frame.");
-      return;
-    }
-
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const blob = await new Promise((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", 0.95);
-    });
-
-    if (!blob) {
-      setStudentCameraError("Could not capture the image.");
-      return;
-    }
-
-    const cameraFile = new File(
-      [blob],
-      `student_registration_${pose}.jpg`,
-      { type: "image/jpeg" },
-    );
-
-    try {
-      const previewUrl = await fileToDataUrl(cameraFile);
-
-      setStudentForm((current) => ({
-        ...current,
-        face_images: {
-          ...current.face_images,
-          [pose]: cameraFile,
-        },
-      }));
-      setStudentPreviewUrls((current) => ({
-        ...current,
-        [pose]: previewUrl,
-      }));
-      setStudentCameraError("");
-      setStudentMessage(null);
-    } catch (error) {
-      setStudentMessage({
-        type: "error",
-        message: error.message || "Could not preview the captured image.",
-      });
-    }
-  }
-
-  function clearStudentCapture(pose) {
-    setStudentForm((current) => ({
-      ...current,
-      face_images: {
-        ...current.face_images,
-        [pose]: null,
-      },
-    }));
-    setStudentPreviewUrls((current) => ({
-      ...current,
-      [pose]: "",
-    }));
-    setStudentCameraError("");
-  }
-
-  function resetStudentForm() {
-    setStudentForm(createStudentForm());
-    setStudentPreviewUrls(createPreviewMap());
-    setStudentCameraError("");
-    setStudentMessage(null);
-    stopStudentCamera();
-  }
-
-  const missingFacePoses = STUDENT_FACE_POSES.filter(
-    (pose) => !studentForm.face_images?.[pose],
-  );
-
-  async function handleRegisterStudent(event) {
-    event.preventDefault();
-
-    if (!studentForm.full_name.trim()) {
-      setStudentMessage({ type: "error", message: "Student name is required." });
-      return;
-    }
-
-    if (missingFacePoses.length > 0) {
-      setStudentMessage({
-        type: "error",
-        message: `Please capture the ${missingFacePoses.join(", ")} pose photo${missingFacePoses.length > 1 ? "s" : ""} before registering the student.`,
-      });
-      return;
-    }
-
-    setIsSavingStudent(true);
-    setStudentMessage(null);
-
-    try {
-      const response = await registerStudent(adminSession.token, studentForm);
-      resetStudentForm();
-      setStudentMessage({
-        type: "success",
-        message:
-          response.message ||
-          (response.uses_student_id_password
-            ? "Student registered successfully. The initial password is the student ID."
-            : "Student registered successfully."),
-      });
+      const dashboardData = await fetchAdminDashboardData(adminSession.token);
+      applyDashboardData(dashboardData);
     } catch (error) {
       if (isAdminAuthError(error)) {
         redirectAdminToLogin(router);
         return;
       }
 
-      setStudentMessage({
+      setDashboardMessage({
         type: "error",
-        message: error.message || "Could not register the student.",
+        message: error.message || "Could not load the admin dashboard.",
       });
     } finally {
-      setIsSavingStudent(false);
+      setLoadingDashboard(false);
     }
   }
 
+  useEffect(() => {
+    if (!sessionReady || !adminSession.token) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadInitialDashboard() {
+      try {
+        const dashboardData = await fetchAdminDashboardData(adminSession.token);
+
+        if (!isActive) {
+          return;
+        }
+
+        applyDashboardData(dashboardData);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        if (isAdminAuthError(error)) {
+          redirectAdminToLogin(router);
+          return;
+        }
+
+        setDashboardMessage({
+          type: "error",
+          message: error.message || "Could not load the admin dashboard.",
+        });
+      } finally {
+        if (isActive) {
+          setLoadingDashboard(false);
+        }
+      }
+    }
+
+    loadInitialDashboard();
+
+    return () => {
+      isActive = false;
+    };
+  }, [adminSession.token, router, sessionReady]);
+
   if (!sessionReady || !adminSession.token) {
-    return <AdminLoadingScreen />;
+    return <AdminLoadingScreen title="Loading dashboard..." description="Preparing attendance, enrollment, leave, and fallback review data." />;
   }
+
+  const todayKey = toDateInputValue(new Date());
+  const todayAttendance = attendance.filter((record) => toDateInputValue(record.marked_at) === todayKey);
+  const confirmedTodayCount = todayAttendance.filter(
+    (record) => record.status === "present" || record.status === "late" || record.status === "excused",
+  ).length;
+  const pendingLeaveCount = leaveRequests.filter((request) => request.status === "pending").length;
+  const pendingFallbackCount = fallbackRequests.filter((request) => request.status === "pending").length;
+  const completeFaceSetCount = students.filter((student) => student.has_complete_face_enrollment).length;
+  const faceEnrollmentRate = students.length ? (completeFaceSetCount / students.length) * 100 : 0;
+  const todayCheckedInRate = students.length ? (confirmedTodayCount / students.length) * 100 : 0;
+
+  const recentDateKeys = buildRecentDateKeys(7);
+  const trendRows = recentDateKeys.map((dateKey) => {
+    const dayRecords = attendance.filter((record) => toDateInputValue(record.marked_at) === dateKey);
+    const uniqueStudents = new Set(dayRecords.map((record) => record.student_id)).size;
+    const present = dayRecords.filter((record) => record.status === "present").length;
+    const late = dayRecords.filter((record) => record.status === "late").length;
+    const excused = dayRecords.filter((record) => record.status === "excused").length;
+
+    return {
+      date: dateKey,
+      uniqueStudents,
+      present,
+      late,
+      excused,
+      rate: students.length ? (uniqueStudents / students.length) * 100 : 0,
+    };
+  });
+
+  const pendingFallbackByStudent = fallbackRequests.reduce((result, request) => {
+    if (request.status !== "pending") {
+      return result;
+    }
+
+    result[request.student_id] = (result[request.student_id] || 0) + 1;
+    return result;
+  }, {});
+
+  const pendingLeaveByStudent = leaveRequests.reduce((result, request) => {
+    if (request.status !== "pending") {
+      return result;
+    }
+
+    result[request.student_id] = (result[request.student_id] || 0) + 1;
+    return result;
+  }, {});
+
+  const attendanceRiskByStudent = attendance.reduce((result, record) => {
+    const current = result[record.student_id] || { total: 0, lateOrAbsent: 0 };
+    current.total += 1;
+
+    if (record.status === "late" || record.status === "absent") {
+      current.lateOrAbsent += 1;
+    }
+
+    result[record.student_id] = current;
+    return result;
+  }, {});
+
+  const attentionRows = [...students]
+    .map((student) => {
+      const riskSummary = attendanceRiskByStudent[student.student_id] || { total: 0, lateOrAbsent: 0 };
+
+      return {
+        student_id: student.student_id,
+        full_name: student.full_name,
+        missingFaceCount: countFaceSetMissing(student),
+        missingFacePoses: student.missing_face_poses || [],
+        pendingFallbacks: pendingFallbackByStudent[student.student_id] || 0,
+        pendingLeave: pendingLeaveByStudent[student.student_id] || 0,
+        lateOrAbsent: riskSummary.lateOrAbsent,
+        totalAttendanceRecords: riskSummary.total,
+      };
+    })
+    .sort((leftStudent, rightStudent) => {
+      return (
+        rightStudent.pendingFallbacks - leftStudent.pendingFallbacks ||
+        rightStudent.missingFaceCount - leftStudent.missingFaceCount ||
+        rightStudent.pendingLeave - leftStudent.pendingLeave ||
+        rightStudent.lateOrAbsent - leftStudent.lateOrAbsent ||
+        leftStudent.full_name.localeCompare(rightStudent.full_name)
+      );
+    })
+    .slice(0, 8);
+
+  const recentPendingFallbacks = fallbackRequests
+    .filter((request) => request.status === "pending")
+    .slice(0, 6);
+  const recentPendingLeave = leaveRequests
+    .filter((request) => request.status === "pending")
+    .slice(0, 6);
 
   return (
     <AdminShell
       adminSession={adminSession}
-      pageLabel="Student Enrollment"
-      title="Register Student"
-      subtitle="Add a student, capture the required face photos, and save the account details from one page."
+      pageLabel="Admin Dashboard"
+      title="Operations Dashboard"
+      subtitle="Track enrollment quality, today's attendance activity, and the review queue from one place."
     >
-      <div className="grid gap-6 lg:grid-cols-[1.04fr,0.96fr]">
-        <PageCard>
+      <PageCard>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <SectionIntro
-            eyebrow="Enrollment Form"
-            title="Create a new student account"
-            description="Enter the student details, take the left, center, and right photos, and then save the record."
+            eyebrow="Overview"
+            title="Current operational snapshot"
+            description="These numbers combine student enrollment, attendance activity, leave requests, and fallback review work."
           />
 
-          {studentMessage ? (
-            <MessageBanner type={studentMessage.type} className="mt-5">
-              {studentMessage.message}
-            </MessageBanner>
-          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="rounded-full"
+            onClick={refreshDashboard}
+          >
+            <RefreshCcw className={`size-4 ${loadingDashboard ? "animate-spin" : ""}`} />
+            {loadingDashboard ? "Refreshing..." : "Refresh Dashboard"}
+          </Button>
+        </div>
 
-          <form onSubmit={handleRegisterStudent} className="mt-6 space-y-5">
-            <FieldBlock label="Full Name" htmlFor="student-full-name">
-              <input
-                id="student-full-name"
-                type="text"
-                value={studentForm.full_name}
-                onChange={(event) =>
-                  setStudentForm((current) => ({
-                    ...current,
-                    full_name: event.target.value,
-                  }))
-                }
-                placeholder="Enter the student's full name"
-                className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
-              />
-            </FieldBlock>
+        {dashboardMessage ? (
+          <MessageBanner type={dashboardMessage.type} className="mt-5">
+            {dashboardMessage.message}
+          </MessageBanner>
+        ) : null}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <FieldBlock label="Email" htmlFor="student-email">
-                <input
-                  id="student-email"
-                  type="email"
-                  value={studentForm.email}
-                  onChange={(event) =>
-                    setStudentForm((current) => ({
-                      ...current,
-                      email: event.target.value,
-                    }))
-                  }
-                  placeholder="student@example.com"
-                  className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
-                />
-              </FieldBlock>
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <StatCard label="Students" value={students.length} />
+          <StatCard
+            label="Complete face sets"
+            value={`${completeFaceSetCount}/${students.length || 0}`}
+            helper={formatPercent(faceEnrollmentRate)}
+            accentClass="border-sky-200/80 bg-sky-50/80 text-slate-900"
+          />
+          <StatCard
+            label="Today's check-ins"
+            value={confirmedTodayCount}
+            helper={formatPercent(todayCheckedInRate)}
+            accentClass="border-emerald-200/80 bg-emerald-50/80 text-slate-900"
+          />
+          <StatCard
+            label="Pending leave"
+            value={pendingLeaveCount}
+            accentClass="border-amber-200/80 bg-amber-50/80 text-slate-900"
+          />
+          <StatCard
+            label="Pending fallback"
+            value={pendingFallbackCount}
+            accentClass="border-rose-200/80 bg-rose-50/80 text-slate-900"
+          />
+          <StatCard
+            label="Attendance records"
+            value={attendance.length}
+            accentClass="border-slate-200/80 bg-white text-slate-900"
+          />
+        </div>
+      </PageCard>
 
-              <FieldBlock label="Phone Number" htmlFor="student-phone-number">
-                <input
-                  id="student-phone-number"
-                  type="text"
-                  inputMode="numeric"
-                  value={studentForm.phone_number}
-                  onChange={(event) =>
-                    setStudentForm((current) => ({
-                      ...current,
-                      phone_number: event.target.value,
-                    }))
-                  }
-                  placeholder="Enter phone number"
-                  className={`w-full ${ADMIN_FIELD_CLASSNAME}`}
-                />
-              </FieldBlock>
-            </div>
+      <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
+        <PageCard>
+          <SectionIntro
+            eyebrow="Quick Actions"
+            title="Move directly into the active work"
+            description="Use these shortcuts to jump to the parts of the admin workspace you are most likely to need next."
+          />
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <PasswordField
-                label="Password (Optional)"
-                value={studentForm.password}
-                onChange={(event) =>
-                  setStudentForm((current) => ({
-                    ...current,
-                    password: event.target.value,
-                  }))
-                }
-                placeholder="Leave blank to use the student ID"
-                inputClassName={ADMIN_FIELD_CLASSNAME}
-              />
-            </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {QUICK_ACTIONS.map((action) => {
+              const Icon = action.icon;
 
-            <Card className="rounded-[1.75rem] border-border/80 bg-slate-50/80 shadow-none">
-              <CardContent className="p-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-lg">Three-Pose Face Capture</CardTitle>
-                    <CardDescription className="mt-2 text-sm leading-6">
-                      Use the camera to save three photos for the same student: left, center, and right.
-                    </CardDescription>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      type="button"
-                      className="rounded-full bg-sky-600 hover:bg-sky-700"
-                      onClick={startStudentCamera}
-                    >
-                      <Camera className="size-4" />
-                      {studentCameraOpen ? "Restart Camera" : "Open Live Camera"}
-                    </Button>
-
-                    {studentCameraOpen ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => stopStudentCamera()}
-                      >
-                        <CameraOff className="size-4" />
-                        Close Camera
-                      </Button>
-                    ) : null}
-
-                    {STUDENT_FACE_POSES.some((pose) => studentForm.face_images?.[pose]) ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={resetStudentForm}
-                      >
-                        Clear All Captures
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  {FACE_CAPTURE_OPTIONS.map((captureOption) => {
-                    const isCaptured = Boolean(studentForm.face_images?.[captureOption.pose]);
-
-                    return (
-                      <div
-                        key={captureOption.pose}
-                        className="flex h-full flex-col rounded-[1.25rem] border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-slate-950/78"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-950">
-                              {captureOption.title}
-                            </p>
-                            <p className="mt-2 text-xs leading-5 text-slate-500">
-                              {captureOption.description}
-                            </p>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={isCaptured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : ""}
-                          >
-                            {isCaptured ? "Captured" : "Missing"}
-                          </Badge>
-                        </div>
-
-                        <div className="mt-auto flex flex-wrap gap-2 pt-4">
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="rounded-full bg-emerald-600 hover:bg-emerald-700"
-                            disabled={!studentCameraOpen}
-                            onClick={() => captureStudentPoseFromCamera(captureOption.pose)}
-                          >
-                            <CheckCheck className="size-4" />
-                            {isCaptured ? `Retake ${captureOption.title}` : `Capture ${captureOption.title}`}
-                          </Button>
-
-                          {isCaptured ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full"
-                              onClick={() => clearStudentCapture(captureOption.pose)}
-                            >
-                              Clear
-                            </Button>
-                          ) : null}
-                        </div>
+              return (
+                <div
+                  key={action.href}
+                  className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <Icon className="size-5" />
                       </div>
-                    );
-                  })}
-                </div>
-
-                {studentCameraError ? (
-                  <MessageBanner type="error" className="mt-4">
-                    {studentCameraError}
-                  </MessageBanner>
-                ) : null}
-
-                {studentCameraOpen ? (
-                  <div className="mt-4">
-                    <video
-                      ref={studentVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full rounded-[1.25rem] border border-slate-200 bg-slate-900"
-                    />
-
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => stopStudentCamera()}
-                      >
-                        Cancel Camera
-                      </Button>
+                      <p className="mt-4 text-lg font-semibold text-slate-900">{action.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{action.description}</p>
                     </div>
                   </div>
-                ) : null}
-              </CardContent>
-            </Card>
 
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button
-                type="submit"
-                disabled={isSavingStudent}
-                className="rounded-full bg-emerald-600 hover:bg-emerald-700"
-              >
-                {isSavingStudent ? "Registering..." : "Register Student"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                onClick={resetStudentForm}
-              >
-                Clear Form
-              </Button>
-            </div>
-          </form>
+                  <Link
+                    href={action.href}
+                    className={`${buttonVariants({ variant: "outline" })} mt-4 rounded-full`}
+                  >
+                    Open
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
         </PageCard>
 
-        <div className="grid gap-6">
-          <canvas ref={studentCanvasRef} className="hidden" />
+        <PageCard>
+          <SectionIntro
+            eyebrow="Review Queue"
+            title="Pending requests needing admin action"
+            description="Fallback attendance requests and leave submissions waiting on a decision."
+          />
 
-          <PageCard>
-            <SectionIntro
-              eyebrow="Enrollment Preview"
-              title="Left, center, and right photo set"
-              description="Check each photo here before saving the student."
-            />
-
-            <div className="mt-6 grid gap-4">
-              {FACE_CAPTURE_OPTIONS.map((captureOption) => (
-                <FacePosePreviewCard
-                  key={captureOption.pose}
-                  title={captureOption.title}
-                  subtitle={
-                    captureOption.pose === "center"
-                      ? "Primary profile photo"
-                      : `${captureOption.title} for wider recognition coverage`
-                  }
-                  statusLabel={studentForm.face_images?.[captureOption.pose] ? "Ready" : "Waiting"}
-                  imageUrl={studentPreviewUrls[captureOption.pose]}
-                  emptyLabel={`Capture the ${captureOption.pose} pose to preview it here.`}
-                  alt={`${captureOption.title} preview`}
-                />
-              ))}
+          <div className="mt-6 space-y-5">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Pending fallback attendance</p>
+              <div className="mt-3 space-y-3">
+                {recentPendingFallbacks.length === 0 ? (
+                  <p className="text-sm text-slate-500">No pending fallback attendance requests.</p>
+                ) : (
+                  recentPendingFallbacks.map((request) => (
+                    <div
+                      key={request.id}
+                      className="rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-slate-900">{request.student_name}</p>
+                          <p className="text-xs text-slate-500">
+                            {request.student_id} • {formatDate(request.attendance_date)}
+                          </p>
+                        </div>
+                        <StatusPill status={request.status} />
+                      </div>
+                      <p className="mt-2 text-sm text-slate-600">{request.reason}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </PageCard>
 
-          <PageCard>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Pending leave requests</p>
+              <div className="mt-3 space-y-3">
+                {recentPendingLeave.length === 0 ? (
+                  <p className="text-sm text-slate-500">No pending leave requests.</p>
+                ) : (
+                  recentPendingLeave.map((request) => (
+                    <div
+                      key={request.id}
+                      className="rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-slate-900">{request.student_name}</p>
+                          <p className="text-xs text-slate-500">
+                            {request.student_id} • {formatDate(request.start_date)} to {formatDate(request.end_date)}
+                          </p>
+                        </div>
+                        <StatusPill status={request.status} />
+                      </div>
+                      <p className="mt-2 text-sm text-slate-600">{request.reason}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </PageCard>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+        <PageCard className="overflow-hidden p-0">
+          <div className="border-b border-slate-200 px-6 py-6">
             <SectionIntro
-              eyebrow="Enrollment Notes"
-              title="Before saving"
-              description="Confirm the student details and image quality before creating the account."
+              eyebrow="Attendance Trend"
+              title="Last seven days"
+              description="Unique student check-ins and recorded attendance activity across the last seven local days."
             />
-            <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
-              <li>Capture all three poses in the same lighting so the model sees a consistent face set.</li>
-              <li>Ask the student to rotate slightly left and right instead of turning fully sideways.</li>
-              <li>Leave the password blank if you want the student&apos;s initial password to be their student ID.</li>
-              <li>Passwords are hashed on the backend before storage.</li>
-              <li>Duplicate student emails are blocked automatically.</li>
-            </ul>
-          </PageCard>
-        </div>
+          </div>
+
+          <Table className="min-w-[44rem]">
+            <TableHeader className="bg-slate-50">
+              <TableRow>
+                <TableHead className="px-6">Date</TableHead>
+                <TableHead className="px-6">Unique students</TableHead>
+                <TableHead className="px-6">Present</TableHead>
+                <TableHead className="px-6">Late</TableHead>
+                <TableHead className="px-6">Excused</TableHead>
+                <TableHead className="px-6">Check-in rate</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {trendRows.map((row) => (
+                <TableRow key={row.date}>
+                  <TableCell className="px-6">{formatDate(row.date)}</TableCell>
+                  <TableCell className="px-6">{row.uniqueStudents}</TableCell>
+                  <TableCell className="px-6">{row.present}</TableCell>
+                  <TableCell className="px-6">{row.late}</TableCell>
+                  <TableCell className="px-6">{row.excused}</TableCell>
+                  <TableCell className="px-6">{formatPercent(row.rate)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </PageCard>
+
+        <PageCard className="overflow-hidden p-0">
+          <div className="border-b border-slate-200 px-6 py-6">
+            <SectionIntro
+              eyebrow="Attention List"
+              title="Students needing follow-up"
+              description="Priority ordering based on pending fallback requests, missing face poses, pending leave, and repeated late/absent records."
+            />
+          </div>
+
+          <Table className="min-w-[52rem]">
+            <TableHeader className="bg-slate-50">
+              <TableRow>
+                <TableHead className="px-6">Student</TableHead>
+                <TableHead className="px-6">Face Set</TableHead>
+                <TableHead className="px-6">Pending Fallback</TableHead>
+                <TableHead className="px-6">Pending Leave</TableHead>
+                <TableHead className="px-6">Late/Absent</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {attentionRows.length === 0 ? (
+                <TableRow>
+                  <TableCell className="px-6 py-8 text-slate-500" colSpan="5">
+                    No students need follow-up right now.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                attentionRows.map((row) => (
+                  <TableRow key={row.student_id}>
+                    <TableCell className="px-6">
+                      <div>
+                        <p className="font-medium text-slate-900">{row.full_name}</p>
+                        <p className="text-xs text-slate-500">ID {row.student_id}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-6">
+                      {row.missingFaceCount === 0
+                        ? "Complete"
+                        : `Missing ${row.missingFacePoses.join(", ")}`}
+                    </TableCell>
+                    <TableCell className="px-6">{row.pendingFallbacks}</TableCell>
+                    <TableCell className="px-6">{row.pendingLeave}</TableCell>
+                    <TableCell className="px-6">
+                      {row.lateOrAbsent}/{row.totalAttendanceRecords}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </PageCard>
       </div>
     </AdminShell>
   );

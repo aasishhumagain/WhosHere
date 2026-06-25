@@ -34,6 +34,7 @@ import {
 } from "../_components/AdminUI";
 import {
   createStudentForm,
+  deleteStudentFaceProfile,
   deleteStudentRecord,
   fetchStudents,
   fileToDataUrl,
@@ -80,8 +81,10 @@ function EditStudentModal({
   form,
   previewUrls,
   isSaving,
+  deletingPose,
   onClose,
   onFieldChange,
+  onDeletePose,
   onPoseImageChange,
   onSubmit,
 }) {
@@ -94,6 +97,7 @@ function EditStudentModal({
     result[pose] = previewUrls?.[pose] || currentFaceImages[pose] || "";
     return result;
   }, {});
+  const storedFacePoses = new Set((student.face_images || []).map((faceImage) => faceImage.pose));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-8">
@@ -126,6 +130,27 @@ function EditStudentModal({
                 imageUrl={visibleFaceImages[captureOption.pose]}
                 emptyLabel={`No ${captureOption.pose} pose image is stored for this student yet.`}
                 alt={`${captureOption.title} preview`}
+                footer={
+                  storedFacePoses.has(captureOption.pose) ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-slate-500">
+                        {previewUrls?.[captureOption.pose]
+                          ? "A replacement is queued for this pose."
+                          : "Stored pose available for matching."}
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full text-rose-600"
+                        onClick={() => onDeletePose(captureOption.pose)}
+                        disabled={Boolean(deletingPose)}
+                      >
+                        {deletingPose === captureOption.pose ? "Removing..." : "Remove Stored Pose"}
+                      </Button>
+                    </div>
+                  ) : null
+                }
               />
             ))}
           </div>
@@ -252,6 +277,7 @@ export default function AdminDirectoryPage() {
   const [editStudentPreviewUrls, setEditStudentPreviewUrls] = useState(createPreviewMap());
   const [isSavingEditStudent, setIsSavingEditStudent] = useState(false);
   const [deletingStudentId, setDeletingStudentId] = useState(null);
+  const [deletingFacePose, setDeletingFacePose] = useState("");
 
   async function refreshStudents() {
     if (!adminSession.token) {
@@ -333,6 +359,7 @@ export default function AdminDirectoryPage() {
     setEditModalStudent(null);
     setEditStudentForm(createStudentForm());
     setEditStudentPreviewUrls(createPreviewMap());
+    setDeletingFacePose("");
   }
 
   async function handleEditPoseImageChange(pose, event) {
@@ -409,6 +436,60 @@ export default function AdminDirectoryPage() {
       });
     } finally {
       setIsSavingEditStudent(false);
+    }
+  }
+
+  async function handleDeleteFacePose(pose) {
+    if (!editModalStudent) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove the stored ${pose} pose for ${editModalStudent.full_name}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingFacePose(pose);
+    setDirectoryMessage(null);
+
+    try {
+      const response = await deleteStudentFaceProfile(
+        adminSession.token,
+        editModalStudent.student_id,
+        pose,
+        `Removed the stored ${pose} face pose during enrollment maintenance.`,
+      );
+
+      setStudents((current) =>
+        current.map((student) =>
+          student.student_id === editModalStudent.student_id ? response.student : student,
+        ),
+      );
+      setEditModalStudent(response.student);
+      setEditStudentForm(createStudentForm(response.student));
+      setEditStudentPreviewUrls((current) => ({
+        ...current,
+        [pose]: "",
+      }));
+      setDirectoryMessage({
+        type: "success",
+        message: response.message || "Face profile removed successfully.",
+      });
+    } catch (error) {
+      if (isAdminAuthError(error)) {
+        redirectAdminToLogin(router);
+        return;
+      }
+
+      setDirectoryMessage({
+        type: "error",
+        message: error.message || "Could not remove the stored face profile.",
+      });
+    } finally {
+      setDeletingFacePose("");
     }
   }
 
@@ -565,18 +646,19 @@ export default function AdminDirectoryPage() {
               of <span className="font-semibold text-slate-900">{students.length}</span> students.
             </p>
             <p className="hidden text-right md:block">
-              Edit records, replace face images, or remove student accounts directly from the directory.
+              Edit records, manage face poses, or remove student accounts directly from the directory.
             </p>
           </div>
         </PageCard>
 
         <PageCard className="overflow-hidden p-0">
-          <Table className="min-w-[70rem]">
+          <Table className="min-w-[78rem]">
             <TableHeader className="bg-slate-50">
               <TableRow>
                 <TableHead className="px-6">Photo</TableHead>
                 <TableHead className="px-6">ID</TableHead>
                 <TableHead className="px-6">Name</TableHead>
+                <TableHead className="px-6">Face Set</TableHead>
                 <TableHead className="px-6">Email</TableHead>
                 <TableHead className="px-6">Phone</TableHead>
                 <TableHead className="px-6">Registered</TableHead>
@@ -587,7 +669,7 @@ export default function AdminDirectoryPage() {
             <TableBody>
               {sortedStudents.length === 0 ? (
                 <TableRow>
-                  <TableCell className="px-6 py-8 text-slate-500" colSpan="7">
+                  <TableCell className="px-6 py-8 text-slate-500" colSpan="8">
                     No students matched the current search and sort settings.
                   </TableCell>
                 </TableRow>
@@ -605,6 +687,18 @@ export default function AdminDirectoryPage() {
                       </TableCell>
                       <TableCell className="px-6 font-medium">{student.student_id}</TableCell>
                       <TableCell className="px-6">{student.full_name}</TableCell>
+                      <TableCell className="px-6">
+                        <div>
+                          <p className="font-medium text-slate-900">
+                            {student.face_profile_count || 0}/3 poses
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {student.has_complete_face_enrollment
+                              ? "Complete face set"
+                              : `Missing: ${(student.missing_face_poses || []).join(", ")}`}
+                          </p>
+                        </div>
+                      </TableCell>
                       <TableCell className="px-6">{student.email || "-"}</TableCell>
                       <TableCell className="px-6">{student.phone_number || "-"}</TableCell>
                       <TableCell className="px-6">{formatDateTime(student.created_at)}</TableCell>
@@ -646,6 +740,7 @@ export default function AdminDirectoryPage() {
         form={editStudentForm}
         previewUrls={editStudentPreviewUrls}
         isSaving={isSavingEditStudent}
+        deletingPose={deletingFacePose}
         onClose={closeEditModal}
         onFieldChange={(field, value) =>
           setEditStudentForm((current) => ({
@@ -653,6 +748,7 @@ export default function AdminDirectoryPage() {
             [field]: value,
           }))
         }
+        onDeletePose={handleDeleteFacePose}
         onPoseImageChange={handleEditPoseImageChange}
         onSubmit={handleEditStudent}
       />

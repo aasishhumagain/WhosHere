@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
+from app.admins import get_admin_actor_label
 from app.attendance import (
     build_attendance_export_filename,
     build_attendance_verification_details,
@@ -14,6 +15,10 @@ from app.attendance import (
     serialize_attendance,
     validate_attendance_capture_hold,
     validate_attendance_geofence,
+)
+from app.attendance_reviews import (
+    add_attendance_review_entry,
+    serialize_attendance_review_entry,
 )
 from app.audit import add_session_audit_log
 from app.dependencies import (
@@ -30,11 +35,30 @@ from app.face_utils import (
     generate_face_encoding,
     is_current_face_encoding,
 )
-from app.models import AttendanceRecord, Student
+from app.fallback_requests import (
+    build_storage_datetime_for_local_date,
+    get_attendance_fallback_request_or_404,
+    serialize_attendance_fallback_request,
+)
+from app.models import (
+    AttendanceFallbackRequest,
+    AttendanceRecord,
+    AttendanceReviewTrail,
+    Student,
+)
 from app.storage import remove_file, save_temp_face_image
 from app.students import get_public_student_id, get_student_actor_label
-from app.time_utils import convert_storage_datetime_to_local, get_day_bounds, serialize_local_datetime
-from app.validation import validate_attendance_status
+from app.time_utils import convert_storage_datetime_to_local, get_day_bounds, get_local_now, serialize_local_datetime
+from app.validation import (
+    normalize_optional_text,
+    parse_iso_date,
+    validate_attendance_fallback_issue_type,
+    validate_attendance_fallback_status,
+    validate_attendance_status,
+    validate_fallback_reason,
+    validate_requested_attendance_status,
+    validate_review_note,
+)
 
 router = APIRouter(tags=["Attendance"])
 
@@ -274,6 +298,249 @@ def mark_attendance(
     }
 
 
+@router.post("/attendance/fallback-requests", summary="Create fallback attendance request")
+def create_attendance_fallback_request(
+    issue_type: str = Form(...),
+    reason: str = Form(...),
+    requested_status: str | None = Form("present"),
+    attendance_date: str | None = Form(None),
+    failure_context: str | None = Form(None),
+    db: Session = Depends(get_db),
+    student_session: dict = Depends(require_student_session),
+):
+    student = student_session["student"]
+    target_date = (
+        parse_iso_date(attendance_date, "attendance date")
+        if normalize_optional_text(attendance_date)
+        else get_local_now().date()
+    )
+    validated_issue_type = validate_attendance_fallback_issue_type(issue_type)
+    validated_reason = validate_fallback_reason(reason)
+    validated_requested_status = validate_requested_attendance_status(requested_status)
+    normalized_failure_context = normalize_optional_text(failure_context)
+
+    existing_pending_request = (
+        db.query(AttendanceFallbackRequest)
+        .filter(
+            AttendanceFallbackRequest.student_id == student.id,
+            AttendanceFallbackRequest.attendance_date == target_date,
+            AttendanceFallbackRequest.status == "pending",
+        )
+        .first()
+    )
+
+    if existing_pending_request:
+        raise HTTPException(
+            status_code=400,
+            detail="A pending fallback attendance request already exists for that date.",
+        )
+
+    day_start, next_day_start = get_day_bounds(target_date)
+    existing_attendance = (
+        db.query(AttendanceRecord)
+        .filter(
+            AttendanceRecord.student_id == student.id,
+            AttendanceRecord.marked_at >= day_start,
+            AttendanceRecord.marked_at < next_day_start,
+        )
+        .first()
+    )
+
+    if existing_attendance:
+        raise HTTPException(
+            status_code=400,
+            detail="Attendance already exists for that date. Ask the admin to review the existing record instead.",
+        )
+
+    fallback_request = AttendanceFallbackRequest(
+        student_id=student.id,
+        attendance_date=target_date,
+        requested_status=validated_requested_status,
+        issue_type=validated_issue_type,
+        reason=validated_reason,
+        failure_context=normalized_failure_context,
+        status="pending",
+    )
+    db.add(fallback_request)
+    db.commit()
+    db.refresh(fallback_request)
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=student_session,
+        action="attendance_fallback_requested",
+        target_type="attendance_fallback_request",
+        target_id=str(fallback_request.id),
+        target_label=get_student_actor_label(student),
+        details=(
+            f"Submitted a {validated_issue_type} fallback request for {target_date.isoformat()} "
+            f"with requested status {validated_requested_status}."
+        ),
+    )
+    db.commit()
+
+    return {
+        "message": "Fallback attendance request submitted successfully.",
+        "fallback_request": serialize_attendance_fallback_request(fallback_request),
+    }
+
+
+@router.get("/attendance/fallback-requests", summary="List fallback attendance requests")
+def get_attendance_fallback_requests(
+    db: Session = Depends(get_db),
+    _admin_session: dict = Depends(require_admin),
+):
+    fallback_requests = (
+        db.query(AttendanceFallbackRequest)
+        .options(joinedload(AttendanceFallbackRequest.student))
+        .order_by(AttendanceFallbackRequest.created_at.desc(), AttendanceFallbackRequest.id.desc())
+        .all()
+    )
+    return [serialize_attendance_fallback_request(fallback_request) for fallback_request in fallback_requests]
+
+
+@router.get(
+    "/attendance/fallback-requests/student/{student_id}",
+    summary="Get fallback attendance requests for one student",
+)
+def get_student_attendance_fallback_requests(
+    student_id: str,
+    db: Session = Depends(get_db),
+    authenticated_session: dict = Depends(get_authenticated_session),
+):
+    student = authorize_student_access(student_id, authenticated_session, db)
+    fallback_requests = (
+        db.query(AttendanceFallbackRequest)
+        .options(joinedload(AttendanceFallbackRequest.student))
+        .filter(AttendanceFallbackRequest.student_id == student.id)
+        .order_by(AttendanceFallbackRequest.created_at.desc(), AttendanceFallbackRequest.id.desc())
+        .all()
+    )
+    return [serialize_attendance_fallback_request(fallback_request) for fallback_request in fallback_requests]
+
+
+@router.put("/attendance/fallback-requests/{fallback_request_id}", summary="Review fallback attendance request")
+def review_attendance_fallback_request(
+    fallback_request_id: int,
+    status: str = Form(...),
+    review_note: str = Form(...),
+    attendance_status: str | None = Form(None),
+    db: Session = Depends(get_db),
+    admin_session: dict = Depends(require_admin),
+):
+    fallback_request = get_attendance_fallback_request_or_404(fallback_request_id, db)
+    validated_status = validate_attendance_fallback_status(status)
+    validated_review_note = validate_review_note(review_note)
+
+    if validated_status == "pending":
+        raise HTTPException(status_code=400, detail="Select Approved or Rejected to review the request.")
+
+    if fallback_request.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending fallback attendance requests can be reviewed.",
+        )
+
+    admin_user = admin_session.get("admin")
+    admin_actor_label = get_admin_actor_label(admin_user)
+    student_public_id = get_public_student_id(fallback_request.student) or str(fallback_request.student_id)
+    student_name = fallback_request.student.full_name if fallback_request.student else "Unknown Student"
+    fallback_request.reviewed_at = datetime.utcnow()
+    fallback_request.admin_note = validated_review_note
+
+    if validated_status == "approved":
+        resolved_attendance_status = validate_attendance_status(
+            attendance_status or fallback_request.requested_status
+        )
+        day_start, next_day_start = get_day_bounds(fallback_request.attendance_date)
+        existing_attendance = (
+            db.query(AttendanceRecord)
+            .filter(
+                AttendanceRecord.student_id == fallback_request.student_id,
+                AttendanceRecord.marked_at >= day_start,
+                AttendanceRecord.marked_at < next_day_start,
+            )
+            .first()
+        )
+
+        if existing_attendance:
+            raise HTTPException(
+                status_code=400,
+                detail="Attendance already exists for that date. Review the existing record instead.",
+            )
+
+        attendance_record = AttendanceRecord(
+            student_id=fallback_request.student_id,
+            status=resolved_attendance_status,
+            marked_at=build_storage_datetime_for_local_date(fallback_request.attendance_date),
+        )
+        db.add(attendance_record)
+        db.flush()
+
+        fallback_request.status = "approved"
+        fallback_request.approved_attendance_status = resolved_attendance_status
+
+        add_attendance_review_entry(
+            db=db,
+            attendance_record=attendance_record,
+            attendance_record_id=attendance_record.id,
+            student_id=student_public_id,
+            student_name=student_name,
+            action="fallback_approved",
+            review_note=validated_review_note,
+            reviewed_by_admin_id=admin_user.id if admin_user else None,
+            reviewed_by_admin_label=admin_actor_label,
+            previous_status=None,
+            next_status=resolved_attendance_status,
+        )
+
+        add_session_audit_log(
+            db=db,
+            authenticated_session=admin_session,
+            action="attendance_fallback_approved",
+            target_type="attendance_fallback_request",
+            target_id=str(fallback_request.id),
+            target_label=get_student_actor_label(fallback_request.student),
+            details=(
+                f"Approved fallback request for {fallback_request.attendance_date.isoformat()} "
+                f"and created an attendance record with status {resolved_attendance_status}. "
+                f"Review note: {validated_review_note}"
+            ),
+        )
+        db.commit()
+        db.refresh(fallback_request)
+        db.refresh(attendance_record)
+
+        return {
+            "message": "Fallback request approved and attendance recorded successfully.",
+            "fallback_request": serialize_attendance_fallback_request(fallback_request),
+            "attendance": serialize_attendance(attendance_record),
+        }
+
+    fallback_request.status = "rejected"
+    fallback_request.approved_attendance_status = None
+
+    add_session_audit_log(
+        db=db,
+        authenticated_session=admin_session,
+        action="attendance_fallback_rejected",
+        target_type="attendance_fallback_request",
+        target_id=str(fallback_request.id),
+        target_label=get_student_actor_label(fallback_request.student),
+        details=(
+            f"Rejected fallback request for {fallback_request.attendance_date.isoformat()}. "
+            f"Review note: {validated_review_note}"
+        ),
+    )
+    db.commit()
+    db.refresh(fallback_request)
+
+    return {
+        "message": "Fallback request rejected successfully.",
+        "fallback_request": serialize_attendance_fallback_request(fallback_request),
+    }
+
+
 @router.get("/attendance", summary="List attendance records")
 def get_attendance(
     db: Session = Depends(get_db),
@@ -281,6 +548,26 @@ def get_attendance(
 ):
     records = db.query(AttendanceRecord).order_by(AttendanceRecord.marked_at.desc()).all()
     return [serialize_attendance(record) for record in records]
+
+
+@router.get("/attendance/review-trail", summary="List attendance review trail")
+def get_attendance_review_trail(
+    attendance_id: int | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _admin_session: dict = Depends(require_admin),
+):
+    query = db.query(AttendanceReviewTrail)
+
+    if attendance_id is not None:
+        query = query.filter(AttendanceReviewTrail.attendance_record_id == attendance_id)
+
+    review_entries = (
+        query.order_by(AttendanceReviewTrail.created_at.desc(), AttendanceReviewTrail.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [serialize_attendance_review_entry(review_entry) for review_entry in review_entries]
 
 
 @router.get("/attendance/export", summary="Export attendance CSV")
@@ -369,29 +656,61 @@ def export_attendance(
 def update_attendance(
     attendance_id: int,
     status: str = Form(...),
+    review_note: str = Form(...),
     db: Session = Depends(get_db),
     admin_session: dict = Depends(require_admin),
 ):
     attendance = get_attendance_or_404(attendance_id, db)
     previous_status = attendance.status
-    attendance.status = validate_attendance_status(status)
+    next_status = validate_attendance_status(status)
+    validated_review_note = validate_review_note(review_note)
+    admin_user = admin_session.get("admin")
+    admin_actor_label = get_admin_actor_label(admin_user)
+    student_public_id = get_public_student_id(attendance.student) or str(attendance.student_id)
+    student_name = attendance.student.full_name if attendance.student else "Unknown Student"
 
-    db.commit()
-    db.refresh(attendance)
+    review_action = "review_confirmed"
+    response_message = "Attendance review saved successfully."
+
+    if next_status != previous_status:
+        attendance.status = next_status
+        review_action = "status_updated"
+        response_message = "Attendance updated successfully."
+
+    add_attendance_review_entry(
+        db=db,
+        attendance_record=attendance,
+        attendance_record_id=attendance.id,
+        student_id=student_public_id,
+        student_name=student_name,
+        action=review_action,
+        review_note=validated_review_note,
+        reviewed_by_admin_id=admin_user.id if admin_user else None,
+        reviewed_by_admin_label=admin_actor_label,
+        previous_status=previous_status,
+        next_status=next_status,
+    )
 
     add_session_audit_log(
         db=db,
         authenticated_session=admin_session,
-        action="attendance_updated",
+        action="attendance_updated" if next_status != previous_status else "attendance_reviewed",
         target_type="attendance_record",
         target_id=str(attendance.id),
-        target_label=attendance.student.full_name if attendance.student else "Unknown Student",
-        details=f"Changed attendance status from {previous_status} to {attendance.status}.",
+        target_label=student_name,
+        details=(
+            f"Changed attendance status from {previous_status} to {next_status}. "
+            if next_status != previous_status
+            else f"Confirmed attendance status remained {previous_status}. "
+        )
+        + f"Review note: {validated_review_note}",
     )
+
     db.commit()
+    db.refresh(attendance)
 
     return {
-        "message": "Attendance updated successfully",
+        "message": response_message,
         "attendance": serialize_attendance(attendance),
     }
 
@@ -399,14 +718,30 @@ def update_attendance(
 @router.delete("/attendance/{attendance_id}", summary="Delete attendance")
 def delete_attendance(
     attendance_id: int,
+    review_note: str = Form(...),
     db: Session = Depends(get_db),
     admin_session: dict = Depends(require_admin),
 ):
     attendance = get_attendance_or_404(attendance_id, db)
+    validated_review_note = validate_review_note(review_note)
+    admin_user = admin_session.get("admin")
+    admin_actor_label = get_admin_actor_label(admin_user)
     attendance_target_label = attendance.student.full_name if attendance.student else "Unknown Student"
+    student_public_id = get_public_student_id(attendance.student) or str(attendance.student_id)
 
-    db.delete(attendance)
-    db.commit()
+    add_attendance_review_entry(
+        db=db,
+        attendance_record=attendance,
+        attendance_record_id=attendance.id,
+        student_id=student_public_id,
+        student_name=attendance_target_label,
+        action="record_deleted",
+        review_note=validated_review_note,
+        reviewed_by_admin_id=admin_user.id if admin_user else None,
+        reviewed_by_admin_label=admin_actor_label,
+        previous_status=attendance.status,
+        next_status=None,
+    )
 
     add_session_audit_log(
         db=db,
@@ -415,8 +750,10 @@ def delete_attendance(
         target_type="attendance_record",
         target_id=str(attendance_id),
         target_label=attendance_target_label,
-        details="Deleted an attendance record.",
+        details=f"Deleted an attendance record. Review note: {validated_review_note}",
     )
+
+    db.delete(attendance)
     db.commit()
 
     return {"message": "Attendance deleted successfully"}
