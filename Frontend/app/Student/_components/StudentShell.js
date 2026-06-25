@@ -156,7 +156,6 @@ export default function StudentShell({
     try {
       await logoutStudent(studentSession.studentToken);
     } catch {
-      // Best effort logout.
     } finally {
       clearStudentSessionStorage();
       router.push("/login");
@@ -234,7 +233,7 @@ export default function StudentShell({
                               {studentSession.studentName}
                             </span>
                             <span className="block text-xs text-muted-foreground">
-                              Account Menu
+                              Account
                             </span>
                           </span>
                         </span>
@@ -257,7 +256,7 @@ export default function StudentShell({
                               {studentSession.studentName}
                             </p>
                             <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-                              Student account
+                              Student profile
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
                               ID {studentSession.studentId || "Not assigned"}
@@ -293,7 +292,7 @@ export default function StudentShell({
                           <LogOut className="size-4" />
                         </span>
                         <span className="flex-1 text-sm font-medium">
-                          {loggingOut ? "Logging Out..." : "Logout"}
+                          {loggingOut ? "Signing out..." : "Logout"}
                         </span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -316,7 +315,7 @@ export default function StudentShell({
                     </span>
                   ) : (
                     <span className="text-slate-600">
-                      Open attendance history, leave requests, and your profile from the menu.
+                      Use the menu to open attendance history, leave requests, and your profile.
                     </span>
                   )}
                 </div>
@@ -326,9 +325,8 @@ export default function StudentShell({
             <Separator />
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="font-medium text-slate-700">Student area</span>
-              <span>Attendance capture is always at the top.</span>
-              <span>History, leave requests, and profile stay in the account menu.</span>
+              <span className="font-medium text-slate-700">Student workspace</span>
+              <span>Use the dashboard for status updates and the capture page for attendance check-in.</span>
             </div>
           </CardHeader>
         </Card>

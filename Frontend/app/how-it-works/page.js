@@ -15,18 +15,18 @@ import {
 const STEPS = [
   {
     step: "01",
-    title: "Set up the portal",
-    detail: "The admin signs in, registers students, and saves their face photos.",
+    title: "Enroll students",
+    detail: "Administrators create student records and save the required face captures.",
   },
   {
     step: "02",
-    title: "Students log in",
-    detail: "Students sign in, mark attendance, and check their own record.",
+    title: "Capture attendance",
+    detail: "Students sign in, complete the live check-in flow, and submit attendance.",
   },
   {
     step: "03",
-    title: "Review the records",
-    detail: "Admins review attendance, fix mistakes, and respond to leave requests.",
+    title: "Review operations",
+    detail: "Administrators review attendance activity, manage corrections, and process leave requests.",
   },
 ];
 
@@ -40,14 +40,14 @@ export default function HowItWorksPage() {
               variant="outline"
               className="w-fit rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary"
             >
-              How It Works
+              Workflow
             </Badge>
             <div>
               <CardTitle className="text-4xl tracking-tight text-slate-950">
-                How the system works
+                Operational workflow
               </CardTitle>
               <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                The full flow is simple: set up students, mark attendance, then review the records.
+                Enrollment, attendance capture, and record review follow a straightforward three-step flow.
               </CardDescription>
             </div>
           </CardHeader>
@@ -73,14 +73,14 @@ export default function HowItWorksPage() {
         <Card className="border-dashed border-primary/20 bg-white/72 shadow-none dark:bg-slate-950/78">
           <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-lg font-semibold text-slate-950">Ready to try the flow?</p>
+              <p className="text-lg font-semibold text-slate-950">Open the portal</p>
               <p className="mt-2 text-sm text-slate-600">
-                Use Get Started to continue as a student or admin.
+                Sign in as a student or administrator to continue.
               </p>
             </div>
 
             <Link href="/login" className={buttonVariants({ size: "lg" })}>
-              Get Started
+              Sign In
               <ArrowRight className="size-4" />
             </Link>
           </CardContent>

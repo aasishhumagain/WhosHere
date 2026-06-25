@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, LocateFixed, RotateCcw, ShieldCheck } from "lucide-react";
+import { Camera, LocateFixed, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -374,23 +374,23 @@ export default function StudentAttendanceCapturePage() {
         ? `Hold steady. Automatic capture starts in ${countdownSeconds}s.`
         : cameraOpen
           ? "Preparing the live camera preview..."
-          : "Restart the live check if you need another automatic capture.";
+          : "Restart the check-in if you need another capture.";
 
   return (
     <StudentShell
       studentSession={studentSession}
       pageLabel="Attendance Capture"
-      title="Live Attendance Check"
-      subtitle="Your camera opens automatically, your location is verified, and attendance is submitted after a five-second live hold."
+      title="Attendance Check-In"
+      subtitle="Camera access starts automatically, location is verified, and attendance is submitted after a five-second hold."
     >
       <canvas ref={canvasRef} className="hidden" />
 
       <div className="grid gap-6 xl:grid-cols-[1.04fr,0.96fr]">
         <PageCard>
           <SectionIntro
-            eyebrow="Automatic Verification"
-            title="Stay in frame for five seconds"
-            description="This page uses a live front-camera capture and a location check. Gallery-style uploads are not used here."
+            eyebrow="Check-In"
+            title="Hold position for five seconds"
+            description="Attendance uses a live front-camera capture together with location verification."
           />
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -402,7 +402,7 @@ export default function StudentAttendanceCapturePage() {
               disabled={preparingLiveCheck || loadingAttendance}
             >
               <RotateCcw className="size-4" />
-              {selectedFile || attendanceResult ? "Restart Live Check" : "Start Live Check Again"}
+              {selectedFile || attendanceResult ? "Restart Check-In" : "Start Check-In"}
             </Button>
           </div>
 
@@ -415,7 +415,7 @@ export default function StudentAttendanceCapturePage() {
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">Live camera status</p>
+                    <p className="text-sm font-semibold text-slate-900">Camera status</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">{liveCheckStatus}</p>
                   </div>
                 </div>
@@ -426,11 +426,11 @@ export default function StudentAttendanceCapturePage() {
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">Geofence status</p>
+                    <p className="text-sm font-semibold text-slate-900">Location status</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       {locationSnapshot
                         ? `Location verified with approximately ${Math.round(locationSnapshot.accuracyMeters || 0)} meters accuracy.`
-                        : "Location access is required before attendance can be captured."}
+                        : "Location access must be approved before check-in can continue."}
                     </p>
                   </div>
                 </div>
@@ -468,10 +468,10 @@ export default function StudentAttendanceCapturePage() {
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
                   <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-700">
-                    Live camera only
+                    Live capture
                   </span>
                   <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                    Geofence required
+                    Location verified
                   </span>
                   <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
                     {countdownSeconds}s hold
@@ -502,41 +502,25 @@ export default function StudentAttendanceCapturePage() {
         <div className="grid gap-6">
           <PageCard>
             <PhotoPreviewCard
-              title="Captured Image Preview"
-              subtitle="This preview shows the most recent automatic live capture sent for attendance."
+              title="Latest capture"
+              subtitle="Most recent frame submitted for attendance."
               imageUrl={previewUrl}
-              fallbackLabel="The automatic capture preview will appear here after the five-second live check finishes."
+              fallbackLabel="The submitted capture will appear here after check-in completes."
             />
           </PageCard>
 
           <PageCard>
             <SectionIntro
-              eyebrow="Verification Rules"
-              title="What changed for attendance"
-              description="The capture step is now stricter so attendance behaves more like a live check-in."
+              eyebrow="Requirements"
+              title="Check-in requirements"
+              description="Attendance is submitted only after the full live verification flow completes."
             />
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
-              <li>The page requests the front camera automatically instead of waiting for a manual open step.</li>
-              <li>Attendance capture waits for a five-second live hold before sending the image.</li>
-              <li>Location permission is required so the backend can enforce the attendance geofence.</li>
-              <li>If the match fails, restart the live check and stay centered with good lighting.</li>
+              <li>Camera access opens automatically for the check-in flow.</li>
+              <li>Attendance capture waits for a five-second hold before sending the image.</li>
+              <li>Location permission is required so the backend can apply the attendance geofence.</li>
+              <li>If matching fails, restart the check-in and stay centered with steady lighting.</li>
             </ul>
-          </PageCard>
-
-          <PageCard>
-            <div className="flex items-start gap-3">
-              <div className="rounded-2xl bg-slate-900 p-3 text-white">
-                <ShieldCheck className="size-5" />
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Important limitation</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  This hardens browser attendance by forcing a live capture path, but browsers still
-                  cannot completely block advanced virtual camera or GPS spoofing tools on compromised devices.
-                </p>
-              </div>
-            </div>
           </PageCard>
         </div>
       </div>

@@ -16,17 +16,17 @@ const FEATURE_CARDS = [
   {
     icon: Camera,
     label: "Attendance Capture",
-    detail: "Students can open the camera, take a photo, and mark attendance.",
+    detail: "Students complete attendance through a live camera check with location verification.",
   },
   {
     icon: Users,
     label: "Student Self-Service",
-    detail: "Students can check attendance history, request leave, and change passwords.",
+    detail: "Students can review attendance history, submit leave requests, and manage passwords.",
   },
   {
     icon: ShieldCheck,
     label: "Admin Control",
-    detail: "Admins can register students, fix attendance, review logs, and manage leave requests.",
+    detail: "Admins handle enrollment, attendance review, audit logs, and leave approvals.",
   },
 ];
 
@@ -40,14 +40,14 @@ export default function FeaturesPage() {
               variant="outline"
               className="w-fit rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary"
             >
-              Features
+              Capabilities
             </Badge>
             <div>
               <CardTitle className="text-4xl tracking-tight text-slate-950">
-                What WhosHere includes
+                Core platform capabilities
               </CardTitle>
               <CardDescription className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                These are the main parts of the system before you log in.
+                Operational coverage across student check-in and admin management.
               </CardDescription>
             </div>
           </CardHeader>
@@ -77,14 +77,14 @@ export default function FeaturesPage() {
         <Card className="border-dashed border-primary/20 bg-white/72 shadow-none dark:bg-slate-950/78">
           <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-lg font-semibold text-slate-950">Built for everyday use</p>
+              <p className="text-lg font-semibold text-slate-950">Ready for daily operations</p>
               <p className="mt-2 text-sm text-slate-600">
-                The project already covers registration, attendance, leave handling, reports, and logs.
+                Enrollment, attendance, leave handling, reports, and logs are available in one workflow.
               </p>
             </div>
 
             <Link href="/login" className={buttonVariants({ size: "lg" })}>
-              Get Started
+              Sign In
               <ArrowRight className="size-4" />
             </Link>
           </CardContent>

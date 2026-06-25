@@ -406,9 +406,9 @@ export default function StudentProfilePage() {
 
         <PageCard>
           <SectionIntro
-            eyebrow="Security Tips"
-            title="Keep your password safe"
-            description="A few simple steps can help protect your account."
+            eyebrow="Account Security"
+            title="Password guidance"
+            description="Keep your password private and update it when needed."
           />
           <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
             <li>Use a password that is different from the one used on other sites.</li>

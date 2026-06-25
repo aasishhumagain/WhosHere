@@ -526,9 +526,9 @@ export default function AdminRegisterStudentPage() {
 
           <PageCard>
             <SectionIntro
-              eyebrow="Enrollment Tips"
-              title="Tips before saving"
-              description="Clear photos and correct student details help the system match faces more reliably."
+              eyebrow="Enrollment Notes"
+              title="Before saving"
+              description="Confirm the student details and image quality before creating the account."
             />
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
               <li>Capture all three poses in the same lighting so the model sees a consistent face set.</li>

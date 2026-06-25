@@ -15,35 +15,35 @@ import {
 const WELCOME_CARDS = [
   {
     icon: Camera,
-    label: "Student Attendance",
-    detail: "Students can sign in, mark attendance, check their record, and send leave requests.",
+    label: "Attendance Capture",
+    detail: "Students complete live check-ins, review attendance history, and submit leave requests.",
   },
   {
     icon: LayoutDashboard,
-    label: "Student and Admin Side",
-    detail: "Students and admins each get their own pages, so the system is easier to use.",
+    label: "Role-Based Access",
+    detail: "Separate student and admin workspaces keep daily actions focused and secure.",
   },
   {
     icon: ClipboardCheck,
-    label: "Reliable Records",
-    detail: "Attendance, leave requests, reports, and logs stay together in one system.",
+    label: "Operational Records",
+    detail: "Attendance, leave, reporting, and audit activity stay connected in one system.",
   },
 ];
 
 const QUICK_LINKS = [
   {
     label: "Home",
-    detail: "Start from the main page and move to the login screen.",
+    detail: "Platform summary and sign-in access.",
     href: "/",
   },
   {
     label: "Features",
-    detail: "See the main parts of the project at a glance.",
+    detail: "Core capabilities across student and admin workflows.",
     href: "/features",
   },
   {
-    label: "How It Works",
-    detail: "See the basic flow from student registration to attendance review.",
+    label: "Workflow",
+    detail: "Enrollment, attendance capture, and review flow.",
     href: "/how-it-works",
   },
 ];
@@ -55,20 +55,20 @@ export default function WelcomePage() {
         <Card className="overflow-hidden border-white/70 bg-slate-950 text-white shadow-[0_30px_120px_rgba(15,23,42,0.28)]">
           <CardHeader className="gap-5 p-8">
             <Badge className="w-fit rounded-full border-0 bg-white/10 px-3 py-1 text-[0.72rem] uppercase tracking-[0.28em] text-blue-100">
-              Welcome
+              WhosHere
             </Badge>
             <CardTitle className="max-w-3xl text-5xl leading-tight tracking-tight text-white">
-              Attendance made easier for students and staff.
+              Attendance operations in one place.
             </CardTitle>
             <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
-              WhosHere is a face-recognition attendance system where students can mark attendance
-              and admins can manage records, leave requests, and reports.
+              WhosHere brings together live attendance capture, leave handling, and admin oversight
+              in a single portal.
             </CardDescription>
           </CardHeader>
 
           <CardContent className="flex flex-wrap items-center gap-4 px-8 pb-8">
             <Link href="/login" className={buttonVariants({ size: "lg" })}>
-              Get Started
+              Sign In
               <ArrowRight className="size-4" />
             </Link>
 
@@ -76,7 +76,7 @@ export default function WelcomePage() {
               href="/how-it-works"
               className={`${buttonVariants({ variant: "outline", size: "lg" })} border-white/40 bg-white text-slate-950 hover:bg-sky-50 hover:text-slate-950`}
             >
-              See How It Works
+              View Workflow
             </Link>
           </CardContent>
         </Card>
@@ -88,13 +88,13 @@ export default function WelcomePage() {
                 variant="outline"
                 className="w-fit rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary"
               >
-                Platform Snapshot
+                Overview
               </Badge>
               <CardTitle className="text-2xl tracking-tight text-slate-950">
-                A quick look at the project
+                Platform overview
               </CardTitle>
               <CardDescription className="text-sm leading-6 text-slate-600">
-                Use these pages to understand the system first, then log in as a student or admin.
+                Review the core areas or move straight to sign-in.
               </CardDescription>
             </CardHeader>
           </Card>

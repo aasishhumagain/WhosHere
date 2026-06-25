@@ -147,7 +147,6 @@ export default function AdminShell({
     try {
       await logoutAdmin(adminSession.token);
     } catch {
-      // Best effort logout.
     } finally {
       clearAdminSessionStorage();
       router.push("/login");
@@ -225,7 +224,7 @@ export default function AdminShell({
                               {adminSession.username}
                             </span>
                             <span className="block text-xs text-muted-foreground">
-                              Admin Menu
+                              Workspace
                             </span>
                           </span>
                         </span>
@@ -248,10 +247,10 @@ export default function AdminShell({
                               {adminSession.username}
                             </p>
                             <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
-                              Administrator Panel
+                              Admin workspace
                             </p>
                             <p className="truncate text-xs font-normal text-muted-foreground">
-                              Open students, attendance, logs, leave, and admin accounts from here.
+                              Access students, attendance, logs, leave, and admin accounts from this menu.
                             </p>
                           </div>
                         </div>
@@ -284,7 +283,7 @@ export default function AdminShell({
                           <LogOut className="size-4" />
                         </span>
                         <span className="flex-1 text-sm font-medium">
-                          {loggingOut ? "Logging Out..." : "Logout"}
+                          {loggingOut ? "Signing out..." : "Logout"}
                         </span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -292,7 +291,7 @@ export default function AdminShell({
                 </div>
 
                 <p className="pr-1 text-xs text-muted-foreground">
-                  Signed in as {adminSession.username}. Use the menu above to move between admin pages.
+                  Signed in as {adminSession.username}.
                 </p>
               </div>
             </div>
@@ -300,9 +299,8 @@ export default function AdminShell({
             <Separator />
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="font-medium text-slate-700">Admin area</span>
-              <span>Dashboard and registration stay upfront.</span>
-              <span>Student records, attendance, logs, and leave requests are all kept in separate pages.</span>
+              <span className="font-medium text-slate-700">Admin workspace</span>
+              <span>Manage students, attendance, leave requests, logs, and admin accounts from here.</span>
             </div>
           </CardHeader>
         </Card>

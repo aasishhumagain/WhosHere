@@ -174,7 +174,7 @@ export function StatCard({
 
 export function StudentLoadingScreen({
   title = "Loading student portal...",
-  description = "Getting your student page ready.",
+  description = "Loading your account and attendance data.",
 }) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.7),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(254,240,138,0.45),transparent_22%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_54%,#f9fafb_100%)] px-4 py-6 text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_24%),radial-gradient(circle_at_80%_18%,rgba(59,130,246,0.18),transparent_22%),linear-gradient(180deg,#020617_0%,#0f172a_55%,#111827_100%)] dark:text-slate-100 md:px-6">

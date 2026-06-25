@@ -18,7 +18,7 @@ export default function LoginPage() {
               variant="outline"
               className="w-fit rounded-full border-primary/15 bg-primary/6 px-3 py-1 text-primary"
             >
-              Get Started
+              Access Portal
             </Badge>
             <div>
               <CardTitle className="text-4xl tracking-tight text-slate-950">

@@ -20,7 +20,7 @@ const NAV_LINKS = [
   },
   {
     href: "/how-it-works",
-    label: "How It Works",
+    label: "Workflow",
     key: "how-it-works",
   },
 ];
@@ -78,7 +78,7 @@ export default function MarketingShell({ activePage, children }) {
                   "rounded-full px-6",
                 )}
               >
-                Get Started
+                Sign In
                 <ArrowRight className="size-4" />
               </Link>
             </div>

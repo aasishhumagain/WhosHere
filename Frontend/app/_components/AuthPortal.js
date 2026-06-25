@@ -26,17 +26,17 @@ const PLATFORM_FEATURES = [
   {
     icon: Camera,
     label: "Live Face Check",
-    detail: "Attendance is marked from a live camera photo matched with the saved student photos.",
+    detail: "Attendance is recorded from a live camera capture matched against enrolled student photos.",
   },
   {
     icon: ShieldCheck,
     label: "Admin Tools",
-    detail: "Admins can manage students, attendance, leave requests, reports, and logs.",
+    detail: "Admins manage enrollment, attendance records, leave requests, reports, and audit activity.",
   },
   {
     icon: Users,
     label: "Student Tools",
-    detail: "Students can check attendance history, send leave requests, and change passwords.",
+    detail: "Students can review attendance history, submit leave requests, and manage account access.",
   },
 ];
 
@@ -189,14 +189,14 @@ export default function AuthPortal() {
       <Card className="overflow-hidden border-white/70 bg-slate-950 text-white shadow-[0_30px_120px_rgba(15,23,42,0.28)]">
         <CardHeader className="relative gap-5 p-8 pb-0">
           <Badge className="w-fit rounded-full border-0 bg-white/10 px-3 py-1 text-[0.72rem] uppercase tracking-[0.28em] text-blue-100">
-            WhosHere Platform
+            WhosHere
           </Badge>
           <CardTitle className="max-w-2xl text-5xl leading-tight tracking-tight text-white">
-            Choose the right login to continue.
+            Access the attendance platform
           </CardTitle>
           <CardDescription className="max-w-2xl text-base leading-7 text-slate-300">
-            Students use this system for daily attendance and leave requests. Admins use it to
-            register students, manage records, and review reports.
+            Students use WhosHere for attendance and leave requests. Administrators handle
+            enrollment, records, and operational review.
           </CardDescription>
         </CardHeader>
 
@@ -226,13 +226,13 @@ export default function AuthPortal() {
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
-              Duplicate attendance blocked
+              Live attendance verification
             </span>
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
-              Three face photos per student
+              Multi-angle face enrollment
             </span>
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
-              Leave request history
+              Leave and audit records
             </span>
           </div>
         </CardContent>
@@ -245,11 +245,11 @@ export default function AuthPortal() {
             button: "bg-blue-600 hover:bg-blue-700",
           }}
           badgeLabel="Student Access"
-          title="Student Login"
-          description="Use your student ID and password. If no password was set during registration, your first password is your student ID."
+          title="Student Sign In"
+          description="Enter your student ID and password to access attendance, history, and leave requests. New accounts can use the student ID as the initial password unless an admin set a custom one."
           loading={loadingStudent}
           loadingLabel="Signing In..."
-          submitLabel="Login as Student"
+          submitLabel="Student Sign In"
           message={studentMessage}
           onSubmit={studentLogin}
           fields={
@@ -285,11 +285,11 @@ export default function AuthPortal() {
             button: "bg-emerald-600 hover:bg-emerald-700",
           }}
           badgeLabel="Admin Access"
-          title="Administrator Login"
+          title="Admin Sign In"
           description="Use your admin username and password to open the admin dashboard."
           loading={loadingAdmin}
           loadingLabel="Signing In..."
-          submitLabel="Login as Administrator"
+          submitLabel="Admin Sign In"
           message={adminMessage}
           onSubmit={adminLogin}
           fields={
