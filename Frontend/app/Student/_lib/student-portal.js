@@ -351,9 +351,29 @@ export async function fetchStudentDashboardData(studentId, studentToken) {
   };
 }
 
-export function markStudentAttendance(studentToken, faceImage) {
+export function markStudentAttendance(studentToken, faceImage, verificationPayload = {}) {
   const formData = new FormData();
   formData.append("face_image", faceImage);
+
+  if (verificationPayload.latitude !== undefined && verificationPayload.latitude !== null) {
+    formData.append("latitude", String(verificationPayload.latitude));
+  }
+
+  if (verificationPayload.longitude !== undefined && verificationPayload.longitude !== null) {
+    formData.append("longitude", String(verificationPayload.longitude));
+  }
+
+  if (verificationPayload.accuracyMeters !== undefined && verificationPayload.accuracyMeters !== null) {
+    formData.append("accuracy_meters", String(verificationPayload.accuracyMeters));
+  }
+
+  if (verificationPayload.captureStartedAt) {
+    formData.append("capture_started_at", verificationPayload.captureStartedAt);
+  }
+
+  if (verificationPayload.captureCompletedAt) {
+    formData.append("capture_completed_at", verificationPayload.captureCompletedAt);
+  }
 
   return fetchStudentApi(
     "/attendance/mark",

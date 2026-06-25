@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import io
 import json
+import math
 import os
 import secrets
 import shutil
@@ -71,11 +72,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+def parse_optional_float_env(name: str):
+    raw_value = os.getenv(name)
+
+    if raw_value is None or not raw_value.strip():
+        return None
+
+    try:
+        return float(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be a valid number.") from exc
+
 ATTENDANCE_STATUSES = {"present", "absent", "late", "excused"}
 LEAVE_REQUEST_STATUSES = {"pending", "approved", "rejected"}
 STUDENT_ACCOUNT_ROLES = {"Student", "Staff"}
 ADMIN_BOOTSTRAP_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_BOOTSTRAP_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ATTENDANCE_MIN_CAPTURE_SECONDS = max(
+    0.0,
+    float(os.getenv("ATTENDANCE_CAPTURE_MIN_HOLD_SECONDS", "5")),
+)
+ATTENDANCE_GEOFENCE_LATITUDE = parse_optional_float_env("ATTENDANCE_GEOFENCE_LATITUDE")
+ATTENDANCE_GEOFENCE_LONGITUDE = parse_optional_float_env("ATTENDANCE_GEOFENCE_LONGITUDE")
+ATTENDANCE_GEOFENCE_RADIUS_METERS = max(
+    1.0,
+    float(os.getenv("ATTENDANCE_GEOFENCE_RADIUS_METERS", "150")),
+)
+ATTENDANCE_GEOFENCE_MAX_ACCURACY_METERS = max(
+    0.0,
+    float(os.getenv("ATTENDANCE_GEOFENCE_MAX_ACCURACY_METERS", "100")),
+)
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
@@ -544,6 +571,157 @@ def parse_iso_date(value: str, field_name: str):
             status_code=400,
             detail=f"Invalid {field_name}. Use YYYY-MM-DD format.",
         ) from exc
+
+
+def parse_iso_datetime(value: str, field_name: str):
+    normalized_value = (value or "").strip()
+
+    if not normalized_value:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} is required.",
+        )
+
+    try:
+        parsed_value = datetime.fromisoformat(normalized_value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {field_name}. Use ISO-8601 date-time format.",
+        ) from exc
+
+    if parsed_value.tzinfo is None:
+        parsed_value = parsed_value.replace(tzinfo=timezone.utc)
+
+    return parsed_value.astimezone(timezone.utc)
+
+
+def format_attendance_requirement_value(value: float):
+    return f"{value:g}"
+
+
+def get_attendance_geofence_configuration():
+    if ATTENDANCE_GEOFENCE_LATITUDE is None or ATTENDANCE_GEOFENCE_LONGITUDE is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Attendance geofence is not configured on the server yet.",
+        )
+
+    return (
+        ATTENDANCE_GEOFENCE_LATITUDE,
+        ATTENDANCE_GEOFENCE_LONGITUDE,
+        ATTENDANCE_GEOFENCE_RADIUS_METERS,
+    )
+
+
+def haversine_distance_meters(latitude_a: float, longitude_a: float, latitude_b: float, longitude_b: float):
+    earth_radius_meters = 6_371_000
+    latitude_a_radians = math.radians(latitude_a)
+    latitude_b_radians = math.radians(latitude_b)
+    latitude_delta = math.radians(latitude_b - latitude_a)
+    longitude_delta = math.radians(longitude_b - longitude_a)
+
+    haversine_value = (
+        math.sin(latitude_delta / 2) ** 2
+        + math.cos(latitude_a_radians)
+        * math.cos(latitude_b_radians)
+        * math.sin(longitude_delta / 2) ** 2
+    )
+    angular_distance = 2 * math.atan2(math.sqrt(haversine_value), math.sqrt(1 - haversine_value))
+
+    return earth_radius_meters * angular_distance
+
+
+def build_attendance_verification_details(
+    *,
+    hold_seconds: float | None = None,
+    accuracy_meters: float | None = None,
+    geofence_distance_meters: float | None = None,
+):
+    detail_parts = []
+
+    if hold_seconds is not None:
+        detail_parts.append(f"live hold {hold_seconds:.1f}s")
+
+    if accuracy_meters is not None:
+        detail_parts.append(f"location accuracy {accuracy_meters:.1f}m")
+
+    if geofence_distance_meters is not None:
+        detail_parts.append(f"distance from geofence center {geofence_distance_meters:.1f}m")
+
+    return ", ".join(detail_parts)
+
+
+def validate_attendance_capture_hold(capture_started_at: str | None, capture_completed_at: str | None):
+    parsed_started_at = parse_iso_datetime(capture_started_at or "", "capture_started_at")
+    parsed_completed_at = parse_iso_datetime(capture_completed_at or "", "capture_completed_at")
+    hold_seconds = (parsed_completed_at - parsed_started_at).total_seconds()
+
+    if hold_seconds < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid live capture timing data.",
+        )
+
+    if hold_seconds + 0.05 < ATTENDANCE_MIN_CAPTURE_SECONDS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Stay in the live camera frame for at least "
+                f"{format_attendance_requirement_value(ATTENDANCE_MIN_CAPTURE_SECONDS)} "
+                "seconds before attendance is captured."
+            ),
+        )
+
+    return hold_seconds
+
+
+def validate_attendance_geofence(
+    latitude: float | None,
+    longitude: float | None,
+    accuracy_meters: float | None,
+):
+    if latitude is None or longitude is None or accuracy_meters is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Location access is required to mark attendance inside the configured geofence.",
+        )
+
+    if not -90 <= latitude <= 90:
+        raise HTTPException(status_code=400, detail="Latitude must be between -90 and 90.")
+
+    if not -180 <= longitude <= 180:
+        raise HTTPException(status_code=400, detail="Longitude must be between -180 and 180.")
+
+    if accuracy_meters < 0:
+        raise HTTPException(status_code=400, detail="Location accuracy must be zero or greater.")
+
+    geofence_latitude, geofence_longitude, geofence_radius_meters = get_attendance_geofence_configuration()
+
+    if accuracy_meters > ATTENDANCE_GEOFENCE_MAX_ACCURACY_METERS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Location accuracy must be within "
+                f"{format_attendance_requirement_value(ATTENDANCE_GEOFENCE_MAX_ACCURACY_METERS)} "
+                "meters to mark attendance."
+            ),
+        )
+
+    distance_meters = haversine_distance_meters(
+        latitude,
+        longitude,
+        geofence_latitude,
+        geofence_longitude,
+    )
+
+    if distance_meters > geofence_radius_meters:
+        raise HTTPException(
+            status_code=403,
+            detail="You are outside the allowed attendance area.",
+        )
+
+    return distance_meters
 
 
 def get_day_bounds(target_date: date):
@@ -1993,9 +2171,43 @@ def student_logout(
 @app.post("/attendance/mark", tags=["Attendance"], summary="Mark attendance")
 def mark_attendance(
     face_image: UploadFile = File(...),
+    latitude: float | None = Form(None),
+    longitude: float | None = Form(None),
+    accuracy_meters: float | None = Form(None),
+    capture_started_at: str | None = Form(None),
+    capture_completed_at: str | None = Form(None),
     db: Session = Depends(get_db),
     student_session: dict = Depends(require_student_session),
 ):
+    hold_seconds = None
+    geofence_distance_meters = None
+
+    try:
+        hold_seconds = validate_attendance_capture_hold(capture_started_at, capture_completed_at)
+        geofence_distance_meters = validate_attendance_geofence(
+            latitude=latitude,
+            longitude=longitude,
+            accuracy_meters=accuracy_meters,
+        )
+    except HTTPException as exc:
+        add_session_audit_log(
+            db=db,
+            authenticated_session=student_session,
+            action="attendance_verification_failed",
+            target_type="attendance_record",
+            target_label="Attendance capture",
+            details=(
+                f"{exc.detail}. "
+                + build_attendance_verification_details(
+                    hold_seconds=hold_seconds,
+                    accuracy_meters=accuracy_meters,
+                    geofence_distance_meters=geofence_distance_meters,
+                )
+            ).strip(),
+        )
+        db.commit()
+        raise
+
     relative_temp_path, temp_file_path = save_temp_face_image(face_image)
 
     try:
@@ -2060,7 +2272,12 @@ def mark_attendance(
                 target_label=get_student_actor_label(best_match),
                 details=(
                     f"Matched another student with pose {best_match_pose or 'unknown'} "
-                    f"at confidence {best_match_score:.3f}."
+                    f"at confidence {best_match_score:.3f}. "
+                    + build_attendance_verification_details(
+                        hold_seconds=hold_seconds,
+                        accuracy_meters=accuracy_meters,
+                        geofence_distance_meters=geofence_distance_meters,
+                    )
                 ),
             )
             db.commit()
@@ -2091,7 +2308,14 @@ def mark_attendance(
                 target_type="attendance_record",
                 target_id=str(existing_attendance.id),
                 target_label=get_student_actor_label(best_match),
-                details="Attendance was already marked present for the current local day.",
+                details=(
+                    "Attendance was already marked present for the current local day. "
+                    + build_attendance_verification_details(
+                        hold_seconds=hold_seconds,
+                        accuracy_meters=accuracy_meters,
+                        geofence_distance_meters=geofence_distance_meters,
+                    )
+                ).strip(),
             )
             db.commit()
             return {
@@ -2100,6 +2324,11 @@ def mark_attendance(
                 "student": best_match.full_name,
                 "student_id": get_public_student_id(best_match),
                 "marked_at": serialize_local_datetime(existing_attendance.marked_at),
+                "live_hold_seconds": None if hold_seconds is None else float(hold_seconds),
+                "location_accuracy_meters": None if accuracy_meters is None else float(accuracy_meters),
+                "distance_from_geofence_meters": (
+                    None if geofence_distance_meters is None else float(geofence_distance_meters)
+                ),
             }
 
         attendance = AttendanceRecord(student_id=best_match.id, status="present")
@@ -2117,7 +2346,12 @@ def mark_attendance(
             target_label=get_student_actor_label(best_match),
             details=(
                 f"Marked attendance using the {best_match_pose or 'unknown'} pose "
-                f"at confidence {best_match_score:.3f}."
+                f"at confidence {best_match_score:.3f}. "
+                + build_attendance_verification_details(
+                    hold_seconds=hold_seconds,
+                    accuracy_meters=accuracy_meters,
+                    geofence_distance_meters=geofence_distance_meters,
+                )
             ),
         )
         db.commit()
@@ -2129,6 +2363,11 @@ def mark_attendance(
             "matched_pose": best_match_pose,
             "confidence": float(best_match_score),
             "marked_at": serialize_local_datetime(attendance.marked_at),
+            "live_hold_seconds": None if hold_seconds is None else float(hold_seconds),
+            "location_accuracy_meters": None if accuracy_meters is None else float(accuracy_meters),
+            "distance_from_geofence_meters": (
+                None if geofence_distance_meters is None else float(geofence_distance_meters)
+            ),
         }
 
     add_session_audit_log(
@@ -2140,7 +2379,14 @@ def mark_attendance(
         details=(
             "No matching student found."
             if best_match_score == float("-inf")
-            else f"No matching student found. Best confidence was {best_match_score:.3f}."
+            else (
+                f"No matching student found. Best confidence was {best_match_score:.3f}. "
+                + build_attendance_verification_details(
+                    hold_seconds=hold_seconds,
+                    accuracy_meters=accuracy_meters,
+                    geofence_distance_meters=geofence_distance_meters,
+                )
+            )
         ),
     )
     db.commit()
@@ -2149,6 +2395,11 @@ def mark_attendance(
         "status": "unknown",
         "message": "No matching student found",
         "confidence": None if best_match_score == float("-inf") else float(best_match_score),
+        "live_hold_seconds": None if hold_seconds is None else float(hold_seconds),
+        "location_accuracy_meters": None if accuracy_meters is None else float(accuracy_meters),
+        "distance_from_geofence_meters": (
+            None if geofence_distance_meters is None else float(geofence_distance_meters)
+        ),
     }
 
 
