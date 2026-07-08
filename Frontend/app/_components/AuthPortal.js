@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { setAdminSessionStorage } from "@/app/admin/_lib/admin-portal";
+import { setAdminSessionStorage } from "@/app/Admin/_lib/admin-portal";
 import { setStudentSessionStorage } from "@/app/Student/_lib/student-portal";
 
 const PLATFORM_FEATURES = [
@@ -174,7 +174,7 @@ export default function AuthPortal() {
         username: data.username || adminUsername,
       });
 
-      router.push("/admin");
+      router.push("/Admin");
     } catch (error) {
       setAdminMessage(
         error.message || "Invalid admin credentials. Please try again.",

@@ -32,31 +32,31 @@ const MENU = [
     icon: UserPlus,
     title: "Register Student",
     description: "Add a new student to the system",
-    href: "/admin/register",
+    href: "/Admin/register",
   },
   {
     icon: ClipboardCheck,
     title: "Mark Attendance",
     description: "Check students in and out",
-    href: "/admin/attendance",
+    href: "/Admin/attendance",
   },
   {
     icon: Users,
     title: "Student Directory",
     description: "View all registered students",
-    href: "/admin/directory",
+    href: "/Admin/directory",
   },
   {
     icon: RefreshCcw,
     title: "Leave Requests",
     description: "Manage student leave requests",
-    href: "/admin/leave",
+    href: "/Admin/leave",
   },
   {
     icon: ScrollText,
     title: "Audit Logs",
     description: "View system activity logs",
-    href: "/admin/logs",
+    href: "/Admin/logs",
   },
 ];
 

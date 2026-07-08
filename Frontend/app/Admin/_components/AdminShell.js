@@ -45,12 +45,12 @@ import {
 
 const PRIMARY_LINKS = [
   {
-    href: "/admin",
+    href: "/Admin",
     label: "Admin Dashboard",
     icon: LayoutDashboard,
   },
   {
-    href: "/admin/register",
+    href: "/Admin/register",
     label: "Register Student",
     icon: UserPlus,
   },
@@ -58,31 +58,31 @@ const PRIMARY_LINKS = [
 
 const MENU_LINKS = [
   {
-    href: "/admin/admin-directory",
+    href: "/Admin/admin-directory",
     label: "Admin Directory",
     icon: ShieldCheck,
     description: "Manage admin accounts and passwords",
   },
   {
-    href: "/admin/directory",
+    href: "/Admin/directory",
     label: "Student Directory",
     icon: Users,
     description: "View and edit students",
   },
   {
-    href: "/admin/attendance",
+    href: "/Admin/attendance",
     label: "Attendance Control",
     icon: ClipboardCheck,
     description: "Review and correct attendance",
   },
   {
-    href: "/admin/logs",
+    href: "/Admin/logs",
     label: "Audit Logs",
     icon: ScrollText,
     description: "Track logins, logouts, and system actions",
   },
   {
-    href: "/admin/leave",
+    href: "/Admin/leave",
     label: "Leave Requests",
     icon: Waves,
     description: "Approve or reject leave",
@@ -90,7 +90,7 @@ const MENU_LINKS = [
 ];
 
 function isLinkActive(pathname, href) {
-  if (href === "/admin") {
+  if (href === "/Admin") {
     return pathname === href;
   }
 
