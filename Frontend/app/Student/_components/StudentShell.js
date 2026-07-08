@@ -43,12 +43,12 @@ import {
 
 const PRIMARY_LINKS = [
   {
-    href: "/student",
+    href: "/Student",
     label: "Student Dashboard",
     icon: LayoutDashboard,
   },
   {
-    href: "/student/capture",
+    href: "/Student/capture",
     label: "Attendance Capture",
     icon: Camera,
   },
@@ -56,19 +56,19 @@ const PRIMARY_LINKS = [
 
 const MENU_LINKS = [
   {
-    href: "/student/history",
+    href: "/Student/history",
     label: "Attendance History",
     icon: Clock3,
     description: "Review marked attendance",
   },
   {
-    href: "/student/leave",
+    href: "/Student/leave",
     label: "Leave Requests",
     icon: Waves,
     description: "Submit and track leave",
   },
   {
-    href: "/student/profile",
+    href: "/Student/profile",
     label: "Profile",
     icon: UserRound,
     description: "See account details",
@@ -78,7 +78,7 @@ const MENU_LINKS = [
 function isLinkActive(pathname, href) {
   const normalizedHref = href.split("#")[0];
 
-  if (normalizedHref === "/student") {
+  if (normalizedHref === "/Student") {
     return pathname === normalizedHref;
   }
 

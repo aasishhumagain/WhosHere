@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { setAdminSessionStorage } from "@/app/admin/_lib/admin-portal";
-import { setStudentSessionStorage } from "@/app/student/_lib/student-portal";
+import { setStudentSessionStorage } from "@/app/Student/_lib/student-portal";
 
 const PLATFORM_FEATURES = [
   {
@@ -139,7 +139,7 @@ export default function AuthPortal() {
         faceImageUrl: data.face_image_url || "",
       });
 
-      router.push("/student");
+      router.push("/Student");
     } catch (error) {
       setStudentMessage(
         error.message ||
